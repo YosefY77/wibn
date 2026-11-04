@@ -20,13 +20,18 @@ namespace WinPlus
     {
         private bool _isChecked;
 
-        public BigFile(string path, long size)
+        public BigFile(string path, long size, bool isProtected)
         {
             Path = path;
             Size = size;
+            IsProtected = isProtected;
         }
 
         public string Path { get; }
+        /// <summary>A Windows / system file: shown, but can't be selected or deleted.</summary>
+        public bool IsProtected { get; }
+        public bool CanDelete => !IsProtected;
+        public string Tip => IsProtected ? Lang.T("ملف نظام أو ويندوز، ما ينحذف عشان ما يخرب الجهاز.") + "\n" + Path : Path;
         public long Size { get; }
         public string Name => System.IO.Path.GetFileName(Path);
         public string Folder => System.IO.Path.GetDirectoryName(Path) ?? "";
@@ -35,7 +40,7 @@ namespace WinPlus
         public bool IsChecked
         {
             get => _isChecked;
-            set { _isChecked = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
+            set { _isChecked = value && !IsProtected; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -143,20 +148,15 @@ namespace WinPlus
 
         private static List<BigFile> Scan(string root, ScanProgress progress, CancellationToken token)
         {
-            string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows).TrimEnd('\\') + "\\";
+            // Windows / system files are listed too (locked), only folders nobody can read are skipped.
             string[] skipFolders =
             {
-                windows,
                 root + "$Recycle.Bin\\",
                 root + "System Volume Information\\",
-                root + "Recovery\\",
-                root + "Config.Msi\\",
-                root + "$WinREAgent\\",
-                root + "Windows.old\\",
             };
 
             // Min-heap of the biggest files so far (smallest on top).
-            var heap = new PriorityQueue<string, long>(TopCount + 1);
+            var heap = new PriorityQueue<(string Path, bool Protected), long>(TopCount + 1);
             long threshold = 0;  // files smaller than this can't make the list
 
             var options = new EnumerationOptions
@@ -164,12 +164,12 @@ namespace WinPlus
                 RecurseSubdirectories = true,
                 IgnoreInaccessible = true,
                 ReturnSpecialDirectories = false,
-                AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System | FileAttributes.Offline,
+                AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.Offline,
             };
 
-            var files = new FileSystemEnumerable<(string Path, long Size)>(
+            var files = new FileSystemEnumerable<(string Path, long Size, FileAttributes Attributes)>(
                 root,
-                (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length),
+                (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length, entry.Attributes),
                 options)
             {
                 ShouldIncludePredicate = (ref FileSystemEntry entry) =>
@@ -194,9 +194,9 @@ namespace WinPlus
                 },
             };
 
-            foreach (var (path, size) in files)
+            foreach (var (path, size, attributes) in files)
             {
-                heap.Enqueue(path, size);
+                heap.Enqueue((path, SystemFiles.IsProtected(path, attributes)), size);
                 if (heap.Count > TopCount)
                 {
                     heap.Dequeue();
@@ -209,9 +209,9 @@ namespace WinPlus
             token.ThrowIfCancellationRequested();
 
             var result = new List<BigFile>(heap.Count);
-            while (heap.TryDequeue(out string? path, out long size))
+            while (heap.TryDequeue(out var item, out long size))
             {
-                result.Add(new BigFile(path, size));
+                result.Add(new BigFile(item.Path, size, item.Protected));
             }
             result.Reverse();  // biggest first
             return result;
@@ -240,7 +240,7 @@ namespace WinPlus
 
         private void OnDelete(object sender, RoutedEventArgs e)
         {
-            var selected = _files.Where(f => f.IsChecked).ToList();
+            var selected = _files.Where(f => f.IsChecked && !f.IsProtected).ToList();
             if (selected.Count == 0) return;
 
             var answer = MessageBox.Show(Window.GetWindow(this)!,

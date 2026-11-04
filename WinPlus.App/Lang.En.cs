@@ -25,6 +25,7 @@ namespace WinPlus
             ["محدد {0} ملف  ({1})"] = "{0} files selected  ({1})",
             ["تبي ترسل {0} ملف ({1}) لسلة المهملات؟"] = "Send {0} files ({1}) to the Recycle Bin?",
             ["حذف الملفات"] = "Delete files",
+            ["ملف نظام أو ويندوز، ما ينحذف عشان ما يخرب الجهاز."] = "A Windows / system file. It can't be deleted so your PC doesn't break.",
             ["فاضية"] = "Empty",
             ["{0:N0} عنصر  —  {1}"] = "{0:N0} items  —  {1}",
             ["تبي تفرغ سلة المهملات؟ الملفات بتنحذف نهائيًا وما ترجع."] = "Empty the Recycle Bin? The files will be deleted for good.",

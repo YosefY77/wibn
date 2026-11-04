@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -57,7 +58,8 @@ namespace WinPlus
         /// <summary>Sends files to the Recycle Bin (Windows warns if one is too big for it).</summary>
         public static void RecycleFiles(IntPtr owner, IEnumerable<string> paths)
         {
-            string from = string.Join("\0", paths);
+            // Never send a Windows / system file to the bin, whatever the caller passed.
+            string from = string.Join("\0", paths.Where(p => !SystemFiles.IsProtectedOnDisk(p)));
             if (from.Length == 0) return;
             var op = new SHFILEOPSTRUCT
             {

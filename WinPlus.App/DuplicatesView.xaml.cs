@@ -27,6 +27,10 @@ namespace WinPlus
         public string Path { get; init; } = "";
         public long Size { get; init; }
         public DateTime Modified { get; init; }
+        /// <summary>A Windows / system file: shown, but can't be selected or deleted.</summary>
+        public bool IsProtected { get; init; }
+        public bool CanDelete => IsFile && !IsProtected;
+        public string Tip => IsProtected ? Lang.T("ملف نظام أو ويندوز، ما ينحذف عشان ما يخرب الجهاز.") + "\n" + Path : Path;
         public string Name => System.IO.Path.GetFileName(Path);
         public string Folder => System.IO.Path.GetDirectoryName(Path) ?? "";
         public string DateText => IsHeader ? "" : Modified.ToString("yyyy/MM/dd");
@@ -34,7 +38,7 @@ namespace WinPlus
         public bool IsChecked
         {
             get => _isChecked;
-            set { _isChecked = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
+            set { _isChecked = value && !IsProtected; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked))); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -48,6 +52,15 @@ namespace WinPlus
     public partial class DuplicatesView : UserControl
     {
         private const int MaxGroups = 500;
+
+        private readonly record struct DupFile(string Path, long Size, DateTime Modified, bool Protected);
+
+        /// <summary>What deleting the extra copies frees (system copies stay, so they don't count).</summary>
+        private static long Savable(IReadOnlyCollection<DupFile> group)
+        {
+            int deletable = group.Count(f => !f.Protected);
+            return group.First().Size * Math.Min(group.Count - 1, deletable);
+        }
 
         private readonly ObservableCollection<DupRow> _rows = new();
         private CancellationTokenSource? _cts;
@@ -105,7 +118,7 @@ namespace WinPlus
             timer.Start();
 
             var watch = Stopwatch.StartNew();
-            List<List<(string Path, long Size, DateTime Modified)>> groups;
+            List<List<DupFile>> groups;
             try
             {
                 string folder = _folder;
@@ -124,7 +137,7 @@ namespace WinPlus
             }
 
             ShowGroups(groups);
-            long wasted = groups.Sum(g => g[0].Size * (g.Count - 1));
+            long wasted = groups.Sum(Savable);
             ScanStatus.Text = token.IsCancellationRequested
                 ? Lang.T("توقف الفحص.")
                 : groups.Count == 0
@@ -132,21 +145,19 @@ namespace WinPlus
                     : Lang.F("{0} ملف مكرر، تقدر توفر {1}  ({2:N0} ملف في {3:0} ثانية).", groups.Count, ShellOps.FormatSize(wasted), progress.Files, watch.Elapsed.TotalSeconds);
         }
 
-        private static List<List<(string Path, long Size, DateTime Modified)>> FindDuplicates(
+        private static List<List<DupFile>> FindDuplicates(
             string root, long minSize, Progress progress, CancellationToken token)
         {
-            string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows).TrimEnd('\\') + "\\";
-
-            // 1) Group by size.
-            var bySize = new Dictionary<long, List<string>>();
+            // 1) Group by size. Windows / system files are included (shown locked).
+            var bySize = new Dictionary<long, List<(string Path, bool Protected)>>();
             var options = new EnumerationOptions
             {
                 RecurseSubdirectories = true,
                 IgnoreInaccessible = true,
-                AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.System | FileAttributes.Offline,
+                AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.Offline,
             };
-            var files = new FileSystemEnumerable<(string, long)>(root,
-                (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length), options)
+            var files = new FileSystemEnumerable<(string, long, FileAttributes)>(root,
+                (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length, entry.Attributes), options)
             {
                 ShouldIncludePredicate = (ref FileSystemEntry entry) =>
                 {
@@ -162,25 +173,28 @@ namespace WinPlus
                 ShouldRecursePredicate = (ref FileSystemEntry entry) =>
                 {
                     string path = entry.ToFullPath() + "\\";
-                    return !path.StartsWith(windows, StringComparison.OrdinalIgnoreCase) &&
-                           !path.Contains("\\$Recycle.Bin\\", StringComparison.OrdinalIgnoreCase) &&
+                    return !path.Contains("\\$Recycle.Bin\\", StringComparison.OrdinalIgnoreCase) &&
                            !path.Contains("\\System Volume Information\\", StringComparison.OrdinalIgnoreCase);
                 },
             };
-            foreach (var (path, size) in files)
+            foreach (var (path, size, attributes) in files)
             {
-                if (!bySize.TryGetValue(size, out var list)) bySize[size] = list = new List<string>(1);
-                list.Add(path);
+                if (!bySize.TryGetValue(size, out var list)) bySize[size] = list = new(1);
+                list.Add((path, SystemFiles.IsProtected(path, attributes)));
             }
 
-            var candidates = bySize.Where(kv => kv.Value.Count > 1).ToList();
+            // Only sizes with at least one file the user may delete are worth reading.
+            var candidates = bySize.Where(kv => kv.Value.Count > 1 && kv.Value.Any(f => !f.Protected)).ToList();
             bySize = null!;  // free the rest early
 
             // 2) Same size → same first/last 64 KB → same full content.
-            var result = new List<List<(string, long, DateTime)>>();
+            var result = new List<List<DupFile>>();
             int done = 0;
-            foreach (var (size, paths) in candidates)
+            foreach (var (size, entries) in candidates)
             {
+                var paths = entries.Select(f => f.Path).ToList();
+                var protectedPaths = entries.Where(f => f.Protected).Select(f => f.Path)
+                                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 token.ThrowIfCancellationRequested();
                 progress.Stage = Lang.F("جاري مقارنة المحتوى… {0:N0} من {1:N0}", ++done, candidates.Count);
 
@@ -190,13 +204,15 @@ namespace WinPlus
                                                    : GroupByHash(quick, p => FullHash(p, token));
                     foreach (var group in exact)
                     {
-                        result.Add(group.Select(p => (p, size, SafeModified(p))).OrderBy(x => x.Item3).ToList());
+                        if (group.All(protectedPaths.Contains)) continue;  // nothing the user could delete
+                        result.Add(group.Select(p => new DupFile(p, size, SafeModified(p), protectedPaths.Contains(p)))
+                                        .OrderBy(x => x.Modified).ToList());
                     }
                 }
             }
 
             return result
-                .OrderByDescending(g => g[0].Item2 * (g.Count - 1))
+                .OrderByDescending(Savable)
                 .Take(MaxGroups)
                 .ToList();
         }
@@ -250,7 +266,7 @@ namespace WinPlus
 
         // ---- List -------------------------------------------------------------
 
-        private void ShowGroups(List<List<(string Path, long Size, DateTime Modified)>> groups)
+        private void ShowGroups(List<List<DupFile>> groups)
         {
             _rows.Clear();
             int id = 0;
@@ -262,11 +278,11 @@ namespace WinPlus
                 {
                     IsHeader = true,
                     Group = id,
-                    HeaderText = Lang.F("{0} نسخ  ×  {1}   (يوفر {2})", group.Count, ShellOps.FormatSize(size), ShellOps.FormatSize(size * (group.Count - 1))),
+                    HeaderText = Lang.F("{0} نسخ  ×  {1}   (يوفر {2})", group.Count, ShellOps.FormatSize(size), ShellOps.FormatSize(Savable(group))),
                 });
                 foreach (var f in group)
                 {
-                    _rows.Add(new DupRow { Group = id, Path = f.Path, Size = f.Size, Modified = f.Modified });
+                    _rows.Add(new DupRow { Group = id, Path = f.Path, Size = f.Size, Modified = f.Modified, IsProtected = f.Protected });
                 }
             }
             EmptyHint.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -285,10 +301,10 @@ namespace WinPlus
                 : "";
         }
 
-        /// <summary>Keeps the oldest copy of each file and selects the rest.</summary>
+        /// <summary>Keeps the oldest copy of each file and selects the rest (system copies are never selected).</summary>
         private void OnAutoSelect(object sender, RoutedEventArgs e)
         {
-            foreach (var group in _rows.Where(r => r.IsFile).GroupBy(r => r.Group))
+            foreach (var group in _rows.Where(r => r.CanDelete).GroupBy(r => r.Group))
             {
                 bool first = true;
                 foreach (var row in group.OrderBy(r => r.Modified))
@@ -310,12 +326,12 @@ namespace WinPlus
 
         private void OnDelete(object sender, RoutedEventArgs e)
         {
-            var selected = _rows.Where(r => r.IsFile && r.IsChecked).ToList();
+            var selected = _rows.Where(r => r.CanDelete && r.IsChecked).ToList();
             if (selected.Count == 0) return;
 
-            // Never delete every copy of a file by accident.
+            // Never delete every copy of a file by accident (a locked system copy always stays).
             var wholeGroups = _rows.Where(r => r.IsFile).GroupBy(r => r.Group)
-                                   .Where(g => g.All(r => r.IsChecked)).Count();
+                                   .Where(g => g.All(r => r.IsChecked && !r.IsProtected)).Count();
             string extra = wholeGroups > 0
                 ? Lang.F("\n\nانتبه: في {0} مجموعة حددت كل النسخ، يعني الملف بيروح كله.", wholeGroups)
                 : "";
@@ -332,8 +348,8 @@ namespace WinPlus
             // Rebuild the list without the files that are gone.
             var remaining = _rows.Where(r => r.IsFile && File.Exists(r.Path))
                                  .GroupBy(r => r.Group)
-                                 .Where(g => g.Count() > 1)
-                                 .Select(g => g.Select(r => (r.Path, r.Size, r.Modified)).ToList())
+                                 .Where(g => g.Count() > 1 && g.Any(r => !r.IsProtected))
+                                 .Select(g => g.Select(r => new DupFile(r.Path, r.Size, r.Modified, r.IsProtected)).ToList())
                                  .ToList();
             ShowGroups(remaining);
             FilesDeleted?.Invoke();

@@ -4,6 +4,13 @@
              xmlns:local="clr-namespace:WinPlus">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <Style x:Key="ProtectedFade" TargetType="Grid">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsProtected}" Value="True">
+                    <Setter Property="Opacity" Value="0.55"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="{StaticResource Card}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
@@ -57,15 +64,22 @@
                                            Foreground="#7FA8FF"
                                            Visibility="{Binding IsHeader, Converter={StaticResource BoolToVis}}"/>
                                 <!-- File row -->
-                                <Grid Visibility="{Binding IsFile, Converter={StaticResource BoolToVis}}">
+                                <Grid Visibility="{Binding IsFile, Converter={StaticResource BoolToVis}}"
+                                      Style="{StaticResource ProtectedFade}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"
-                                              Margin="0,0,10,0" Click="OnCheckClicked"/>
-                                    <StackPanel Grid.Column="1" ToolTip="{Binding Path}">
+                                              Margin="0,0,10,0" Click="OnCheckClicked" IsEnabled="{Binding CanDelete}"
+                                              Visibility="{Binding CanDelete, Converter={StaticResource BoolToVis}}"/>
+                                    <!-- Windows / system file: locked, can't be selected -->
+                                    <TextBlock Text="&#xE72E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
+                                               Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="1,0,11,0"
+                                               ToolTip="{local:Tr 'ملف نظام أو ويندوز، ما ينحذف عشان ما يخرب الجهاز.'}"
+                                               Visibility="{Binding IsProtected, Converter={StaticResource BoolToVis}}"/>
+                                    <StackPanel Grid.Column="1" ToolTip="{Binding Tip}">
                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"
                                                    FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
                                         <TextBlock Text="{Binding Folder}" Foreground="{StaticResource Muted}" FontSize="12"
