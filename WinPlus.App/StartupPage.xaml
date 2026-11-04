@@ -1,0 +1,40 @@
+<UserControl x:Class="WinPlus.StartupPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WinPlus">
+    <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <Button DockPanel.Dock="Right" Style="{StaticResource FlatButton}" Content="{local:Tr 'تحديث'}" Click="OnRefresh"/>
+            <TextBlock x:Name="SummaryText" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+        </DockPanel>
+
+        <TextBlock DockPanel.Dock="Bottom" Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" Margin="2,10,0,0"
+                   Text="{local:Tr 'الإيقاف ما يحذف شي، مثل مدير المهام بالضبط، وتقدر ترجّعه متى ما تبي. التغيير يبان من التشغيل الجاي. البرامج اللي عليها 🛡 لكل المستخدمين، وويندوز بيطلب موافقة المسؤول.'}"/>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="AppList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{StaticResource RowBg}" BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                CornerRadius="6" Padding="14,10" Margin="0,0,0,4">
+                            <DockPanel>
+                                <CheckBox DockPanel.Dock="Right" Style="{StaticResource Switch}" IsChecked="{Binding Enabled, Mode=OneWay}"
+                                          Tag="{Binding}" Click="OnToggle"/>
+                                <Image DockPanel.Dock="Left" Source="{Binding Icon}" Width="28" Height="28" Margin="0,0,12,0"
+                                       VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Title}" Foreground="{StaticResource Fg}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text=" 🛡" Visibility="{Binding AdminVisibility}" Foreground="#FFD27A"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Detail}" Foreground="{StaticResource Muted}" FontSize="11"
+                                               TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

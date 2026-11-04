@@ -1,0 +1,83 @@
+<UserControl x:Class="WinPlus.ColorPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FlowDirection="LeftToRight">
+    <StackPanel>
+        <!-- Saturation (left → right) and brightness (top → bottom) -->
+        <Grid x:Name="SvArea" Height="160" Cursor="Cross" Background="Transparent"
+              MouseLeftButtonDown="OnSvDown" MouseMove="OnSvMove" MouseLeftButtonUp="OnSvUp"
+              SizeChanged="OnAreaSizeChanged">
+            <Border x:Name="HueLayer" CornerRadius="8" Background="Red"/>
+            <Border CornerRadius="8">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                        <GradientStop Color="#00FFFFFF" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+            <Border CornerRadius="8" BorderBrush="#33FFFFFF" BorderThickness="1">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#00000000" Offset="0"/>
+                        <GradientStop Color="#FF000000" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+            <Canvas IsHitTestVisible="False" ClipToBounds="False">
+                <Ellipse x:Name="SvThumb" Width="16" Height="16" Stroke="White" StrokeThickness="2.5">
+                    <Ellipse.Effect>
+                        <DropShadowEffect BlurRadius="6" ShadowDepth="0" Opacity="0.7"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+            </Canvas>
+        </Grid>
+
+        <!-- Hue -->
+        <Grid x:Name="HueArea" Height="12" Margin="0,14,0,0" Cursor="Hand" Background="Transparent"
+              MouseLeftButtonDown="OnHueDown" MouseMove="OnHueMove" MouseLeftButtonUp="OnHueUp"
+              SizeChanged="OnAreaSizeChanged">
+            <Border CornerRadius="6">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#FF0000" Offset="0"/>
+                        <GradientStop Color="#FFFF00" Offset="0.1667"/>
+                        <GradientStop Color="#00FF00" Offset="0.3333"/>
+                        <GradientStop Color="#00FFFF" Offset="0.5"/>
+                        <GradientStop Color="#0000FF" Offset="0.6667"/>
+                        <GradientStop Color="#FF00FF" Offset="0.8333"/>
+                        <GradientStop Color="#FF0000" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+            <Canvas IsHitTestVisible="False" ClipToBounds="False">
+                <Ellipse x:Name="HueThumb" Width="20" Height="20" Canvas.Top="-4" Stroke="White" StrokeThickness="3">
+                    <Ellipse.Effect>
+                        <DropShadowEffect BlurRadius="6" ShadowDepth="0" Opacity="0.7"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+            </Canvas>
+        </Grid>
+
+        <!-- Preview + hex -->
+        <Grid Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border x:Name="Preview" Width="44" Height="32" CornerRadius="6"
+                    BorderBrush="#33FFFFFF" BorderThickness="1"/>
+            <Border Grid.Column="1" Margin="10,0,0,0" Height="32" CornerRadius="6"
+                    Background="#1E1F22" BorderBrush="#3F4147" BorderThickness="1">
+                <DockPanel>
+                    <TextBlock Text="#" Foreground="#A0A3AA" VerticalAlignment="Center" Margin="10,0,2,0"
+                               FontFamily="Consolas" FontSize="14"/>
+                    <TextBox x:Name="HexBox" Background="Transparent" BorderThickness="0"
+                             Foreground="#F2F3F5" CaretBrush="#F2F3F5" FontFamily="Consolas" FontSize="14"
+                             VerticalContentAlignment="Center" MaxLength="6" CharacterCasing="Upper"
+                             KeyDown="OnHexKeyDown" LostFocus="OnHexLostFocus"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </StackPanel>
+</UserControl>

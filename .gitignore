@@ -1,0 +1,21 @@
+# Build output
+dist/
+dist-installer/
+release/
+publish/
+TaskbarTap/build/
+**/bin/
+**/obj/
+*.user
+.vs/
+
+# Graphify map (made on this PC)
+graphify-out/
+
+# Build / publish scripts and the installer: kept on this PC, not on GitHub
+build.ps1
+make-installer.ps1
+package.ps1
+publish.ps1
+release.ps1
+installer/

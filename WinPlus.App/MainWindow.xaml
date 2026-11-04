@@ -1,0 +1,521 @@
+<Window x:Class="WinPlus.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WinPlus"
+        Title="Wibn" Icon="app.ico" Width="1080" Height="760" MinWidth="880" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        FlowDirection="{x:Static local:TrExtension.Flow}" FontFamily="Segoe UI" FontSize="14"
+        Background="{StaticResource Bg}">
+
+    <!-- Laid out left-to-right so the menu sits on the left like PowerToys;
+         each side is right-to-left inside for Arabic text. -->
+    <Grid FlowDirection="LeftToRight">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="270"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ================= Sidebar ================= -->
+        <Border Background="{StaticResource Sidebar}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+            <DockPanel FlowDirection="{x:Static local:TrExtension.Flow}" Margin="8,14,8,10">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="12,0,12,10">
+                    <Image Source="logo.png" Width="34" Height="34" Margin="0,0,10,0"
+                           RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Wibn" FontSize="15" FontWeight="SemiBold"/>
+                        <TextBlock Text="My Windows is better now" FontSize="10.5" Foreground="{StaticResource Muted}"
+                                   FlowDirection="LeftToRight" HorizontalAlignment="Left" Margin="0,1,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Bottom -->
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Border Height="1" Background="{StaticResource Line}" Margin="4,6,4,6"/>
+                    <RadioButton x:Name="NavGeneral" Style="{StaticResource SideItem}" Tag="&#xE713;"
+                                 Content="{local:Tr 'الإعدادات العامة'}" CommandParameter="general" Checked="OnNavChanged"/>
+                </StackPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="SideList">
+                        <RadioButton x:Name="NavScroll" Style="{StaticResource SideItem}" Tag="&#xE7C4;"
+                                     Content="{local:Tr 'التاسك بار'}" CommandParameter="taskbar" IsChecked="True"
+                                     Checked="OnNavChanged" Margin="0,6,0,0"/>
+
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE7F4;"
+                                     Content="{local:Tr 'سطح المكتب'}" CommandParameter="desktop" Checked="OnNavChanged"/>
+
+                        <TextBlock Style="{StaticResource SideGroup}" Text="{local:Tr 'التنظيف'}"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8B7;"
+                                     Content="{local:Tr 'أكبر الملفات'}" CommandParameter="big" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE81C;"
+                                     Content="{local:Tr 'الملفات المؤقتة'}" CommandParameter="temp" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8C8;"
+                                     Content="{local:Tr 'الملفات المكررة'}" CommandParameter="dup" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE74D;"
+                                     Content="{local:Tr 'سلة المهملات'}" CommandParameter="bin" Checked="OnNavChanged"/>
+
+                        <TextBlock Style="{StaticResource SideGroup}" Text="{local:Tr 'الأدوات'}"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE765;"
+                                     Content="{local:Tr 'اختصارات الكيبورد'}" CommandParameter="hotkeys" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE964;"
+                                     Content="{local:Tr 'استهلاك الرام'}" CommandParameter="ram" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE72E;"
+                                     Content="{local:Tr 'قفل الملفات'}" CommandParameter="lock" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE7E8;"
+                                     Content="{local:Tr 'برامج بدء التشغيل'}" CommandParameter="startup" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE896;"
+                                     Content="{local:Tr 'ترتيب التحميلات'}" CommandParameter="downloads" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8AB;"
+                                     Content="{local:Tr 'تحويل الصيغ'}" CommandParameter="convert" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE740;"
+                                     Content="{local:Tr 'تغيير الأبعاد'}" CommandParameter="resize" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE73F;"
+                                     Content="{local:Tr 'ضغط الملفات'}" CommandParameter="compress" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE7B8;"
+                                     Content="{local:Tr 'ملف مضغوط'}" CommandParameter="archive" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE714;"
+                                     Content="{local:Tr 'تحميل المقاطع'}" CommandParameter="video" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE724;"
+                                     Content="{local:Tr 'إرسال الملفات'}" CommandParameter="transfer" Checked="OnNavChanged"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ================= Pages ================= -->
+        <Grid Grid.Column="1" FlowDirection="{x:Static local:TrExtension.Flow}">
+
+            <!-- Taskbar: all taskbar features on one page -->
+            <ScrollViewer x:Name="PageTaskbar" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="40,28,40,28" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'التاسك بار'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'كل تعديلات التاسك بار في مكان واحد.'}"/>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'عام'}" Margin="2,24,0,8" FontSize="18"/>
+                    <UniformGrid Columns="2" Margin="-3,0">
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="AutoHideBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnAutoHideChanged" Unchecked="OnAutoHideChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE740;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'إخفاء مع ملء الشاشة والتكبير'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'يختفي قدام البرامج المكبّرة أو بملء الشاشة، ويطلع لما تقرّب الماوس من جهته'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="ShowYearBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnShowYearChanged" Unchecked="OnShowYearChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE787;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'إظهار السنة في التاريخ'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'مثل 01/11/2026. في التاسك بار العمودي تنزل بسطر لحالها'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'السكرول'}" Margin="2,24,0,8" FontSize="18"/>
+                    <Border x:Name="AlignWarning" Visibility="Collapsed" Background="#3A2F1A" CornerRadius="6"
+                            Padding="16,12" Margin="0,0,0,6">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource FlatButton}" Content="{local:Tr 'خله على اليسار'}"
+                                    Click="OnAlignLeft" Margin="0"/>
+                            <TextBlock TextWrapping="Wrap" Foreground="#FFD27A" VerticalAlignment="Center"
+                                       Text="{local:Tr 'التاسك بار عندك في المنتصف. الميزة تحتاج المحاذاة لليسار عشان تشتغل صح.'}"/>
+                        </DockPanel>
+                    </Border>
+                    <UniformGrid Columns="2" Margin="-3,0">
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="EnabledBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8CB;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'سكرول التاسك بار'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'بدل قائمة (...) تضيف تطبيقات بلا حدود وتتنقل بالعجلة'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <ComboBox x:Name="StepBox" DockPanel.Dock="Right" Width="70" VerticalAlignment="Center"
+                                          SelectionChanged="OnSettingChanged">
+                                    <ComboBoxItem Content="1"/>
+                                    <ComboBoxItem Content="2"/>
+                                    <ComboBoxItem Content="3"/>
+                                    <ComboBoxItem Content="4"/>
+                                    <ComboBoxItem Content="5"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE962;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'سرعة السكرول'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'كم أيقونة مع كل حركة عجلة'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="SmoothBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE945;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'سكرول ناعم'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'الأيقونات تنزلق بالتدريج بدل ما تقفز'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="ReverseBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8AB;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'عكس اتجاه السكرول'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="RunningFirstBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnRunningFirstChanged" Unchecked="OnRunningFirstChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8FD;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'البرامج الشغالة فوق'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'المفتوحة أول، وبعدها المثبتة اللي مو شغالة. يحتاج السكرول شغّال'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'حجم الأيقونات'}" Margin="2,24,0,8" FontSize="18"/>
+                    <UniformGrid Columns="2" Margin="-3,0">
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <StackPanel>
+                                <DockPanel>
+                                    <CheckBox x:Name="IconSizeBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                              Checked="OnIconSizeChanged" Unchecked="OnIconSizeChanged"/>
+                                    <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8E9;"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'حجم مخصص للأيقونات'}"/>
+                                        <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'حجم ويندوز العادي 24 بكسل'}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <DockPanel Margin="34,8,0,0">
+                                    <TextBlock x:Name="IconSizeText" DockPanel.Dock="Right" Width="48" VerticalAlignment="Center"
+                                               TextAlignment="Center" FlowDirection="LeftToRight"/>
+                                    <Slider x:Name="IconSlider" Minimum="16" Maximum="40" TickFrequency="2"
+                                            IsSnapToTickEnabled="True" FlowDirection="LeftToRight" VerticalAlignment="Center"
+                                            ValueChanged="OnIconSliderChanged"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <ComboBox x:Name="SmallButtonsBox" DockPanel.Dock="Right" Width="100" VerticalAlignment="Center"
+                                          SelectionChanged="OnSmallButtonsChanged">
+                                    <ComboBoxItem Content="{local:Tr 'لا'}" Tag="1"/>
+                                    <ComboBoxItem Content="{local:Tr 'لما يمتلي'}" Tag="2"/>
+                                    <ComboBoxItem Content="{local:Tr 'دائمًا'}" Tag="0"/>
+                                </ComboBox>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE73F;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'تاسك بار أنحف'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'أزرار ويندوز الصغيرة'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'الشكل'}" Margin="2,24,0,8" FontSize="18"/>
+                    <UniformGrid Columns="2" Margin="-3,0">
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="FloatingBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnLookChanged" Unchecked="OnLookChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8A7;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'تاسك بار عائم'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'مسافة عن طرف الشاشة وزوايا مدورة'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="MagnifyBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnLookChanged" Unchecked="OnLookChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE71E;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'تكبير الأيقونات تحت الماوس'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'مثل الماك: الأيقونة تكبر واللي جنبها شوي. يحتاج السكرول شغّال'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                            <DockPanel>
+                                <CheckBox x:Name="IndicatorBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnLookChanged" Unchecked="OnLookChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE91F;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'خط البرامج الشغالة بلون الأيقونة'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'الخط الصغير ياخذ لون كل برنامج بدل الرمادي'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'اللون'}" Margin="2,24,0,8" FontSize="18"/>
+                    <Border Style="{StaticResource Row}" Padding="16,14,16,20">
+                        <StackPanel>
+                                <DockPanel>
+                                    <CheckBox x:Name="ColorBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                              Checked="OnColorToggled" Unchecked="OnColorToggled"/>
+                                    <TextBlock Style="{StaticResource RowIcon}" Text="&#xE790;"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'لون مخصص'}"/>
+                                        <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'التاسك بار وقائمة السهم وقائمة ابدأ تاخذ اللون بالضبط، بدون شفافية ويندوز'}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            <local:ColorPicker x:Name="Picker" Width="360" HorizontalAlignment="Left" Margin="34,16,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Biggest files (built when opened) -->
+            <DockPanel x:Name="PageBig" Margin="40,28,40,24" Visibility="Collapsed">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'أكبر الملفات'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}"
+                               Text="{local:Tr 'يدور على أكبر 200 ملف في القرص، وتقدر ترسل اللي ما تبيه لسلة المهملات. ملفات ويندوز والنظام ما تطلع.'}"/>
+                </StackPanel>
+                <ContentControl x:Name="BigHost"/>
+            </DockPanel>
+
+            <!-- Temp files (built when opened) -->
+            <DockPanel x:Name="PageTemp" Margin="40,28,40,24" Visibility="Collapsed">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'الملفات المؤقتة'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}"
+                               Text="{local:Tr 'ملفات مؤقتة وكاش يرجع ويندوز والبرامج يسوونها من جديد، فحذفها آمن. اقفل المتصفحات قبل عشان ينحذف كاشها.'}"/>
+                </StackPanel>
+                <ContentControl x:Name="TempHost"/>
+            </DockPanel>
+
+            <!-- Duplicates (built when opened) -->
+            <DockPanel x:Name="PageDup" Margin="40,28,40,24" Visibility="Collapsed">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'الملفات المكررة'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}"
+                               Text="{local:Tr 'يقارن محتوى الملفات نفسه (مو بس الاسم)، فاللي يطلع نسخ متطابقة 100%.'}"/>
+                </StackPanel>
+                <ContentControl x:Name="DupHost"/>
+            </DockPanel>
+
+            <!-- Recycle bin (built when opened) -->
+            <DockPanel x:Name="PageBin" Margin="40,28,40,24" Visibility="Collapsed">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'سلة المهملات'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'كل اللي تحذفه من البرنامج يروح هنا أول، وتقدر ترجعه من سلة المهملات حقت ويندوز.'}"/>
+                </StackPanel>
+                <ContentControl x:Name="BinHost" VerticalAlignment="Top"/>
+            </DockPanel>
+
+            <!-- Desktop (built when opened) -->
+            <ScrollViewer x:Name="PageDesktop" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'سطح المكتب'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'شكل سطح المكتب ومستكشف الملفات ومؤشر الماوس.'}"/>
+                    <ContentControl x:Name="DesktopHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- RAM usage (built when opened, refreshes only while shown) -->
+            <DockPanel x:Name="PageRam" Margin="40,28,40,24" MaxWidth="980" Visibility="Collapsed">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'استهلاك الرام'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'وش البرامج اللي ماخذة أكثر رام في جهازك الحين.'}"/>
+                </StackPanel>
+                <ContentControl x:Name="RamHost"/>
+            </DockPanel>
+
+            <!-- File lock (built when opened) -->
+            <ScrollViewer x:Name="PageLock" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'قفل الملفات'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'اقفل أي ملف بكلمة سر، ومحد يقدر يفتحه إلا فيها.'}"/>
+                    <ContentControl x:Name="LockHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Startup apps (built when opened) -->
+            <DockPanel x:Name="PageStartup" Margin="40,28,40,24" MaxWidth="980" Visibility="Collapsed">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'برامج بدء التشغيل'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'البرامج اللي تشتغل لحالها مع تشغيل الجهاز. طفّي اللي ما تحتاجه عشان يقلع أسرع.'}"/>
+                </StackPanel>
+                <ContentControl x:Name="StartupHost"/>
+            </DockPanel>
+
+            <!-- Downloads sorting (built when opened) -->
+            <ScrollViewer x:Name="PageDownloads" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'ترتيب التحميلات'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'الملفات اللي تنزل تتوزع على مجلدات حسب نوعها داخل التحميلات.'}"/>
+                    <ContentControl x:Name="DownloadsHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Format conversion (built when opened) -->
+            <ScrollViewer x:Name="PageConvert" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'تحويل الصيغ'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'حوّل الصور والمقاطع والصوت لأي صيغة من نفس النوع بسحبة.'}"/>
+                    <ContentControl x:Name="ConvertHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Resize (R) / compress (C) menus (built when opened) -->
+            <ScrollViewer x:Name="PageResize" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'تغيير الأبعاد'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'كبّر أو صغّر الصور والمقاطع بسحبة وحرف.'}"/>
+                    <ContentControl x:Name="ResizeHost"/>
+                </StackPanel>
+            </ScrollViewer>
+            <ScrollViewer x:Name="PageCompress" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'ضغط الملفات'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'صغّر حجم الصور والمقاطع والصوت بدون ما تخرب جودتها.'}"/>
+                    <ContentControl x:Name="CompressHost"/>
+                </StackPanel>
+            </ScrollViewer>
+            <ScrollViewer x:Name="PageArchive" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'ملف مضغوط'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'حط ملفاتك ومجلداتك في ملف ZIP أو 7Z أو RAR بسحبة وحرف.'}"/>
+                    <ContentControl x:Name="ArchiveHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Video download (built when opened) -->
+            <ScrollViewer x:Name="PageVideo" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'تحميل المقاطع'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'حمّل أي مقطع أو أغنية من رابطها، بدون مواقع ولا إعلانات.'}"/>
+                    <ContentControl x:Name="VideoHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- P2P file transfer (built when opened) -->
+            <ScrollViewer x:Name="PageTransfer" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'إرسال الملفات'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'أرسل أي ملف لأي أحد عبر الإنترنت، مباشرة من جهاز لجهاز.'}"/>
+                    <ContentControl x:Name="TransferHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Shortcuts (built when opened) -->
+            <DockPanel x:Name="PageHotkeys" Margin="40,28,40,24" Visibility="Collapsed">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'اختصارات الكيبورد'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}"
+                               Text="{local:Tr 'اختصاراتك الخاصة تشتغل في أي مكان، حتى لو البرنامج مخفي جنب الساعة.'}"/>
+                </StackPanel>
+                <ContentControl x:Name="HotkeysHost"/>
+            </DockPanel>
+
+            <!-- General -->
+            <ScrollViewer x:Name="PageGeneral" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,28" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'الإعدادات العامة'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}"
+                               Text="{local:Tr 'إغلاق النافذة يخلي البرنامج يشتغل جنب الساعة. للخروج: كلك يمين على الأيقونة ثم خروج.'}"/>
+
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <CheckBox x:Name="StartupBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                      Checked="OnStartupChanged" Unchecked="OnStartupChanged"/>
+                            <TextBlock Style="{StaticResource RowIcon}" Text="&#xE7E8;"/>
+                            <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'يشتغل مع بداية ويندوز'}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <ComboBox x:Name="LanguageBox" DockPanel.Dock="Right" Width="150" VerticalAlignment="Center"
+                                      SelectionChanged="OnLanguageChanged">
+                                <ComboBoxItem Content="{local:Tr 'العربية'}"/>
+                                <ComboBoxItem Content="English"/>
+                            </ComboBox>
+                            <TextBlock Style="{StaticResource RowIcon}" Text="&#xE774;"/>
+                            <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'اللغة / Language'}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'التحديثات'}"/>
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <Button x:Name="CheckUpdateButton" DockPanel.Dock="Right" Style="{StaticResource FlatButton}"
+                                    Content="{local:Tr 'تحقق الحين'}" Click="OnCheckUpdate" VerticalAlignment="Center" Margin="0"/>
+                            <TextBlock Style="{StaticResource RowIcon}" Text="&#xE895;"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="VersionText" Style="{StaticResource RowTitle}"/>
+                                <TextBlock x:Name="UpdateText" Style="{StaticResource RowDesc}"
+                                           Text="{local:Tr 'يتحقق لحاله من GitHub ويعلمك لو نزلت نسخة جديدة'}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'المزايا'}"/>
+                    <TextBlock Foreground="{StaticResource Muted}" FontSize="12" Margin="2,0,0,8" TextWrapping="Wrap"
+                               Text="{local:Tr 'اختر المزايا اللي تبيها. المطفية تختفي من القائمة وما تشتغل بالخلفية، واللي تحتاج تحميل إضافي ما تتحمّل إلا لما تشغّلها.'}"/>
+                    <UniformGrid x:Name="FeatureGrid" Columns="2" Margin="-3,0"/>
+
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'الاتصال بالتاسك بار'}"/>
+
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="RestartButton" Style="{StaticResource AccentButton}" Content="{local:Tr 'تحديث التاسك بار'}"
+                                        Click="OnRestartExplorer" Visibility="Collapsed"/>
+                                <Button Style="{StaticResource FlatButton}" Content="{local:Tr 'إعادة الاتصال'}" Click="OnReconnect"/>
+                                <Button Style="{StaticResource FlatButton}" Content="{local:Tr 'فتح السجل'}" Click="OnOpenLog" Margin="0"/>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource RowIcon}" Text="&#xE703;"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'الحالة'}"/>
+                                <TextBlock x:Name="StatusText" Style="{StaticResource RowDesc}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- New version available (bottom of the window) -->
+            <Border x:Name="UpdateBar" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="24"
+                    Background="#2B2D31" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="10"
+                    Padding="18,12" Visibility="Collapsed">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.4"/>
+                </Border.Effect>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                        <Button x:Name="UpdateNowButton" Style="{StaticResource AccentButton}" Content="{local:Tr 'تحديث'}" Click="OnUpdateNow"/>
+                        <Button Style="{StaticResource FlatButton}" Content="{local:Tr 'تجاهل'}" Click="OnIgnoreUpdate" Margin="8,0,0,0"/>
+                    </StackPanel>
+                    <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
+                               Foreground="{StaticResource Accent}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="UpdateTitle" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="UpdateSub" Foreground="{StaticResource Muted}" FontSize="12"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

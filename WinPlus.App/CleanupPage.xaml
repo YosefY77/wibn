@@ -1,0 +1,17 @@
+<UserControl x:Class="WinPlus.CleanupPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WinPlus">
+    <!-- Recycle bin page -->
+    <Border Style="{StaticResource Row}">
+        <DockPanel>
+            <Button x:Name="EmptyBinButton" DockPanel.Dock="Right" Style="{StaticResource DangerButton}"
+                    Content="{local:Tr 'إفراغ سلة المهملات'}" Click="OnEmptyBin" Margin="0" VerticalAlignment="Center"/>
+            <TextBlock Style="{StaticResource RowIcon}" Text="&#xE74D;"/>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'المحتوى'}"/>
+                <TextBlock x:Name="BinText" Style="{StaticResource RowDesc}"/>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</UserControl>

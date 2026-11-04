@@ -1,0 +1,63 @@
+<UserControl x:Class="WinPlus.BigFilesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WinPlus">
+    <DockPanel>
+        <!-- Scan controls -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource Card}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox x:Name="DriveBox" Width="110" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
+                    <Button x:Name="ScanButton" Style="{StaticResource AccentButton}" Content="{local:Tr 'فحص'}" Click="OnScan"/>
+                    <Button x:Name="CancelButton" Style="{StaticResource FlatButton}" Content="{local:Tr 'إيقاف'}" Click="OnCancel"
+                            Visibility="Collapsed"/>
+                </StackPanel>
+                <TextBlock x:Name="ScanStatus" Foreground="{StaticResource Muted}" Margin="0,8,0,0"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Actions for the selection -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+            <Button x:Name="DeleteButton" DockPanel.Dock="Left" Style="{StaticResource DangerButton}"
+                    Content="{local:Tr 'حذف المحدد (لسلة المهملات)'}" Click="OnDelete" IsEnabled="False" Margin="0"/>
+            <TextBlock x:Name="SelectionText" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+        </DockPanel>
+
+        <!-- Results -->
+        <Border Background="{StaticResource Card}" CornerRadius="8" Padding="6">
+            <Grid>
+                <ListBox x:Name="FileList" Background="Transparent" BorderThickness="0"
+                         ItemContainerStyle="{StaticResource FileRow}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                         MouseDoubleClick="OnOpenLocation">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"
+                                          Margin="0,0,10,0" Click="OnCheckClicked"/>
+                                <StackPanel Grid.Column="1" ToolTip="{Binding Path}">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight"
+                                               HorizontalAlignment="Right"/>
+                                    <TextBlock Text="{Binding Folder}" Foreground="{StaticResource Muted}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight"
+                                               HorizontalAlignment="Right"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="12,0,0,0" FlowDirection="LeftToRight"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock x:Name="EmptyHint" Text="{local:Tr 'اختر القرص واضغط فحص'}" Foreground="{StaticResource Muted}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </DockPanel>
+</UserControl>

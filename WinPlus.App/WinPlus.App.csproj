@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>WinPlus</AssemblyName>
+    <RootNamespace>WinPlus</RootNamespace>
+    <!-- The name people see (Task Manager, file properties). The file stays
+         WinPlus.exe so settings, startup and updates keep working. -->
+    <Product>Wibn</Product>
+    <AssemblyTitle>Wibn</AssemblyTitle>
+    <Description>Wibn: My Windows is better now</Description>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- Release builds get the number from the git tag (v1.2.3 → 1.2.3). -->
+    <Version>1.0.2</Version>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <!-- Lower memory use for a small tray app -->
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- WebView2Loader.dll (the sign-in window) goes inside the single exe too. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <!-- The sign-in window for downloads (Edge's WebView2, part of Windows 11). -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <!-- The logo: the exe's icon, the window/tray icon (app.ico) and the sidebar (logo.png). -->
+  <ItemGroup>
+    <Resource Include="app.ico" />
+    <Resource Include="logo.png" />
+  </ItemGroup>
+
+  <!-- The taskbar DLL also goes inside WinPlus.exe, so the single-file version
+       (package.ps1) works on its own. -->
+  <ItemGroup Condition="Exists('..\TaskbarTap\build\Release\TaskbarTap.dll')">
+    <EmbeddedResource Include="..\TaskbarTap\build\Release\TaskbarTap.dll" LogicalName="WinPlus.TaskbarTap.dll" />
+  </ItemGroup>
+
+</Project>
