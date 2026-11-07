@@ -29,6 +29,7 @@
 | **Archive** | Drag files or a folder and press `Z` to make a ZIP, 7Z or RAR |
 | **Video downloader** | `Ctrl+H` and paste a link from YouTube, Instagram, X, Reddit, TikTok or Spotify |
 | **File transfer** | Send files straight to any device over the internet |
+| **Screen capture** | Off by default. Pick a shortcut for each: a part you select, the full screen, a video (1 minute by default), or save the last minute |
 
 ## Install
 

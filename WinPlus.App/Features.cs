@@ -10,11 +10,12 @@ namespace WinPlus
     /// background. Heavy extras (FFmpeg, sendme) are only downloaded for the
     /// features that need them.
     /// Stored in HKCU\Software\WinPlus\Features (the installer writes it); a
-    /// missing value means "on" (e.g. a build run straight from the source).
+    /// missing value means the feature's default: on, except the newer ones that
+        /// start off (e.g. a build run straight from the source, or an update).
     /// </summary>
     internal static class Features
     {
-        public sealed record Feature(string Id, string Name, string Description, string[] NavKeys, string? Download = null);
+        public sealed record Feature(string Id, string Name, string Description, string[] NavKeys, string? Download = null, bool DefaultOn = true);
 
         public static readonly Feature[] All =
         {
@@ -32,6 +33,9 @@ namespace WinPlus
             new("archive", Lang.T("ملف مضغوط"), Lang.T("اسحب ملفات أو مجلد واضغط Z ويصير ZIP أو 7Z أو RAR"), new[] { "archive" }, "7zip"),
             new("video", Lang.T("تحميل المقاطع"), Lang.T("Ctrl+H والصق رابط من يوتيوب، انستا، تويتر، ريديت، تيك توك، سبوتيفاي. يحتاج yt-dlp (تقريبًا 18 ميقا)"), new[] { "video" }, "ytdlp"),
             new("transfer", Lang.T("إرسال الملفات"), Lang.T("إرسال مباشر عبر الإنترنت. يحتاج sendme (كم ميقا)"), new[] { "transfer" }, "sendme"),
+            new("capture", Lang.T("تصوير الشاشة"), Lang.T("صورة لمكان تحدده أو للشاشة كاملة، تسجيل فيديو، وحفظ آخر دقيقة. كل نوع باختصار تختاره. الفيديو يحتاج FFmpeg"), new[] { "capture" }, DefaultOn: false),
+            new("volume", Lang.T("أصوات البرامج"), Lang.T("علّي أو خفّض صوت كل برنامج مفتوح لحاله، أو اكتمه"), new[] { "volume" }),
+            new("glass", "Liquid Glass", Lang.T("التأثير الزجاجي لشريط التحميل وقوائم الملفات وتصوير الشاشة، كله من مكان واحد"), new[] { "glass" }),
         };
 
         private const string Key = @"Software\WinPlus\Features";
@@ -39,7 +43,8 @@ namespace WinPlus
         public static bool IsOn(string id)
         {
             using var key = Registry.CurrentUser.OpenSubKey(Key);
-            return key?.GetValue(id) is not int v || v != 0;
+            if (key?.GetValue(id) is int v) return v != 0;
+            return All.FirstOrDefault(f => f.Id == id)?.DefaultOn ?? true;
         }
 
         public static void Set(string id, bool on)

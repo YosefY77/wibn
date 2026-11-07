@@ -33,6 +33,7 @@
   <!-- The sign-in window for downloads (Edge's WebView2, part of Windows 11). -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
 
   <!-- The logo: the exe's icon, the window/tray icon (app.ico) and the sidebar (logo.png). -->

@@ -83,10 +83,6 @@ namespace WinPlus
                 grid.Children.Add(Card(Lang.T("أي ملف ثاني"), Lang.T("ZIP جنب الملف والأصل يبقى")));
             }
             Children.Add(grid);
-
-            // Liquid glass of this menu
-            Children.Add(GlassSettings.Section(GlassSettings.Menu(mode), null,
-                Lang.T("الدائرة تعرض اللي تحتها منحني عند حافتها مثل زجاج أبل")));
         }
 
         private static Border Row(UIElement control, string icon, string title, string desc)

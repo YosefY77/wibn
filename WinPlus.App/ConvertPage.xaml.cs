@@ -16,8 +16,6 @@ namespace WinPlus
             EnabledBox.IsChecked = DragSpaceHook.Enabled;
             KeepBox.IsChecked = ConvertHistory.KeepOriginals;
             UpdateFfmpeg();
-            Root.Children.Add(GlassSettings.Section(GlassSettings.Menu(MediaTools.Mode.Convert), null,
-                Lang.T("الدائرة تعرض اللي تحتها منحني عند حافتها مثل زجاج أبل")));
             _loading = false;
             Unloaded += (_, _) => _cts?.Cancel();
         }

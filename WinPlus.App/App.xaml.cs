@@ -138,6 +138,7 @@ namespace WinPlus
             TaskbarPlacement.ApplyAutoHideMode();
             ApplyFeatures(starting: true);  // only what the user chose runs
             _ = Task.Run(ConvertHistory.Cleanup);  // drop originals older than 30 days
+            _ = Task.Run(FileUndo.FinishAll);      // undo steps left from last time can't be undone now
 
             // The Start menu process can start later or restart on its own;
             // check now and then whether it needs the DLL (only when the
@@ -189,6 +190,7 @@ namespace WinPlus
             }
             TaskbarPlacement.ApplyAutoHideMode();
             VideoDownloader.Refresh();
+            ScreenCapture.Refresh();  // its shortcuts, and the "last minute" recording if on
             // Glass / see-through were removed: anyone who had them goes back to normal.
             if (SettingsStore.TaskbarStyle != 0) { SettingsStore.TaskbarStyle = 0; TaskbarInjector.SignalRefresh(); TaskbarGlass.Reset(); }
             TaskbarGlass.Update();
@@ -290,6 +292,7 @@ namespace WinPlus
             HotkeyManager.ShowAppRequested += ShowWindow;
             if (Features.IsOn("hotkeys")) HotkeyManager.Init(_messageWindow);
             VideoDownloader.Init(_messageWindow);  // its shortcut (Ctrl+H), see ApplyFeatures
+            ScreenCapture.Init(_messageWindow);    // the screen capture shortcuts
         }
 
         private void ShowWindow()
@@ -322,7 +325,9 @@ namespace WinPlus
             TaskbarGlass.Update();  // AppActive is off now: Windows' own look back
             Relocker.LockAllNow();
             DragSpaceHook.Stop();
+            FileUndo.FinishAll();
             P2PTransfer.StopAll();
+            ScreenCapture.StopAll();
 
             if (_tray != null)
             {

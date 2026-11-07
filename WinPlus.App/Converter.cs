@@ -117,12 +117,19 @@ namespace WinPlus
             // Back to the original format: just put the original back (instant).
             if (orig != null && Normalize(orig.Ext) == Normalize(target.Ext))
             {
-                await Task.Run(() =>
+                var undo = await Task.Run(() =>
                 {
-                    File.Delete(source);
+                    var item = new FileUndo.Item
+                    {
+                        Source = source, Output = output, OutputBackTo = orig.Backup,
+                        HistoryBefore = orig.Clone(), Done = FileUndo.Finish.Delete,
+                    };
+                    item.Restore = FileUndo.Stash(source);
                     File.Move(orig.Backup, output);
+                    return item;
                 }, cancel);
                 ConvertHistory.Remove(orig);
+                FileUndo.Record(undo);
                 progress?.Report(1);
                 return output;
             }
@@ -133,13 +140,7 @@ namespace WinPlus
             try
             {
                 await ProduceAsync(input, target, temp, progress, cancel);
-                await Task.Run(() =>
-                {
-                    if (orig == null) ConvertHistory.Keep(source, output);
-                    else { File.Delete(source); ConvertHistory.Update(orig, output); }
-                    File.Move(temp, output);
-                    File.SetAttributes(output, File.GetAttributes(output) & ~FileAttributes.Hidden);
-                }, CancellationToken.None);
+                FileUndo.Record(await Task.Run(() => Swap(source, temp, output, orig), CancellationToken.None));
             }
             catch
             {
@@ -177,13 +178,7 @@ namespace WinPlus
                 await produce(temp);
                 if (onlyIfSmaller && new FileInfo(temp).Length >= new FileInfo(source).Length)
                     throw new NotSmallerException();
-                await Task.Run(() =>
-                {
-                    if (orig == null) ConvertHistory.Keep(source, output);
-                    else { File.Delete(source); ConvertHistory.Update(orig, output); }
-                    File.Move(temp, output);
-                    File.SetAttributes(output, File.GetAttributes(output) & ~FileAttributes.Hidden);
-                });
+                FileUndo.Record(await Task.Run(() => Swap(source, temp, output, orig)));
             }
             catch
             {
@@ -191,6 +186,43 @@ namespace WinPlus
                 throw;
             }
             return output;
+        }
+
+        /// <summary>
+        /// The new file (temp) takes the original's place. The file it replaces is set
+        /// aside, never deleted: kept as the original (ConvertHistory), or for Ctrl+Z (FileUndo).
+        /// </summary>
+        private static FileUndo.Item Swap(string source, string temp, string output, ConvertHistory.Entry? orig)
+        {
+            var item = new FileUndo.Item { Source = source, Output = output };
+            if (orig == null && ConvertHistory.Keep(source, output) is { } kept)
+            {
+                item.Restore = kept.Backup;            // the kept original is the one to bring back
+                item.HistoryAdded = kept.Backup;
+                item.Done = FileUndo.Finish.Keep;
+            }
+            else
+            {
+                item.Restore = FileUndo.Stash(source);
+                if (orig == null) item.Done = FileUndo.Finish.Recycle;   // originals off: to the bin later
+                else
+                {
+                    item.HistoryBefore = orig.Clone();
+                    item.Done = FileUndo.Finish.Delete;  // an in-between version; the original is still kept
+                    ConvertHistory.Update(orig, output);
+                }
+            }
+            try
+            {
+                File.Move(temp, output);
+                File.SetAttributes(output, File.GetAttributes(output) & ~FileAttributes.Hidden);
+            }
+            catch
+            {
+                FileUndo.Revert(item, checkOutput: false);  // put the file back as it was
+                throw;
+            }
+            return item;
         }
 
         private static async Task ProduceAsync(string input, Target target, string temp,

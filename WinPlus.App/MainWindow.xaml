@@ -77,6 +77,14 @@
                                      Content="{local:Tr 'تحميل المقاطع'}" CommandParameter="video" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE724;"
                                      Content="{local:Tr 'إرسال الملفات'}" CommandParameter="transfer" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE722;"
+                                     Content="{local:Tr 'تصوير الشاشة'}" CommandParameter="capture" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE767;"
+                                     Content="{local:Tr 'أصوات البرامج'}" CommandParameter="volume" Checked="OnNavChanged"/>
+
+                        <TextBlock Style="{StaticResource SideGroup}" Text="{local:Tr 'الشكل'}"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE790;"
+                                     Content="Liquid Glass" CommandParameter="glass" Checked="OnNavChanged"/>
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
@@ -416,6 +424,33 @@
                     <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'إرسال الملفات'}"/>
                     <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'أرسل أي ملف لأي أحد عبر الإنترنت، مباشرة من جهاز لجهاز.'}"/>
                     <ContentControl x:Name="TransferHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Screen capture (built when opened) -->
+            <ScrollViewer x:Name="PageCapture" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'تصوير الشاشة'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'صوّر مكان تحدده أو الشاشة كاملة، سجّل فيديو، أو احفظ آخر دقيقة صارت.'}"/>
+                    <ContentControl x:Name="CaptureHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Volume mixer (built when opened) -->
+            <ScrollViewer x:Name="PageVolume" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'أصوات البرامج'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'علّي أو خفّض صوت كل برنامج مفتوح لحاله، أو اكتمه.'}"/>
+                    <ContentControl x:Name="VolumeHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Liquid glass: one place for the glass of every feature (built when opened) -->
+            <ScrollViewer x:Name="PageGlass" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="Liquid Glass"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'التأثير الزجاجي لكل الميزات من مكان واحد: شغّله أو طفّه، اختر وين يطلع، وعدّل شكله.'}"/>
+                    <ContentControl x:Name="GlassHost"/>
                 </StackPanel>
             </ScrollViewer>
 

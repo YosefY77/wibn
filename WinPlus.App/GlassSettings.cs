@@ -8,16 +8,23 @@ using Microsoft.Win32;
 namespace WinPlus
 {
     /// <summary>
-    /// The liquid glass settings of one floating window (the download bar, or one of
-    /// the round menus: convert, resize, compress). Each has its own.
+    /// The liquid glass of the floating windows (the download bar, the round menus:
+    /// convert, resize, compress, archive, and the screen capture box). The look
+    /// (bend, colors, frost, tint, rim) is shared by all of them and set in one place:
+    /// the "Liquid Glass" page. Each one only has its own on/off switch there, and a
+    /// main switch turns the glass off everywhere.
     /// </summary>
     internal sealed class GlassSettings
     {
+        private const string SharedKey = @"Software\WinPlus\Glass";
         private readonly string _key, _prefix;
 
         private GlassSettings(string key, string prefix) { _key = key; _prefix = prefix; }
 
         public static readonly GlassSettings Video = new(@"Software\WinPlus\Video", "Glass");
+
+        /// <summary>The box of "capture an area" (its bar of buttons is glass whenever the main switch is on).</summary>
+        public static readonly GlassSettings Capture = new(@"Software\WinPlus\Capture", "Glass");
 
         public static GlassSettings Menu(MediaTools.Mode mode) =>
             new(@"Software\WinPlus\TaskbarScroll", mode switch
@@ -28,72 +35,126 @@ namespace WinPlus
                 _ => "ConvertGlass",
             });
 
-        public bool On { get => Get("On", 1) != 0; set => Set("On", value ? 1 : 0); }
-        /// <summary>0–100: how strongly the edges bend.</summary>
-        public int Bend { get => Get("Bend", 55); set => Set("Bend", value); }
-        /// <summary>0–100: colors splitting at the edges.</summary>
-        public int Dispersion { get => Get("Dispersion", 35); set => Set("Dispersion", value); }
-        /// <summary>0–12 px of blur.</summary>
-        public int Frost { get => Get("Frost", 2); set => Set("Frost", value); }
-        /// <summary>0–80 %: dark tint.</summary>
-        public int Tint { get => Get("Tint", 34); set => Set("Tint", value); }
-        /// <summary>0–100: rim shine.</summary>
-        public int Rim { get => Get("Rim", 55); set => Set("Rim", value); }
+        // ---- Shared ------------------------------------------------------------------------------
 
-        public void Reset()
+        /// <summary>The main switch (and the feature itself): off = no glass anywhere.</summary>
+        public static bool Master
         {
-            using var key = Registry.CurrentUser.CreateSubKey(_key);
-            foreach (var name in new[] { "On", "Bend", "Dispersion", "Frost", "Tint", "Rim" })
-                key.DeleteValue(_prefix + name, false);
+            get => Features.IsOn("glass") && GetShared("On", 1) != 0;
+            set => SetShared("On", value ? 1 : 0);
         }
 
-        private int Get(string name, int fallback)
+        private const int DefBend = 55, DefDispersion = 35, DefFrost = 2, DefTint = 34, DefRim = 55;
+
+        /// <summary>0–100: how strongly the edges bend.</summary>
+        public static int SharedBend { get => GetShared("Bend", DefBend); set => SetShared("Bend", value); }
+        /// <summary>0–100: colors splitting at the edges.</summary>
+        public static int SharedDispersion { get => GetShared("Dispersion", DefDispersion); set => SetShared("Dispersion", value); }
+        /// <summary>0–12 px of blur.</summary>
+        public static int SharedFrost { get => GetShared("Frost", DefFrost); set => SetShared("Frost", value); }
+        /// <summary>0–80 %: dark tint.</summary>
+        public static int SharedTint { get => GetShared("Tint", DefTint); set => SetShared("Tint", value); }
+        /// <summary>0–100: rim shine.</summary>
+        public static int SharedRim { get => GetShared("Rim", DefRim); set => SetShared("Rim", value); }
+
+        public static void ResetShared()
         {
             try
             {
-                using var key = Registry.CurrentUser.OpenSubKey(_key);
-                return key?.GetValue(_prefix + name) is int v ? v : fallback;
+                using var key = Registry.CurrentUser.CreateSubKey(SharedKey);
+                foreach (var name in new[] { "Bend", "Dispersion", "Frost", "Tint", "Rim" })
+                    key.DeleteValue(name, false);
+            }
+            catch { }
+        }
+
+        private static int GetShared(string name, int fallback)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(SharedKey);
+                return key?.GetValue(name) is int v ? v : fallback;
             }
             catch { return fallback; }
         }
 
-        private void Set(string name, int value)
+        private static void SetShared(string name, int value)
         {
-            using var key = Registry.CurrentUser.CreateSubKey(_key);
-            key.SetValue(_prefix + name, value, RegistryValueKind.DWord);
+            using var key = Registry.CurrentUser.CreateSubKey(SharedKey);
+            key.SetValue(name, value, RegistryValueKind.DWord);
         }
 
-        // ---- The settings section on a page --------------------------------------------------
+        // ---- This one ----------------------------------------------------------------------------
+
+        /// <summary>This one's own switch (ignores the main switch).</summary>
+        public bool Enabled
+        {
+            get
+            {
+                try
+                {
+                    using var key = Registry.CurrentUser.OpenSubKey(_key);
+                    return key?.GetValue(_prefix + "On") is not int v || v != 0;
+                }
+                catch { return true; }
+            }
+            set
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(_key);
+                key.SetValue(_prefix + "On", value ? 1 : 0, RegistryValueKind.DWord);
+            }
+        }
+
+        /// <summary>Glass for this one: the main switch and its own switch are both on.</summary>
+        public bool On => Master && Enabled;
+        public int Bend => SharedBend;
+        public int Dispersion => SharedDispersion;
+        public int Frost => SharedFrost;
+        public int Tint => SharedTint;
+        public int Rim => SharedRim;
+
+        // ---- The Liquid Glass page ---------------------------------------------------------------
 
         private static Style St(string key) => (Style)Application.Current.FindResource(key);
 
-        /// <summary>
-        /// "التأثير الزجاجي": on/off, the five sliders and Default (and "Try it" when
-        /// <paramref name="preview"/> is given).
-        /// </summary>
-        public static StackPanel Section(GlassSettings settings, Action? preview, string desc)
+        /// <summary>The content of the "Liquid Glass" page: the main switch, where it shows, and the shared look.</summary>
+        public static StackPanel Page()
         {
             var panel = new StackPanel();
-            panel.Children.Add(new TextBlock { Text = Lang.T("التأثير الزجاجي"), Style = St("Section"), FontSize = 18, Margin = new Thickness(2, 24, 0, 8) });
-            var grid = new UniformGrid { Columns = 2, Margin = new Thickness(-3, 0, -3, 0) };
+            var where = new List<CheckBox>();
 
-            var on = new CheckBox { Style = St("Switch"), IsChecked = settings.On };
-            on.Click += (_, _) => settings.On = on.IsChecked == true;
-            grid.Children.Add(Row(on, "", Lang.T("زجاج سائل"), desc));
-
-            var reset = new Button { Style = St("FlatButton"), Content = Lang.T("الافتراضي"), Padding = new Thickness(14, 5, 14, 5) };
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
-            buttons.Children.Add(reset);
-            if (preview != null)
+            // ---- Main switch
+            var master = new CheckBox { Style = St("Switch"), IsChecked = GetShared("On", 1) != 0 };
+            master.Click += (_, _) =>
             {
-                reset.Margin = new Thickness(0, 0, 8, 0);
-                var tryIt = new Button { Style = St("AccentButton"), Content = Lang.T("جرّب"), Padding = new Thickness(14, 5, 14, 5) };
-                tryIt.Click += (_, _) => preview();
-                buttons.Children.Add(tryIt);
-            }
-            grid.Children.Add(Row(buttons, "", Lang.T("شوف الشكل"),
-                Lang.T(preview != null ? "يفتح الشريط بالإعدادات الحالية" : "التغيير يبان من المرة الجاية اللي تفتح فيها القائمة")));
+                Master = master.IsChecked == true;
+                foreach (var c in where) c.IsEnabled = master.IsChecked == true;
+            };
+            panel.Children.Add(Row(master, "", Lang.T("زجاج سائل"),
+                Lang.T("يشغّل أو يطفّي التأثير الزجاجي في كل الميزات مرة وحدة"), new Thickness(0, 0, 0, 6)));
 
+            // ---- Where it shows
+            panel.Children.Add(Section(Lang.T("وين يطلع")));
+            var grid = new UniformGrid { Columns = 2, Margin = new Thickness(-3, 0, -3, 0) };
+            void Where(GlassSettings s, string icon, string title, string desc)
+            {
+                var box = new CheckBox { Style = St("Switch"), IsChecked = s.Enabled, IsEnabled = master.IsChecked == true };
+                box.Click += (_, _) => s.Enabled = box.IsChecked == true;
+                where.Add(box);
+                grid.Children.Add(Row(box, icon, title, desc));
+            }
+            string disc = Lang.T("الدائرة تعرض اللي تحتها منحني عند حافتها مثل زجاج أبل");
+            Where(Video, "", Lang.T("شريط تحميل المقاطع"), Lang.T("الشريط يعرض اللي وراه منحني عند الأطراف مثل زجاج أبل، حتى لو وراه فيديو"));
+            Where(Capture, "", Lang.T("تحديد مكان التصوير"), Lang.T("المكان اللي تحدده صافي بالنص وينحني عند الأطراف. أزرار الحفظ زجاجية دايمًا"));
+            Where(Menu(MediaTools.Mode.Convert), "", Lang.T("قائمة تحويل الصيغ"), disc);
+            Where(Menu(MediaTools.Mode.Resize), "", Lang.T("قائمة تغيير الأبعاد"), disc);
+            Where(Menu(MediaTools.Mode.Compress), "", Lang.T("قائمة ضغط الملفات"), disc);
+            Where(Menu(MediaTools.Mode.Archive), "", Lang.T("قائمة الملف المضغوط"), disc);
+            panel.Children.Add(grid);
+
+            // ---- The look (shared)
+            panel.Children.Add(Section(Lang.T("الشكل")));
+            grid = new UniformGrid { Columns = 2, Margin = new Thickness(-3, 0, -3, 0) };
             var sliders = new List<(Slider slider, Func<int> get)>();
             void Add(string icon, string title, string text, int min, int max, Func<int> get, Action<int> set, string unit)
             {
@@ -115,23 +176,38 @@ namespace WinPlus
                 grid.Children.Add(Row(both, icon, title, text));
                 sliders.Add((slider, get));
             }
-            Add("", Lang.T("الانحناء"), Lang.T("قوة انحناء اللي وراه عند الأطراف"), 0, 100, () => settings.Bend, v => settings.Bend = v, "%");
-            Add("", Lang.T("ألوان الحواف"), Lang.T("تفرّق الألوان عند الأطراف مثل المنشور"), 0, 100, () => settings.Dispersion, v => settings.Dispersion = v, "%");
-            Add("", Lang.T("التغبيش"), Lang.T("كم يتغبش اللي ورا الزجاج"), 0, 12, () => settings.Frost, v => settings.Frost = v, "px");
-            Add("", Lang.T("التغميق"), Lang.T("يغمّق الزجاج عشان الكتابة تبان"), 0, 80, () => settings.Tint, v => settings.Tint = v, "%");
-            Add("", Lang.T("لمعة الإطار"), Lang.T("الخط اللامع على حافة الزجاج"), 0, 100, () => settings.Rim, v => settings.Rim = v, "%");
+            Add("", Lang.T("الانحناء"), Lang.T("قوة انحناء اللي وراه عند الأطراف"), 0, 100, () => SharedBend, v => SharedBend = v, "%");
+            Add("", Lang.T("ألوان الحواف"), Lang.T("تفرّق الألوان عند الأطراف مثل المنشور"), 0, 100, () => SharedDispersion, v => SharedDispersion = v, "%");
+            Add("", Lang.T("التغبيش"), Lang.T("كم يتغبش اللي ورا الزجاج"), 0, 12, () => SharedFrost, v => SharedFrost = v, "px");
+            Add("", Lang.T("التغميق"), Lang.T("يغمّق الزجاج عشان الكتابة تبان"), 0, 80, () => SharedTint, v => SharedTint = v, "%");
+            Add("", Lang.T("لمعة الإطار"), Lang.T("الخط اللامع على حافة الزجاج"), 0, 100, () => SharedRim, v => SharedRim = v, "%");
 
+            var reset = new Button { Style = St("FlatButton"), Content = Lang.T("الافتراضي"), Padding = new Thickness(14, 5, 14, 5) };
             reset.Click += (_, _) =>
             {
-                settings.Reset();
-                on.IsChecked = settings.On;
+                ResetShared();
                 foreach (var (slider, get) in sliders) slider.Value = get();
             };
+            grid.Children.Add(Row(reset, "", Lang.T("الشكل الافتراضي"), Lang.T("يرجّع كل الإعدادات اللي فوق مثل ما كانت")));
+            panel.Children.Add(grid);
+
+            // ---- Try it
+            panel.Children.Add(Section(Lang.T("جرّب")));
+            grid = new UniformGrid { Columns = 2, Margin = new Thickness(-3, 0, -3, 0) };
+            var tryBar = new Button { Style = St("AccentButton"), Content = Lang.T("جرّب"), Padding = new Thickness(14, 5, 14, 5) };
+            tryBar.Click += (_, _) => VideoDownloader.ShowBar();
+            grid.Children.Add(Row(tryBar, "", Lang.T("شريط تحميل المقاطع"), Lang.T("يفتح الشريط بالإعدادات الحالية")));
+            var tryCapture = new Button { Style = St("AccentButton"), Content = Lang.T("جرّب"), Padding = new Thickness(14, 5, 14, 5) };
+            tryCapture.Click += (_, _) => ScreenCapture.Run(ScreenCapture.Kind.Region);
+            grid.Children.Add(Row(tryCapture, "", Lang.T("تحديد مكان التصوير"), Lang.T("يفتح تحديد المكان بالإعدادات الحالية. Esc يسكّره")));
             panel.Children.Add(grid);
             return panel;
         }
 
-        private static Border Row(UIElement control, string icon, string title, object desc)
+        private static TextBlock Section(string text) =>
+            new() { Text = text, Style = St("Section"), FontSize = 18, Margin = new Thickness(2, 24, 0, 8) };
+
+        private static Border Row(UIElement control, string icon, string title, object desc, Thickness? margin = null)
         {
             DockPanel.SetDock(control, Dock.Right);
             if (control is FrameworkElement fe) fe.VerticalAlignment = VerticalAlignment.Center;
@@ -142,7 +218,7 @@ namespace WinPlus
             dock.Children.Add(control);
             dock.Children.Add(new TextBlock { Text = icon, Style = St("RowIcon") });
             dock.Children.Add(text);
-            return new Border { Style = St("Row"), Margin = new Thickness(3, 0, 3, 6), Child = dock };
+            return new Border { Style = St("Row"), Margin = margin ?? new Thickness(3, 0, 3, 6), Child = dock };
         }
     }
 }

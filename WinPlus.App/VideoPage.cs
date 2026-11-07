@@ -118,10 +118,6 @@ namespace WinPlus
             cookieButtons.Children.Add(pickCookies);
             Children.Add(Row(cookieButtons, "", Lang.T("تسجيل الدخول"), _cookiesText, 0));
 
-            // ---- Liquid glass
-            Children.Add(GlassSettings.Section(GlassSettings.Video, VideoDownloader.ShowBar,
-                Lang.T("الشريط يعرض اللي وراه منحني عند الأطراف مثل زجاج أبل، حتى لو وراه فيديو")));
-
             // ---- Sites
             Children.Add(new TextBlock { Text = Lang.T("المواقع"), Style = St("Section"), FontSize = 18, Margin = new Thickness(2, 24, 0, 8) });
             var sites = new UniformGrid { Columns = 2, Margin = new Thickness(-3, 0, -3, 0) };
@@ -260,7 +256,7 @@ namespace WinPlus
         // ---- Building blocks ----------------------------------------------------------------
 
         /// <summary>A tool's state with a download button while it's missing.</summary>
-        private Border ToolRow(string name, string what, Func<bool> installed,
+        internal static Border ToolRow(string name, string what, Func<bool> installed,
                                Func<IProgress<double>, CancellationToken, System.Threading.Tasks.Task> install)
         {
             var desc = new TextBlock { Style = St("RowDesc") };
@@ -306,7 +302,7 @@ namespace WinPlus
             return Row(button, "", name, text, 3);
         }
 
-        private static Border Row(UIElement control, string icon, string title, object desc, double side)
+        internal static Border Row(UIElement control, string icon, string title, object desc, double side)
         {
             DockPanel.SetDock(control, Dock.Right);
             if (control is FrameworkElement fe) fe.VerticalAlignment = VerticalAlignment.Center;
@@ -320,7 +316,7 @@ namespace WinPlus
             return new Border { Style = St("Row"), Margin = new Thickness(side, 0, side, 6), Child = dock };
         }
 
-        private static Border Card(string title, string desc)
+        internal static Border Card(string title, string desc)
         {
             var text = new StackPanel();
             text.Children.Add(new TextBlock { Text = title, Style = St("RowTitle"), FontWeight = FontWeights.SemiBold });

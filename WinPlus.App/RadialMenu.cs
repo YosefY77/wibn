@@ -454,12 +454,14 @@ namespace WinPlus
         {
             try
             {
-                try { await Archiver.CreateAsync(items, format.Ext); }
+                string made;
+                try { made = await Archiver.CreateAsync(items, format.Ext); }
                 catch (Archiver.SevenZipMissingException)
                 {
                     await Archiver.Download7zAsync(null, default);   // about 600 KB, only once
-                    await Archiver.CreateAsync(items, format.Ext);
+                    made = await Archiver.CreateAsync(items, format.Ext);
                 }
+                FileUndo.RecordNew(made);   // Ctrl+Z removes it again
             }
             catch (Exception ex)
             {
@@ -474,6 +476,7 @@ namespace WinPlus
         /// <summary>Resize / compress in the background. Only says something if it didn't work.</summary>
         private static async Task ToolInBackground(MediaTools.Mode mode, string[] files, Converter.Target option)
         {
+            using var undo = FileUndo.Batch();   // all the files of one drop: one Ctrl+Z
             int failed = 0, notSmaller = 0;
             for (int i = 0; i < files.Length; i++)
             {
@@ -509,6 +512,7 @@ namespace WinPlus
         /// <summary>Converts without any window. Only says something if it fails.</summary>
         private static async Task ConvertInBackground(string[] files, Converter.Kind kind, Converter.Target target)
         {
+            using var undo = FileUndo.Batch();   // all the files of one drop: one Ctrl+Z
             int failed = 0;
             for (int i = 0; i < files.Length; i++)
             {
@@ -565,6 +569,7 @@ namespace WinPlus
         {
             _cts = new CancellationTokenSource();
             ShowProgressMode();
+            using var undo = FileUndo.Batch();
             var files = _files!;
             int done = 0, failed = 0;
             try

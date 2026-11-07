@@ -285,7 +285,7 @@ namespace WinPlus
         }
 
         /// <summary>Two passes of a sliding box blur (rows, then columns).</summary>
-        private static void BoxBlur(int[] px, int[] tmp, int w, int h, int r)
+        internal static void BoxBlur(int[] px, int[] tmp, int w, int h, int r)
         {
             if (r < 1) return;
             int div = 2 * r + 1;

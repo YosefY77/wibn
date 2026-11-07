@@ -197,6 +197,7 @@ namespace WinPlus
                 Converter.TryDelete(zip);
                 throw new Converter.NotSmallerException();
             }
+            FileUndo.RecordNew(zip);
             return zip;
         });
 

@@ -59,7 +59,20 @@ namespace WinPlus
         }
 
         // Read by the keyboard hook (no registry access in there).
-        private static volatile bool _onConvert, _onResize, _onCompress, _onArchive;
+        private static volatile bool _onConvert, _onResize, _onCompress, _onArchive, _undoArmed;
+
+        private static bool Wanted => _onConvert || _onResize || _onCompress || _onArchive || _undoArmed;
+
+        /// <summary>There's a recent change to undo: Ctrl+Z in Explorer puts it back (FileUndo).</summary>
+        public static bool UndoArmed
+        {
+            get => _undoArmed;
+            set
+            {
+                _undoArmed = value;
+                if (Wanted) Start(); else Stop();
+            }
+        }
 
         /// <summary>Hooks run only while at least one of the keys is on.</summary>
         public static void Refresh()
@@ -68,7 +81,7 @@ namespace WinPlus
             _onResize = IsKeyOn(MediaTools.Mode.Resize);
             _onCompress = IsKeyOn(MediaTools.Mode.Compress);
             _onArchive = IsKeyOn(MediaTools.Mode.Archive);
-            if (_onConvert || _onResize || _onCompress || _onArchive) Start(); else Stop();
+            if (Wanted) Start(); else Stop();
         }
 
         // The hooks live on their own thread with its own message loop: whatever the
@@ -84,7 +97,7 @@ namespace WinPlus
 
         public static void Start()
         {
-            if (_thread != null || !(_onConvert || _onResize || _onCompress || _onArchive)) return;
+            if (_thread != null || !Wanted) return;
             _thread = new Thread(HookThread) { IsBackground = true, Name = "WinPlus drag hook" };
             _thread.Start();
         }
@@ -152,6 +165,18 @@ namespace WinPlus
                 int vk = Marshal.ReadInt32(lParam);
                 bool keyDown = msg == 0x0100 || msg == 0x0104;   // WM_KEYDOWN / WM_SYSKEYDOWN
                 bool keyUp = msg == 0x0101 || msg == 0x0105;
+
+                // Ctrl+Z in Explorer / on the desktop right after a change of ours: undo it.
+                if (vk == 0x5A && _undoArmed && !_dragging && !_menuOpen && IsPlainCtrl() && IsExplorerFocused())
+                {
+                    if (keyDown && _heldKey != vk)
+                    {
+                        _heldKey = vk;
+                        OnUi(FileUndo.UndoLast);
+                    }
+                    if (keyUp && _heldKey == vk) _heldKey = 0;
+                    return (IntPtr)1;  // so Explorer doesn't undo something else as well
+                }
 
                 // Space = convert, R = resize, C = compress, Z = archive (while dragging from Explorer).
                 MediaTools.Mode? mode = vk switch
@@ -224,7 +249,46 @@ namespace WinPlus
             return cls.ToString() is "CabinetWClass" or "ExploreWClass" or "Progman" or "WorkerW";
         }
 
+        private static bool IsPlainCtrl() =>
+            GetAsyncKeyState(0x11) < 0 && GetAsyncKeyState(0x10) >= 0 && GetAsyncKeyState(0x12) >= 0 &&
+            GetAsyncKeyState(0x5B) >= 0 && GetAsyncKeyState(0x5C) >= 0;
+
+        /// <summary>Explorer / the desktop is in front, and not typing (renaming, address bar...).</summary>
+        private static bool IsExplorerFocused()
+        {
+            IntPtr fg = GetForegroundWindow();
+            if (fg == IntPtr.Zero) return false;
+            var cls = new StringBuilder(64);
+            GetClassName(fg, cls, cls.Capacity);
+            if (cls.ToString() is not ("CabinetWClass" or "ExploreWClass" or "Progman" or "WorkerW")) return false;
+            var info = new GUITHREADINFO { cbSize = Marshal.SizeOf<GUITHREADINFO>() };
+            if (GetGUIThreadInfo(GetWindowThreadProcessId(fg, IntPtr.Zero), ref info) && info.hwndFocus != IntPtr.Zero)
+            {
+                cls.Clear();
+                GetClassName(info.hwndFocus, cls, cls.Capacity);
+                if (cls.ToString() is "Edit" or "RichEdit20W" or "RICHEDIT50W") return false;
+            }
+            return true;
+        }
+
         // ---- Win32 ---------------------------------------------------------------------
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT { public int Left, Top, Right, Bottom; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct GUITHREADINFO
+        {
+            public int cbSize;
+            public uint flags;
+            public IntPtr hwndActive, hwndFocus, hwndCapture, hwndMenuOwner, hwndMoveSize, hwndCaret;
+            public RECT rcCaret;
+        }
+
+        [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vk);
+        [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, IntPtr pid);
+        [DllImport("user32.dll")] private static extern bool GetGUIThreadInfo(uint thread, ref GUITHREADINFO info);
 
         private delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
 

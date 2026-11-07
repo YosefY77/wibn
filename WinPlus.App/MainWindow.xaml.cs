@@ -214,10 +214,12 @@ namespace WinPlus
         private ToolPage? _resizePage, _compressPage, _archivePage;
         private TransferPage? _transferPage;
         private VideoPage? _videoPage;
+        private CapturePage? _capturePage;
+        private VolumePage? _volumePage;
 
         private FrameworkElement[] AllPages => new FrameworkElement[]
         {
-            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageGeneral,
+            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageGlass, PageGeneral,
         };
 
         private void OnNavChanged(object sender, RoutedEventArgs e)
@@ -247,6 +249,9 @@ namespace WinPlus
                 "archive" => Build(PageArchive, () => ArchiveHost.Content = _archivePage ??= new ToolPage(MediaTools.Mode.Archive)),
                 "video" => Build(PageVideo, () => VideoHost.Content = _videoPage ??= new VideoPage()),
                 "transfer" => Build(PageTransfer, () => TransferHost.Content = _transferPage ??= new TransferPage()),
+                "capture" => Build(PageCapture, () => CaptureHost.Content = _capturePage ??= new CapturePage()),
+                "volume" => Build(PageVolume, () => VolumeHost.Content = _volumePage ??= new VolumePage()),
+                "glass" => Build(PageGlass, () => GlassHost.Content ??= GlassSettings.Page()),
                 "general" => PageGeneral,
                 _ => PageTaskbar,
             };
@@ -365,6 +370,8 @@ namespace WinPlus
                 TransferHost.Content = null;
                 _videoPage = null;
                 VideoHost.Content = null;
+                _capturePage = null;
+                CaptureHost.Content = null;
                 BigHost.Content = null;
                 TempHost.Content = null;
                 DupHost.Content = null;
