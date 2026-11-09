@@ -29,7 +29,9 @@ namespace WinPlus
         // The rest comes from the settings (Video download page).
         private readonly double Bend, Dispersion, TintAlpha, RimShine;   // from the settings
         private readonly int Frost;
-        private const byte TintR = 0x1C, TintG = 0x1C, TintB = 0x1E;
+        // The tint's color: dark gray, or the color asked for (e.g. the widgets' background color).
+        private readonly byte TintR = 0x1C, TintG = 0x1C, TintB = 0x1E;
+        private readonly double TintLight = 0.11;   // how light the tint color is (0–1)
 
         private readonly Window _window;
         private readonly FrameworkElement _host;     // not transformed (the element's parent)
@@ -69,13 +71,21 @@ namespace WinPlus
         /// <summary>Can the window be left out of a screen copy (Windows 10 2004 and later)? Without it there's no glass.</summary>
         public bool Available { get; }
 
-        public LiquidGlass(Window window, FrameworkElement host, FrameworkElement target, Thickness offset, double radius, GlassSettings settings, bool desktop = false)
+        /// <param name="tint">A color for the tint instead of the dark gray, and how strong (0–1) it is.</param>
+        public LiquidGlass(Window window, FrameworkElement host, FrameworkElement target, Thickness offset, double radius, GlassSettings settings,
+                           bool desktop = false, (Color Color, double Alpha)? tint = null)
         {
             _desktop = desktop;
             Bend = Math.Clamp(settings.Bend, 0, 100) / 100.0;
             Dispersion = Math.Clamp(settings.Dispersion, 0, 100) / 100.0;
             Frost = Math.Clamp(settings.Frost, 0, 12);
             TintAlpha = Math.Clamp(settings.Tint, 0, 80) / 100.0;
+            if (tint is { } t)
+            {
+                TintR = t.Color.R; TintG = t.Color.G; TintB = t.Color.B;
+                TintAlpha = Math.Clamp(t.Alpha, 0, 1);
+                TintLight = (t.Color.R * 3 + t.Color.G * 6 + t.Color.B) / 10.0 / 255;
+            }
             RimShine = Math.Clamp(settings.Rim, 0, 100) / 100.0;
             _window = window;
             _host = host;
@@ -300,7 +310,7 @@ namespace WinPlus
                 sum += ((c >> 16) & 0xFF) * 3 + ((c >> 8) & 0xFF) * 6 + (c & 0xFF);
                 count++;
             }
-            double light = count > 0 ? (sum / (double)count / 10 / 255) * (1 - TintAlpha) + TintAlpha * 0.11 : 0;
+            double light = count > 0 ? (sum / (double)count / 10 / 255) * (1 - TintAlpha) + TintAlpha * TintLight : 0;
             _lightBehind = _lightBehind ? light > 0.50 : light > 0.60;   // a gap so it doesn't flicker
 
             // 3. Bend, split colors, tint, rim.

@@ -309,8 +309,19 @@ namespace WinPlus
             }
         }
 
-        /// <summary>The region, then its cities (the chosen one ticked).</summary>
         public override IEnumerable<Control> MenuItems()
+        {
+            yield return CityMenu(() => CurrentCity, c =>
+            {
+                if (Info == null) return;
+                Info.Options["city"] = c.Name;
+                Widgets.Save();
+                Update();
+            });
+        }
+
+        /// <summary>The region, then its cities (the chosen one ticked). Also used by the weather widget.</summary>
+        public static MenuItem CityMenu(Func<City> current, Action<City> pick)
         {
             var top = new MenuItem { Header = Lang.T("المنطقة") };
             foreach (var region in Regions)
@@ -320,13 +331,7 @@ namespace WinPlus
                 {
                     var c = city;
                     var choice = new MenuItem { Header = c.Shown, Tag = c.Name };
-                    choice.Click += (_, _) =>
-                    {
-                        if (Info == null) return;
-                        Info.Options["city"] = c.Name;
-                        Widgets.Save();
-                        Update();
-                    };
+                    choice.Click += (_, _) => pick(c);
                     sub.Items.Add(choice);
                 }
                 top.Items.Add(sub);
@@ -334,7 +339,7 @@ namespace WinPlus
             top.SubmenuOpened += (_, e) =>
             {
                 if (e.OriginalSource != top) return;
-                string now = CurrentCity.Name;
+                string now = current().Name;
                 foreach (MenuItem sub in top.Items)
                 {
                     bool here = false;
@@ -342,7 +347,7 @@ namespace WinPlus
                     sub.FontWeight = here ? FontWeights.SemiBold : FontWeights.Normal;
                 }
             };
-            yield return top;
+            return top;
         }
 
         // ---- Showing ------------------------------------------------------------------------------

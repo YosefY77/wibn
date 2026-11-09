@@ -464,6 +464,7 @@ namespace WinPlus
                 {
                     TaskbarInjector.SignalRefresh();
                 }
+                if (Widgets.Back == Widgets.BackMode.Taskbar) Widgets.RefreshGlass();   // widgets in the taskbar's color follow it
             };
         }
 
@@ -472,6 +473,7 @@ namespace WinPlus
             if (_loading) return;
             SettingsStore.ColorEnabled = ColorBox.IsChecked == true;
             TaskbarInjector.SignalRefresh();
+            if (Widgets.Back == Widgets.BackMode.Taskbar) Widgets.RefreshGlass();
             _ = TaskbarInjector.EnsureStartMenuAsync();
         }
 

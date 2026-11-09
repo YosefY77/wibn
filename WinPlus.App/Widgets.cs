@@ -29,6 +29,8 @@ namespace WinPlus
         public Widgets.Info? Info { get; set; }
         /// <summary>Its own items at the top of its right-click menu.</summary>
         public virtual IEnumerable<Control> MenuItems() => Array.Empty<Control>();
+        /// <summary>No card at all (no glass, no background, no edge): just what it draws, on the wallpaper.</summary>
+        public virtual bool Bare => false;
     }
 
     /// <summary>
@@ -70,6 +72,14 @@ namespace WinPlus
                 2, 2, () => new PrayerWidget()),
             new("media", "", Lang.T("يشتغل الحين"), Lang.T("الأغنية أو المقطع اللي يشتغل في أي برنامج (سبوتيفاي، يوتيوب في المتصفح…) مع صورته وأزرار التشغيل والتالي والسابق"),
                 4, 2, () => new MediaWidget()),
+            new("battery", "", Lang.T("البطاريات"), Lang.T("بطارية الماوس والكيبورد والسماعة (بلوتوث أو قطعة يو اس بي) وبطارية الجهاز إذا لابتوب. يتحدث كل نص دقيقة"),
+                3, 3, () => new BatteryWidget()),
+            new("weather", "", Lang.T("الطقس"), Lang.T("درجة الحرارة الحين والجو، والعظمى والصغرى، والرطوبة والرياح، والأيام الجاية. كليك يمين عليه عشان تختار مدينتك"),
+                3, 4, () => new WeatherWidget()),
+            new("picture", "", Lang.T("صورة"), Lang.T("صورة أو GIF من جهازك على سطح المكتب، والـ GIF يتحرك. كليك يمين عليه عشان تغيّرها أو تختار تملأ الويدجت أو تبان كاملة"),
+                3, 3, () => new PictureWidget()),
+            new("text", "", Lang.T("كتابة"), Lang.T("كلامك على سطح المكتب بدون إطار ولا خلفية. دبل كليك عليه عشان تكتب، وكليك يمين عشان تغيّر الخط والحجم واللون"),
+                4, 2, () => new TextWidget()),
         };
 
         public static Kind? KindOf(string type) => Kinds.FirstOrDefault(k => k.Type == type);
@@ -105,6 +115,118 @@ namespace WinPlus
             foreach (var w in _windows.Values) w.RestartGlass();
         }
 
+        // ---- The widgets' background color (all of them) -------------------------------------------
+
+        public enum BackMode { Default = 0, Taskbar = 1, Custom = 2 }
+
+        private const string BackKey = @"Software\WinPlus\Widgets";
+
+        /// <summary>Default (the glass's dark tint, or dark gray), the taskbar's color, or one picked.</summary>
+        public static BackMode Back
+        {
+            get
+            {
+                try { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(BackKey); return k?.GetValue("BackMode") is int v && v is >= 0 and <= 2 ? (BackMode)v : BackMode.Default; }
+                catch { return BackMode.Default; }
+            }
+            set
+            {
+                using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(BackKey);
+                k.SetValue("BackMode", (int)value, Microsoft.Win32.RegistryValueKind.DWord);
+            }
+        }
+
+        /// <summary>The picked color, 0xFFRRGGBB.</summary>
+        public static uint BackCustom
+        {
+            get
+            {
+                try { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(BackKey); return k?.GetValue("BackColor") is int v ? unchecked((uint)v) : 0xFF2B3A55; }
+                catch { return 0xFF2B3A55; }
+            }
+            set
+            {
+                using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(BackKey);
+                k.SetValue("BackColor", unchecked((int)value), Microsoft.Win32.RegistryValueKind.DWord);
+            }
+        }
+
+        /// <summary>The widgets' color right now (null = the default look), and how strongly it covers the glass.</summary>
+        public static (Color Color, double Alpha)? BackColor()
+        {
+            (Color Color, double Alpha)? c = Back switch
+            {
+                BackMode.Taskbar => TaskbarColor(),
+                BackMode.Custom => (FromArgb(BackCustom), 1.0),
+                _ => null,
+            };
+            if (c is not { } v) return null;
+            // Light enough that the glass still shows through it: as strong as the glass's own
+            // "darken" setting plus a little (34% → 44%), never more than the color's own opacity.
+            double glass = Math.Clamp(GlassSettings.SharedTint / 100.0 + 0.10, 0.20, 0.60);
+            return (v.Color, Math.Min(v.Alpha, glass));
+        }
+
+        /// <summary>The taskbar's color: Wibn's own when its taskbar color is on (its see-through
+        /// amount too), otherwise Windows' (the accent color if "show it on the taskbar" is on,
+        /// else dark or light gray with the theme).</summary>
+        public static (Color Color, double Alpha) TaskbarColor()
+        {
+            if (SettingsStore.ColorEnabled)
+            {
+                uint c = SettingsStore.Color;
+                return (FromArgb(c), Math.Clamp((c >> 24) / 255.0, 0.35, 0.92));
+            }
+            try
+            {
+                using var p = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                bool accent = p?.GetValue("ColorPrevalence") is int a && a == 1;
+                bool light = p?.GetValue("SystemUsesLightTheme") is int l && l == 1;
+                if (accent)
+                {
+                    using var e = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent");
+                    if (e?.GetValue("AccentColorMenu") is int abgr)   // what Start and the taskbar use (ABGR)
+                        return (Color.FromRgb((byte)abgr, (byte)(abgr >> 8), (byte)(abgr >> 16)), 0.85);
+                }
+                return (light ? Color.FromRgb(0xEE, 0xEE, 0xEE) : Color.FromRgb(0x20, 0x20, 0x20), 0.85);
+            }
+            catch { return (Color.FromRgb(0x20, 0x20, 0x20), 0.85); }
+        }
+
+        // ---- The widgets' font (all of them) -------------------------------------------------------
+
+        public const string DefaultFont = "Segoe UI";
+
+        /// <summary>The font family's name, as Windows knows it.</summary>
+        public static string FontName
+        {
+            get
+            {
+                try { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(BackKey); return k?.GetValue("Font") is string s && s.Length > 0 ? s : DefaultFont; }
+                catch { return DefaultFont; }
+            }
+            set
+            {
+                using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(BackKey);
+                k.SetValue("Font", value, Microsoft.Win32.RegistryValueKind.String);
+                foreach (var w in _windows.Values) w.FontFamily = Font();
+            }
+        }
+
+        /// <summary>The chosen font; if it was uninstalled, the default. Letters it doesn't have
+        /// (e.g. Arabic in an English-only font) come from Windows' fallback fonts.</summary>
+        public static FontFamily Font()
+        {
+            string name = FontName;
+            bool there = Fonts.SystemFontFamilies.Any(f => string.Equals(f.Source, name, StringComparison.OrdinalIgnoreCase));
+            return new FontFamily(there ? name : DefaultFont);
+        }
+
+        private static Color FromArgb(uint c) => Color.FromRgb((byte)(c >> 16), (byte)(c >> 8), (byte)c);
+
+        /// <summary>How light a color is (0–1), to pick dark or light text on it.</summary>
+        public static double Lightness(Color c) => (c.R * 3 + c.G * 6 + c.B) / 10.0 / 255;
+
         public static void Add(string type)
         {
             var kind = KindOf(type);
@@ -122,6 +244,7 @@ namespace WinPlus
             Load();
             _list.RemoveAll(i => i.Id == id);
             if (_windows.Remove(id, out var w)) w.CloseByUs();
+            PictureWidget.DeleteFiles(id);
             Save();
             Changed?.Invoke();
         }
@@ -340,7 +463,7 @@ namespace WinPlus
             ShowActivated = false;
             ResizeMode = ResizeMode.NoResize;
             Width = Height = 200;
-            FontFamily = new FontFamily("Segoe UI");
+            FontFamily = Widgets.Font();   // the text inherits it; icons keep their own icon font
             Foreground = (Brush)Application.Current.FindResource("Fg");
 
             _card = new Border
@@ -382,8 +505,20 @@ namespace WinPlus
             root.Children.Add(frame);
             Content = root;
 
-            MouseEnter += (_, _) => _grip.Opacity = 1;
-            MouseLeave += (_, _) => { if (!_sizing) _grip.Opacity = 0; };
+            MouseEnter += (_, _) => { _grip.Opacity = 1; if (_content.Bare) _card.BorderBrush = BareEdge; };
+            MouseLeave += (_, _) =>
+            {
+                if (_sizing) return;
+                _grip.Opacity = 0;
+                if (_content.Bare && !Typing) _card.BorderBrush = Brushes.Transparent;
+            };
+            if (content.Bare)
+            {
+                // Nothing to see, but still all there for the mouse (fully clear pixels can't be clicked);
+                // its edge shows only while the mouse is over it, so you can find it to move or resize.
+                _card.Background = BareBack;
+                _card.BorderBrush = Brushes.Transparent;
+            }
             MouseLeftButtonDown += (_, e) => { if (!e.Handled) { Begin(sizing: false); e.Handled = true; } };
             MouseMove += (_, _) => Track();
             MouseLeftButtonUp += (_, _) => End();
@@ -405,6 +540,32 @@ namespace WinPlus
         {
             ClosedByUs = true;
             Close();
+        }
+
+        private static readonly Brush BareBack = new SolidColorBrush(Color.FromArgb(0x01, 0, 0, 0));
+        private static readonly Brush BareEdge = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF));
+
+        /// <summary>Taking the keyboard (a widget you type in). Widgets normally never take it, so
+        /// clicking one doesn't pull focus from the window you're in.</summary>
+        public bool Typing { get; private set; }
+
+        public void BeginTyping()
+        {
+            if (_hwnd == IntPtr.Zero || Typing) return;
+            Typing = true;
+            long ex = GetWindowLongPtr(_hwnd, -20).ToInt64();
+            SetWindowLongPtr(_hwnd, -20, new IntPtr(ex & ~0x08000000L /* NOACTIVATE */));
+            if (_content.Bare) _card.BorderBrush = BareEdge;
+            Activate();
+        }
+
+        public void EndTyping()
+        {
+            if (_hwnd == IntPtr.Zero || !Typing) return;
+            Typing = false;
+            long ex = GetWindowLongPtr(_hwnd, -20).ToInt64();
+            SetWindowLongPtr(_hwnd, -20, new IntPtr(ex | 0x08000000L));
+            if (_content.Bare && !IsMouseOver) _card.BorderBrush = Brushes.Transparent;
         }
 
         private void OnSourceInitialized()
@@ -450,17 +611,21 @@ namespace WinPlus
             _glass = null;
         }
 
+        /// <summary>No glass: dark gray, or the widgets' color (dark text on a light one).</summary>
         private void ShowPlain()
         {
-            _card.Background = PlainBack;
+            if (_content.Bare) return;
+            var back = Widgets.BackColor();
+            _card.Background = back is { } b ? new SolidColorBrush(Color.FromArgb(0xF0, b.Color.R, b.Color.G, b.Color.B)) : PlainBack;
             _card.BorderBrush = PlainEdge;
-            _content.SetLightBehind(false);
+            _content.SetLightBehind(back is { } l && Widgets.Lightness(l.Color) > 0.6);
         }
 
         private void StartGlass()
         {
             StopGlass();
             if (_moving || _sizing) return;
+            if (_content.Bare) return;
             if (!IsVisible || !GlassSettings.Widgets.On) { ShowPlain(); return; }
             try
             {
@@ -468,7 +633,8 @@ namespace WinPlus
                 // Where the card really is in the window (a square one sits in the middle).
                 var host = (FrameworkElement)Content;
                 Point at = _card.TranslatePoint(new Point(0, 0), host);
-                var glass = new LiquidGlass(this, host, _card, new Thickness(at.X, at.Y, 0, 0), 14, GlassSettings.Widgets, desktop: true);
+                var glass = new LiquidGlass(this, host, _card, new Thickness(at.X, at.Y, 0, 0), 14, GlassSettings.Widgets, desktop: true,
+                                            tint: Widgets.BackColor());
                 if (!glass.Available) { ShowPlain(); return; }
                 _glass = glass;
                 _card.BorderBrush = GlassEdge;
@@ -683,6 +849,11 @@ namespace WinPlus
             else if (msg == WM_SETTINGCHANGE && wParam.ToInt32() == 0x14 /* SPI_SETDESKWALLPAPER */)
             {
                 Dispatcher.BeginInvoke(DispatcherPriority.Background, RestartGlass);   // a new wallpaper
+            }
+            else if (msg == WM_SETTINGCHANGE && lParam != IntPtr.Zero && Widgets.Back == Widgets.BackMode.Taskbar
+                     && Marshal.PtrToStringUni(lParam) == "ImmersiveColorSet")
+            {
+                Dispatcher.BeginInvoke(DispatcherPriority.Background, RestartGlass);   // Windows' colors changed
             }
             else if (msg == WM_DISPLAYCHANGE || (msg == WM_SETTINGCHANGE && wParam.ToInt32() == 0x2F /* SPI_SETWORKAREA */))
             {
