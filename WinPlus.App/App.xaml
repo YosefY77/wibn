@@ -439,12 +439,14 @@
         </Style>
 
         <Style TargetType="Slider">
+            <!-- The fill and the knob's dot use Foreground (a widget can pick its own color). -->
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Track x:Name="PART_Track" Height="22">
                             <Track.DecreaseRepeatButton>
-                                <RepeatButton Style="{StaticResource SliderFill}" Background="{StaticResource Accent}"
+                                <RepeatButton Style="{StaticResource SliderFill}" Background="{TemplateBinding Foreground}"
                                               Command="Slider.DecreaseLarge"/>
                             </Track.DecreaseRepeatButton>
                             <Track.IncreaseRepeatButton>
@@ -452,12 +454,12 @@
                                               Command="Slider.IncreaseLarge"/>
                             </Track.IncreaseRepeatButton>
                             <Track.Thumb>
-                                <Thumb Width="18" Height="18">
+                                <Thumb Width="18" Height="18" Foreground="{TemplateBinding Foreground}">
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
                                             <Grid>
                                                 <Ellipse Fill="#45484F"/>
-                                                <Ellipse x:Name="Dot" Width="10" Height="10" Fill="{StaticResource Accent}"/>
+                                                <Ellipse x:Name="Dot" Width="10" Height="10" Fill="{TemplateBinding Foreground}"/>
                                             </Grid>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
@@ -470,6 +472,96 @@
                                 </Thumb>
                             </Track.Thumb>
                         </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark right-click menu (the widgets'): black, white text, rounded. -->
+        <SolidColorBrush x:Key="MenuBg" Color="#18191C"/>
+        <SolidColorBrush x:Key="MenuEdge" Color="#3A3C42"/>
+        <SolidColorBrush x:Key="MenuHover" Color="#2E3036"/>
+
+        <Style x:Key="DarkContextMenu" TargetType="ContextMenu">
+            <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HasDropShadow" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{StaticResource MenuBg}" BorderBrush="{StaticResource MenuEdge}" BorderThickness="1"
+                                CornerRadius="8" Padding="4" MinWidth="170">
+                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" Grid.IsSharedSizeScope="True"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkMenuSeparator" TargetType="Separator">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Height="1" Margin="8,4" Background="#4A4D55"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkMenuItem" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Grid>
+                            <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Padding="6,5,8,5">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Path x:Name="Check" Data="M 0,5 L 4,9 L 11,1" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.6"
+                                          VerticalAlignment="Center" HorizontalAlignment="Left" Visibility="Hidden" FlowDirection="LeftToRight"/>
+                                    <ContentPresenter x:Name="IconBox" Grid.Column="1" ContentSource="Icon" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ContentPresenter Grid.Column="2" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                    <Path x:Name="Arrow" Grid.Column="3" Data="M 0,0 L 4,4 L 0,8" Stroke="{StaticResource Muted}" StrokeThickness="1.5"
+                                          VerticalAlignment="Center" Margin="14,0,0,0" Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+                            <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="2" VerticalOffset="-5" AllowsTransparency="True"
+                                   Focusable="False" PopupAnimation="Fade"
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Border Background="{StaticResource MenuBg}" BorderBrush="{StaticResource MenuEdge}" BorderThickness="1"
+                                        CornerRadius="8" Padding="4" MinWidth="170">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="520">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" Grid.IsSharedSizeScope="True"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource MenuHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsSubmenuOpen" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource MenuHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="HasItems" Value="True">
+                                <Setter TargetName="Arrow" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="Icon" Value="{x:Null}">
+                                <Setter TargetName="IconBox" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>

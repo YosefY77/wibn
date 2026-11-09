@@ -35,7 +35,8 @@ namespace WinPlus
             new("transfer", Lang.T("إرسال الملفات"), Lang.T("إرسال مباشر عبر الإنترنت. يحتاج sendme (كم ميقا)"), new[] { "transfer" }, "sendme"),
             new("capture", Lang.T("تصوير الشاشة"), Lang.T("صورة لمكان تحدده أو للشاشة كاملة، تسجيل فيديو، وحفظ آخر دقيقة. كل نوع باختصار تختاره. الفيديو يحتاج FFmpeg"), new[] { "capture" }, DefaultOn: false),
             new("volume", Lang.T("أصوات البرامج"), Lang.T("علّي أو خفّض صوت كل برنامج مفتوح لحاله، أو اكتمه"), new[] { "volume" }),
-            new("glass", "Liquid Glass", Lang.T("التأثير الزجاجي لشريط التحميل وقوائم الملفات وتصوير الشاشة، كله من مكان واحد"), new[] { "glass" }),
+            new("widgets", "Widgets", Lang.T("نوافذ صغيرة على سطح المكتب تتحاذى مع الأيقونات، أولها أصوات البرامج"), new[] { "widgets" }),
+            new("glass", "Liquid Glass", Lang.T("التأثير الزجاجي لشريط التحميل وقوائم الملفات وتصوير الشاشة والويدجتات، كله من مكان واحد"), new[] { "glass" }),
         };
 
         private const string Key = @"Software\WinPlus\Features";

@@ -191,9 +191,8 @@ namespace WinPlus
             TaskbarPlacement.ApplyAutoHideMode();
             VideoDownloader.Refresh();
             ScreenCapture.Refresh();  // its shortcuts, and the "last minute" recording if on
-            // Glass / see-through were removed: anyone who had them goes back to normal.
-            if (SettingsStore.TaskbarStyle != 0) { SettingsStore.TaskbarStyle = 0; TaskbarInjector.SignalRefresh(); TaskbarGlass.Reset(); }
-            TaskbarGlass.Update();
+            // Glass taskbar (TaskbarStyle 1) is drawn by the DLL inside the taskbar now.
+            if (SettingsStore.TaskbarStyle > 1) SettingsStore.TaskbarStyle = 0;   // the old "see-through" look is gone
 
             if (Features.IsOn("lock") && FileLockShell.Enabled) FileLockShell.Register();  // keeps it pointing at this exe
             else FileLockShell.Unregister();
@@ -208,6 +207,8 @@ namespace WinPlus
                 DownloadsOrganizer.Stop();
                 DownloadsOrganizer.UnregisterShell();
             }
+
+            if (Features.IsOn("widgets")) Widgets.Start(); else Widgets.Stop();
 
             DragSpaceHook.Refresh();  // Space / R / C while dragging a file → convert / resize / compress
         }
@@ -322,7 +323,6 @@ namespace WinPlus
             SettingsStore.AppActive = false;
             TaskbarInjector.SignalRefresh();
             TaskbarPlacement.RestoreTaskbar();
-            TaskbarGlass.Update();  // AppActive is off now: Windows' own look back
             Relocker.LockAllNow();
             DragSpaceHook.Stop();
             FileUndo.FinishAll();

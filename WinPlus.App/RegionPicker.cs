@@ -15,11 +15,10 @@ namespace WinPlus
     /// hovering. Once there's a box, a bar under it offers Save, Save as and Copy
     /// (Enter saves, Ctrl+C copies); dragging again starts a new box.
     ///
-    /// With the glass on (Screen capture page), the box and the bar look like Liquid
-    /// Glass: what's around bends at the rounded edges, the colors split a little,
-    /// a shine on the rim; the box stays sharp in the middle (frost only on its rim),
-    /// the bar is frosted and tinted so its text reads. Glass off: a white line and a
-    /// plain dark bar. Only on screen: the saved picture is the plain area.
+    /// The box is always plain (a white line). With the glass on, the bar of buttons
+    /// looks like Liquid Glass: what's around bends at the rounded edges, the colors
+    /// split a little, a shine on the rim, frosted and tinted so its text reads.
+    /// Glass off: a plain dark bar. The saved picture is always the plain area.
     ///
     /// Esc or right-click cancels. A WinForms window created while the thread is
     /// per-monitor aware, so everything is in real pixels and lines up with the
@@ -33,7 +32,7 @@ namespace WinPlus
         private const double Bezel = 20, Radius = 16;
         private const int DimAlpha = 110;
         private readonly bool _glassOn;               // the box
-        private readonly bool _barGlassOn;            // the bar of buttons: glass whenever the main switch is on
+        private readonly bool _barGlassOn;            // the bar of buttons: glass when the Capture switch is on
         private readonly double _bend, _dispersion, _tint, _rim;
         private readonly int _frost;
         private int[] _src = Array.Empty<int>(), _blur = Array.Empty<int>(), _tmp = Array.Empty<int>(), _buf = Array.Empty<int>();
@@ -69,8 +68,8 @@ namespace WinPlus
             _windows = windows;
             _hintScreen = hintScreen;
             var glass = GlassSettings.Capture;
-            _glassOn = glass.On;
-            _barGlassOn = GlassSettings.Master;
+            _glassOn = false;                // the box is never glass: a plain white line
+            _barGlassOn = glass.On;
             _bend = Math.Clamp(glass.Bend, 0, 100) / 100.0;
             _dispersion = Math.Clamp(glass.Dispersion, 0, 100) / 100.0;
             _frost = Math.Clamp(glass.Frost, 0, 12);

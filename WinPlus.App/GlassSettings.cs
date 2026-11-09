@@ -26,6 +26,9 @@ namespace WinPlus
         /// <summary>The box of "capture an area" (its bar of buttons is glass whenever the main switch is on).</summary>
         public static readonly GlassSettings Capture = new(@"Software\WinPlus\Capture", "Glass");
 
+        /// <summary>The desktop widgets.</summary>
+        public static readonly GlassSettings Widgets = new(@"Software\WinPlus\Widgets", "Glass");
+
         public static GlassSettings Menu(MediaTools.Mode mode) =>
             new(@"Software\WinPlus\TaskbarScroll", mode switch
             {
@@ -129,6 +132,7 @@ namespace WinPlus
             {
                 Master = master.IsChecked == true;
                 foreach (var c in where) c.IsEnabled = master.IsChecked == true;
+                WinPlus.Widgets.RefreshGlass();
             };
             panel.Children.Add(Row(master, "", Lang.T("زجاج سائل"),
                 Lang.T("يشغّل أو يطفّي التأثير الزجاجي في كل الميزات مرة وحدة"), new Thickness(0, 0, 0, 6)));
@@ -139,13 +143,14 @@ namespace WinPlus
             void Where(GlassSettings s, string icon, string title, string desc)
             {
                 var box = new CheckBox { Style = St("Switch"), IsChecked = s.Enabled, IsEnabled = master.IsChecked == true };
-                box.Click += (_, _) => s.Enabled = box.IsChecked == true;
+                box.Click += (_, _) => { s.Enabled = box.IsChecked == true; WinPlus.Widgets.RefreshGlass(); };
                 where.Add(box);
                 grid.Children.Add(Row(box, icon, title, desc));
             }
             string disc = Lang.T("الدائرة تعرض اللي تحتها منحني عند حافتها مثل زجاج أبل");
-            Where(Video, "", Lang.T("شريط تحميل المقاطع"), Lang.T("الشريط يعرض اللي وراه منحني عند الأطراف مثل زجاج أبل، حتى لو وراه فيديو"));
-            Where(Capture, "", Lang.T("تحديد مكان التصوير"), Lang.T("المكان اللي تحدده صافي بالنص وينحني عند الأطراف. أزرار الحفظ زجاجية دايمًا"));
+            Where(Video, "", Lang.T("شريط تحميل المقاطع"), Lang.T("الشريط يعرض اللي وراه منحني عند الأطراف مثل زجاج أبل"));
+            Where(Capture, "", Lang.T("أزرار تصوير الشاشة"), Lang.T("أزرار الحفظ والنسخ زجاجية. مربع التحديد يبقى عادي بخط أبيض"));
+            Where(Widgets, "\uE8A9", "Widgets", Lang.T("الويدجتات اللي على سطح المكتب تصير زجاج يبين خلفيتك منحنية عند الأطراف"));
             Where(Menu(MediaTools.Mode.Convert), "", Lang.T("قائمة تحويل الصيغ"), disc);
             Where(Menu(MediaTools.Mode.Resize), "", Lang.T("قائمة تغيير الأبعاد"), disc);
             Where(Menu(MediaTools.Mode.Compress), "", Lang.T("قائمة ضغط الملفات"), disc);
@@ -169,7 +174,7 @@ namespace WinPlus
                     VerticalAlignment = VerticalAlignment.Center, FlowDirection = FlowDirection.LeftToRight,
                 };
                 value.Text = (int)slider.Value + unit;
-                slider.ValueChanged += (_, e) => { set((int)e.NewValue); value.Text = (int)e.NewValue + unit; };
+                slider.ValueChanged += (_, e) => { set((int)e.NewValue); value.Text = (int)e.NewValue + unit; WinPlus.Widgets.RefreshGlass(); };
                 var both = new StackPanel { Orientation = Orientation.Horizontal };
                 both.Children.Add(slider);
                 both.Children.Add(value);
@@ -186,6 +191,7 @@ namespace WinPlus
             reset.Click += (_, _) =>
             {
                 ResetShared();
+                WinPlus.Widgets.RefreshGlass();
                 foreach (var (slider, get) in sliders) slider.Value = get();
             };
             grid.Children.Add(Row(reset, "", Lang.T("الشكل الافتراضي"), Lang.T("يرجّع كل الإعدادات اللي فوق مثل ما كانت")));

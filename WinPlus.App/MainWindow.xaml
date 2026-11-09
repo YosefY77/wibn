@@ -81,6 +81,8 @@
                                      Content="{local:Tr 'تصوير الشاشة'}" CommandParameter="capture" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE767;"
                                      Content="{local:Tr 'أصوات البرامج'}" CommandParameter="volume" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8A9;"
+                                     Content="Widgets" CommandParameter="widgets" Checked="OnNavChanged"/>
 
                         <TextBlock Style="{StaticResource SideGroup}" Text="{local:Tr 'الشكل'}"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE790;"
@@ -289,6 +291,28 @@
                             <local:ColorPicker x:Name="Picker" Width="360" HorizontalAlignment="Left" Margin="34,16,0,0"/>
                         </StackPanel>
                     </Border>
+                    <Border Style="{StaticResource Row}" Padding="16,14,16,16" Margin="0,6,0,0">
+                        <StackPanel>
+                            <DockPanel>
+                                <CheckBox x:Name="TaskbarGlassBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                          Checked="OnTaskbarGlassChanged" Unchecked="OnTaskbarGlassChanged"/>
+                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE9A9;"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'تاسك بار زجاجي'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'خلفية التاسك بار تصير زجاج مغبّش بلونك. مستقل عن مفتاح الزجاج الرئيسي. يحتاج تأثيرات الشفافية في ويندوز شغّالة'}"/>
+                                </StackPanel>
+                            </DockPanel>
+                            <DockPanel Margin="34,8,0,0">
+                                <TextBlock x:Name="TaskbarGlassText" DockPanel.Dock="Right" Width="48" VerticalAlignment="Center"
+                                           TextAlignment="Center" FlowDirection="LeftToRight"/>
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource RowDesc}" VerticalAlignment="Center" Margin="0,0,10,0"
+                                           Text="{local:Tr 'كثافة اللون'}"/>
+                                <Slider x:Name="TaskbarGlassSlider" Minimum="0" Maximum="90" TickFrequency="5"
+                                        IsSnapToTickEnabled="True" FlowDirection="LeftToRight" VerticalAlignment="Center"
+                                        ValueChanged="OnTaskbarGlassSliderChanged"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
 
                 </StackPanel>
             </ScrollViewer>
@@ -442,6 +466,15 @@
                     <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'أصوات البرامج'}"/>
                     <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'علّي أو خفّض صوت كل برنامج مفتوح لحاله، أو اكتمه.'}"/>
                     <ContentControl x:Name="VolumeHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Widgets on the desktop (built when opened) -->
+            <ScrollViewer x:Name="PageWidgets" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="Widgets"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'نوافذ صغيرة تحطها على سطح المكتب، تتحاذى مع الأيقونات وتقدر تكبّرها وتصغّرها.'}"/>
+                    <ContentControl x:Name="WidgetsHost"/>
                 </StackPanel>
             </ScrollViewer>
 

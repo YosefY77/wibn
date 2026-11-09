@@ -40,6 +40,8 @@ struct Target {
     bool hasColor = false;
     bool computing = false;
     void* iconSource = nullptr;
+    // Taskbar background: our own layer just above Windows' (see EnsureLayer).
+    winrt::weak_ref<Shapes::Rectangle> layer;
 };
 
 std::mutex g_targetsMutex;
@@ -144,6 +146,7 @@ std::wstring WithYear(const std::wstring& text, const FrameworkElement& el) {
 
 void ApplyToTarget(Target& t, const Settings& s);
 
+
 FrameworkElement FindByName(DependencyObject root, const wchar_t* name, int depth = 0) {
     if (depth > 12) return nullptr;
     int n = Media::VisualTreeHelper::GetChildrenCount(root);
@@ -206,10 +209,50 @@ winrt::fire_and_forget ComputeIndicatorColor(std::weak_ptr<Target> weak) {
     }
 }
 
-// The taskbar background brush: the chosen color, solid.
+// The taskbar's color layer: the chosen color, solid; or, as glass, see-through
+// over Windows' own blurred background.
 Media::Brush TaskbarBrush(const Settings& s) {
-    uint32_t c = s.colorEnabled ? (s.color | 0xFF000000u) : 0xFF202020u;
-    return Media::SolidColorBrush(ToColor(c));
+    uint32_t c = (s.colorEnabled ? s.color : 0xFF202020u) & 0x00FFFFFFu;
+    uint32_t alpha = s.taskbarStyle == 1 ? (uint32_t)(s.taskbarOpacity * 255 / 100) : 255u;
+    return Media::SolidColorBrush(ToColor((alpha << 24) | c));
+}
+
+constexpr const wchar_t* kLayerName = L"WibnFill";
+
+// Newer Windows builds keep putting their own brush on BackgroundFill (our color
+// never showed), so the color goes on a rectangle of our own, right above it, in
+// the same place. Windows doesn't know about it and leaves it alone.
+Shapes::Rectangle EnsureLayer(Target& t, const FrameworkElement& el) {
+    if (auto layer = t.layer.get()) return layer;
+    auto panel = Media::VisualTreeHelper::GetParent(el).try_as<Controls::Panel>();
+    if (!panel) return nullptr;
+    Shapes::Rectangle layer;
+    layer.Name(kLayerName);
+    layer.IsHitTestVisible(false);
+    layer.HorizontalAlignment(el.HorizontalAlignment());
+    layer.VerticalAlignment(el.VerticalAlignment());
+    layer.Width(el.Width());
+    layer.Height(el.Height());
+    Controls::Grid::SetRow(layer, Controls::Grid::GetRow(el));
+    Controls::Grid::SetColumn(layer, Controls::Grid::GetColumn(el));
+    Controls::Grid::SetRowSpan(layer, Controls::Grid::GetRowSpan(el));
+    Controls::Grid::SetColumnSpan(layer, Controls::Grid::GetColumnSpan(el));
+    uint32_t index = 0;
+    if (panel.Children().IndexOf(el, index)) panel.Children().InsertAt(index + 1, layer);
+    else panel.Children().Append(layer);
+    t.layer = winrt::make_weak(layer);
+    Log(L"Taskbar color layer added");
+    return layer;
+}
+
+void RemoveLayer(Target& t) {
+    if (auto layer = t.layer.get()) {
+        if (auto panel = Media::VisualTreeHelper::GetParent(layer).try_as<Controls::Panel>()) {
+            uint32_t index = 0;
+            if (panel.Children().IndexOf(layer, index)) panel.Children().RemoveAt(index);
+        }
+    }
+    t.layer = nullptr;
 }
 
 // UI thread.
@@ -225,7 +268,7 @@ void ApplyToTarget(Target& t, const Settings& s) {
 
     bool want = t.kind == ColorTargetKind::IconSize   ? (s.appActive && s.iconSize > 0)
               : t.kind == ColorTargetKind::DateYear ? (s.appActive && s.showYear)
-              : t.kind == ColorTargetKind::RectFill ? (s.appActive && (s.colorEnabled || s.floating))
+              : t.kind == ColorTargetKind::RectFill ? (s.appActive && (s.colorEnabled || s.floating || s.taskbarStyle == 1))
               : t.kind == ColorTargetKind::Indicator ? (s.appActive && s.indicatorColor && t.hasColor)
                                                     : (s.appActive && s.colorEnabled);
     if (t.kind == ColorTargetKind::Indicator && s.appActive && s.indicatorColor) {
@@ -249,13 +292,7 @@ void ApplyToTarget(Target& t, const Settings& s) {
             } else if (t.kind == ColorTargetKind::Indicator) {
                 SetValue(el, t.kind, Media::SolidColorBrush(ToColor(t.indicator)));
             } else if (t.kind == ColorTargetKind::RectFill) {
-                // Floating alone keeps Windows' own brush.
-                if (s.colorEnabled) {
-                    SetValue(el, t.kind, TaskbarBrush(s));
-                    el.Opacity(1.0);
-                } else {
-                    SetValue(el, t.kind, t.original);
-                }
+                // Windows' own brush stays on BackgroundFill (it's the blur under the glass).
                 // Floating: a gap all around and round corners. The taskbar window is
                 // see-through outside the rectangle, so the desktop shows there.
                 auto rect = el.try_as<Shapes::Rectangle>();
@@ -271,7 +308,7 @@ void ApplyToTarget(Target& t, const Settings& s) {
                             int n = Media::VisualTreeHelper::GetChildrenCount(parent);
                             for (int i = 0; i < n; i++) {
                                 auto sib = Media::VisualTreeHelper::GetChild(parent, i).try_as<FrameworkElement>();
-                                if (!sib || sib == el) continue;
+                                if (!sib || sib == el || sib.Name() == kLayerName) continue;
                                 Log(L"Floating: hiding %s #%s", winrt::get_class_name(sib).c_str(), sib.Name().c_str());
                                 t.hiddenSiblings.emplace_back(winrt::make_weak<UIElement>(sib), sib.Opacity());
                                 sib.Opacity(0);
@@ -294,11 +331,25 @@ void ApplyToTarget(Target& t, const Settings& s) {
                     t.hiddenSiblings.clear();
                     t.floatApplied = false;
                 }
+                // The color layer: a custom color, or glass. Floating alone keeps Windows' look.
+                if (s.colorEnabled || s.taskbarStyle == 1) {
+                    if (auto layer = EnsureLayer(t, el)) {
+                        layer.Fill(TaskbarBrush(s));
+                        layer.Margin(el.Margin());
+                        if (rect) {
+                            layer.RadiusX(rect.RadiusX());
+                            layer.RadiusY(rect.RadiusY());
+                        }
+                    }
+                } else {
+                    RemoveLayer(t);
+                }
             } else {
                 SetValue(el, t.kind, Media::SolidColorBrush(ToColor(s.color)));
             }
         } else if (t.applied) {
-            SetValue(el, t.kind, t.original);
+            if (t.kind == ColorTargetKind::RectFill) RemoveLayer(t);   // its brush was never changed
+            else SetValue(el, t.kind, t.original);
             el.Opacity(t.originalOpacity);
             t.applied = false;
             t.original = nullptr;

@@ -15,11 +15,12 @@ namespace WinPlus
     /// the colors splitting a little there, a light frost, a dark tint so the text
     /// stays readable, and a shine on the rim.
     ///
-    /// Live: about 30 times a second (on its own thread) it copies the screen area behind the element
-    /// (the window itself is left out of screen copies with WDA_EXCLUDEFROMCAPTURE)
-    /// and redraws the glass, so a video behind it moves in the glass too. The bend
-    /// for every pixel is worked out once; a frame is a copy, a blur and a lookup.
-    /// It only runs while the window is open.
+    /// A picture of what's behind is taken when it starts (and again on Refresh): for
+    /// that moment only, the window is left out of screen copies (WDA_EXCLUDEFROMCAPTURE),
+    /// then it's back. So screen sharing (Discord, Teams, OBS…) and screenshots show the
+    /// window with its glass; kept out all the time, they wouldn't show it at all.
+    /// The bend for every pixel is worked out once; a picture is a copy, a blur and a
+    /// lookup, done on its own thread.
     /// </summary>
     internal sealed class LiquidGlass : IDisposable
     {
@@ -29,7 +30,6 @@ namespace WinPlus
         private readonly double Bend, Dispersion, TintAlpha, RimShine;   // from the settings
         private readonly int Frost;
         private const byte TintR = 0x1C, TintG = 0x1C, TintB = 0x1E;
-        private static readonly TimeSpan FrameTime = TimeSpan.FromMilliseconds(33);
 
         private readonly Window _window;
         private readonly FrameworkElement _host;     // not transformed (the element's parent)
@@ -48,6 +48,15 @@ namespace WinPlus
         private IntPtr _screenDc, _memDc, _dib, _bits, _oldObj;
         private volatile bool _running;
         private Thread? _thread;
+        private readonly IntPtr _hwnd;
+        private readonly AutoResetEvent _wake = new(false);
+        private int _wanted;                           // a new picture of what's behind is wanted
+        private int _x, _y;                            // where the copy is taken (screen pixels)
+        private readonly bool _desktop;                // copy the desktop itself, not the screen (widgets)
+        private volatile int _ox, _oy;                 // desktop mode: the element's top left (screen pixels)
+        private int _recapture = 1;                    // desktop mode: a new picture of the desktop is wanted
+        private IntPtr _deskDc, _deskBmp, _deskOld;    // desktop mode: the last picture of the whole desktop
+        private RECT _deskRect;
 
         /// <summary>
         /// What's behind turned light (true) or dark (false): the text on the glass
@@ -55,13 +64,14 @@ namespace WinPlus
         /// </summary>
         public event Action<bool>? LightBehindChanged;
         private volatile bool _lightBehind;
-        private bool _lightReported;
+        private bool _lightReported, _reportedOnce;
 
-        /// <summary>Is the window kept out of screen copies (Windows 10 2004 and later)? Without it there's no glass.</summary>
+        /// <summary>Can the window be left out of a screen copy (Windows 10 2004 and later)? Without it there's no glass.</summary>
         public bool Available { get; }
 
-        public LiquidGlass(Window window, FrameworkElement host, FrameworkElement target, Thickness offset, double radius, GlassSettings settings)
+        public LiquidGlass(Window window, FrameworkElement host, FrameworkElement target, Thickness offset, double radius, GlassSettings settings, bool desktop = false)
         {
+            _desktop = desktop;
             Bend = Math.Clamp(settings.Bend, 0, 100) / 100.0;
             Dispersion = Math.Clamp(settings.Dispersion, 0, 100) / 100.0;
             Frost = Math.Clamp(settings.Frost, 0, 12);
@@ -72,8 +82,9 @@ namespace WinPlus
             _target = target;
             _offset = offset;
             _radius = radius;
-            var hwnd = new WindowInteropHelper(window).EnsureHandle();
-            Available = SetWindowDisplayAffinity(hwnd, 0x11 /* WDA_EXCLUDEFROMCAPTURE */);
+            _hwnd = new WindowInteropHelper(window).EnsureHandle();
+            // Shown normally in screen copies (older versions kept it out all the time).
+            Available = Environment.OSVersion.Version.Build >= 19041 && SetWindowDisplayAffinity(_hwnd, 0 /* WDA_NONE */);
         }
 
         /// <summary>
@@ -95,7 +106,17 @@ namespace WinPlus
             _bitmap = new WriteableBitmap(w, h, 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Bgr32, null);
             _front = new int[w * h];
             _running = true;
+            _wanted = 1;
             int ox = (int)Math.Round(origin.X), oy = (int)Math.Round(origin.Y);
+            if (_desktop)
+            {
+                // In real pixels, like the desktop picture.
+                RECT r;
+                using (new ScreenCapture.DpiScope()) GetWindowRect(_hwnd, out r);
+                ox = r.Left + (int)Math.Round(_offset.Left * dpi.DpiScaleX);
+                oy = r.Top + (int)Math.Round(_offset.Top * dpi.DpiScaleY);
+                _ox = ox; _oy = oy;
+            }
             double scale = dpi.DpiScaleX;
             _thread = new Thread(() => Loop(ox, oy, w, h, scale))
             {
@@ -104,26 +125,65 @@ namespace WinPlus
             _thread.Start();
         }
 
-        public void Dispose() => _running = false;   // the thread stops and cleans up by itself
+        /// <summary>Take a new picture of what's behind (e.g. the wallpaper changed).</summary>
+        public void Refresh()
+        {
+            Interlocked.Exchange(ref _recapture, 1);
+            Interlocked.Exchange(ref _wanted, 1);
+            _wake.Set();
+        }
+
+        /// <summary>
+        /// Desktop mode: the window moved (same size). The glass follows it from the
+        /// picture of the desktop it already has, so it's quick enough while dragging.
+        /// </summary>
+        public void Follow()
+        {
+            if (!_desktop || !_running) return;
+            RECT r;
+            using (new ScreenCapture.DpiScope()) if (!GetWindowRect(_hwnd, out r)) return;
+            var dpi = VisualTreeHelper.GetDpi(_window);
+            _ox = r.Left + (int)Math.Round(_offset.Left * dpi.DpiScaleX);
+            _oy = r.Top + (int)Math.Round(_offset.Top * dpi.DpiScaleY);
+            Interlocked.Exchange(ref _wanted, 1);
+            _wake.Set();
+        }
+
+        public void Dispose()   // the thread stops and cleans up by itself
+        {
+            _running = false;
+            _wake.Set();
+        }
 
         private void Loop(int ox, int oy, int w, int h, double scale)
         {
             try
             {
                 Prepare(w, h, scale);
-                int x = ox - _margin, y = oy - _margin;
+                _x = ox - _margin; _y = oy - _margin;
                 int frost = (int)Math.Round(Frost * scale);
-                var clock = Stopwatch.StartNew();
                 while (_running)
                 {
-                    var started = clock.Elapsed;
-                    if (DrawFrame(x, y, frost) && Interlocked.CompareExchange(ref _pending, 1, 0) == 0)
+                    if (Interlocked.Exchange(ref _wanted, 0) == 1)
                     {
-                        lock (_front) Array.Copy(_out, _front, _out.Length);
-                        _window.Dispatcher.BeginInvoke(new Action(Present));
+                        // The copy itself on the window's thread (it hides the window from it for a moment).
+                        bool copied = false;
+                        if (_desktop) copied = CopyDesktop();
+                        else
+                        {
+                            var op = _window.Dispatcher.InvokeAsync(() => copied = _running && CopyBehind());
+                            op.Wait(TimeSpan.FromSeconds(2));
+                        }
+                        if (copied && _running)
+                        {
+                            DrawFrame(frost);
+                            lock (_front) Array.Copy(_out, _front, _out.Length);
+                            // One waiting at a time; it shows the latest picture anyway.
+                            if (Interlocked.Exchange(ref _pending, 1) == 0)
+                                _window.Dispatcher.BeginInvoke(new Action(Present));
+                        }
                     }
-                    var rest = FrameTime - (clock.Elapsed - started);
-                    if (rest > TimeSpan.Zero) Thread.Sleep(rest);
+                    _wake.WaitOne();
                 }
             }
             catch (Exception ex)
@@ -150,8 +210,9 @@ namespace WinPlus
                     else if (_target is System.Windows.Shapes.Shape shape) shape.Fill = _brush;   // e.g. a round menu's disc
                 }
                 lock (_front) _bitmap.WritePixels(new Int32Rect(0, 0, _bitmap.PixelWidth, _bitmap.PixelHeight), _front, _bitmap.PixelWidth * 4, 0);
-                if (_lightReported != _lightBehind)
+                if (!_reportedOnce || _lightReported != _lightBehind)
                 {
+                    _reportedOnce = true;
                     _lightReported = _lightBehind;
                     LightBehindChanged?.Invoke(_lightBehind);
                 }
@@ -167,14 +228,68 @@ namespace WinPlus
             }
         }
 
-        /// <summary>One frame into _out (on the glass thread). False if the screen couldn't be copied.</summary>
-        private bool DrawFrame(int x, int y, int frost)
+        /// <summary>
+        /// On the window's thread: copies what's behind into _src. The window is left out
+        /// of screen copies only until the next screen refresh is done (DwmFlush), then
+        /// it's shown in them again, so a screen share only misses it for a frame or two.
+        /// </summary>
+        private bool CopyBehind()
         {
-            // 1. What's behind, from the screen (this window is left out of the copy).
-            if (!BitBlt(_memDc, 0, 0, _cw, _ch, _screenDc, x, y, 0x00CC0020 /* SRCCOPY */)) return false;
+            if (!SetWindowDisplayAffinity(_hwnd, 0x11 /* WDA_EXCLUDEFROMCAPTURE */)) return false;
+            try
+            {
+                DwmFlush();
+                if (!BitBlt(_memDc, 0, 0, _cw, _ch, _screenDc, _x, _y, 0x00CC0020 /* SRCCOPY */)) return false;
+            }
+            finally { SetWindowDisplayAffinity(_hwnd, 0 /* WDA_NONE */); }
             Marshal.Copy(_bits, _src, 0, _src.Length);
+            return true;
+        }
 
-            // 2. Frost.
+        /// <summary>
+        /// On the glass thread: the desktop (wallpaper) behind the element, drawn by the
+        /// desktop window itself, so it works even with windows over the element.
+        /// </summary>
+        private bool CopyDesktop()
+        {
+            using var _ = new ScreenCapture.DpiScope();
+            if (_deskDc == IntPtr.Zero || Interlocked.Exchange(ref _recapture, 0) == 1)
+            {
+                FreeDesktop();
+                IntPtr desk = FindWindow("Progman", null);
+                if (desk == IntPtr.Zero || !GetWindowRect(desk, out var r)) return false;
+                int dw = r.Right - r.Left, dh = r.Bottom - r.Top;
+                if (dw <= 0 || dh <= 0) return false;
+                _deskDc = CreateCompatibleDC(_screenDc);
+                _deskBmp = CreateCompatibleBitmap(_screenDc, dw, dh);
+                if (_deskDc == IntPtr.Zero || _deskBmp == IntPtr.Zero) { FreeDesktop(); return false; }
+                _deskOld = SelectObject(_deskDc, _deskBmp);
+                _deskRect = r;
+                if (!PrintWindow(desk, _deskDc, 2 /* PW_RENDERFULLCONTENT */)) { FreeDesktop(); return false; }
+            }
+            int x = _ox - _margin, y = _oy - _margin;
+            // Outside the desktop (the edge of the screen): black, the bend barely reaches there.
+            PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
+            if (!BitBlt(_memDc, 0, 0, _cw, _ch, _deskDc, x - _deskRect.Left, y - _deskRect.Top, 0x00CC0020 /* SRCCOPY */)) return false;
+            Marshal.Copy(_bits, _src, 0, _src.Length);
+            return true;
+        }
+
+        private void FreeDesktop()
+        {
+            if (_deskDc != IntPtr.Zero)
+            {
+                if (_deskOld != IntPtr.Zero) SelectObject(_deskDc, _deskOld);
+                DeleteDC(_deskDc);
+            }
+            if (_deskBmp != IntPtr.Zero) DeleteObject(_deskBmp);
+            _deskDc = _deskBmp = _deskOld = IntPtr.Zero;
+        }
+
+        /// <summary>The glass picture into _out (on the glass thread), from _src.</summary>
+        private void DrawFrame(int frost)
+        {
+            // Frost.
             if (frost > 0) BoxBlur(_src, _tmp, _cw, _ch, frost);
 
             // How light is it behind (after the tint)? Every 7th pixel is plenty.
@@ -208,7 +323,6 @@ namespace WinPlus
                 }
                 _out[i] = unchecked((int)0xFF000000) | (r << 16) | (g << 8) | b;
             }
-            return true;
         }
 
         /// <summary>Works out, once per size, where every glass pixel takes its color from.</summary>
@@ -327,6 +441,7 @@ namespace WinPlus
 
         private void FreeGdi()
         {
+            FreeDesktop();
             if (_memDc != IntPtr.Zero)
             {
                 if (_oldObj != IntPtr.Zero) SelectObject(_memDc, _oldObj);
@@ -349,6 +464,13 @@ namespace WinPlus
         }
 
         [DllImport("user32.dll")] private static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
+        [DllImport("dwmapi.dll")] private static extern int DwmFlush();
+        [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hwnd, IntPtr dc, uint flags);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindow(string cls, string? title);
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+        [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleBitmap(IntPtr dc, int w, int h);
+        [DllImport("gdi32.dll")] private static extern bool PatBlt(IntPtr dc, int x, int y, int w, int h, uint rop);
+        [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
         [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hwnd);
         [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
         [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr dc);

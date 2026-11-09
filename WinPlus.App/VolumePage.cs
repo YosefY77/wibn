@@ -395,6 +395,13 @@ namespace WinPlus
 
         // ---- Programs ------------------------------------------------------------------------------
 
+        /// <summary>The program's icon (cached), or null.</summary>
+        internal static ImageSource? IconOf(string path)
+        {
+            AppIcon(path);
+            return IconCache.TryGetValue(path, out var i) ? i : null;
+        }
+
         private static FrameworkElement AppIcon(string path)
         {
             if (!IconCache.TryGetValue(path, out var image))
@@ -415,7 +422,7 @@ namespace WinPlus
             return image == null ? Glyph("") : new Image { Source = image, Width = 28, Height = 28 };
         }
 
-        private static string AppName(string? path, uint pid)
+        internal static string AppName(string? path, uint pid)
         {
             if (path != null)
             {
@@ -431,14 +438,14 @@ namespace WinPlus
             catch { return "PID " + pid; }
         }
 
-        private static bool ProcessAlive(uint pid)
+        internal static bool ProcessAlive(uint pid)
         {
             try { using var p = Process.GetProcessById((int)pid); return !p.HasExited; }
             catch { return false; }
         }
 
         /// <summary>The exe path, also for programs started as admin.</summary>
-        private static string? ProcessPath(uint pid)
+        internal static string? ProcessPath(uint pid)
         {
             IntPtr h = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
             if (h == IntPtr.Zero) return null;

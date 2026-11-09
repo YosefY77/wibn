@@ -36,6 +36,9 @@ namespace WinPlus
             FloatingBox.IsChecked = SettingsStore.Floating;
             MagnifyBox.IsChecked = SettingsStore.Magnify;
             IndicatorBox.IsChecked = SettingsStore.IndicatorColor;
+            TaskbarGlassBox.IsChecked = SettingsStore.TaskbarStyle == 1;
+            TaskbarGlassSlider.Value = Math.Clamp(SettingsStore.TaskbarOpacity, 0, 90);
+            TaskbarGlassText.Text = $"{(int)TaskbarGlassSlider.Value}%";
             int pref = SettingsStore.SmallButtons;
             foreach (ComboBoxItem item in SmallButtonsBox.Items)
             {
@@ -216,10 +219,11 @@ namespace WinPlus
         private VideoPage? _videoPage;
         private CapturePage? _capturePage;
         private VolumePage? _volumePage;
+        private WidgetsPage? _widgetsPage;
 
         private FrameworkElement[] AllPages => new FrameworkElement[]
         {
-            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageGlass, PageGeneral,
+            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageWidgets, PageGlass, PageGeneral,
         };
 
         private void OnNavChanged(object sender, RoutedEventArgs e)
@@ -251,6 +255,7 @@ namespace WinPlus
                 "transfer" => Build(PageTransfer, () => TransferHost.Content = _transferPage ??= new TransferPage()),
                 "capture" => Build(PageCapture, () => CaptureHost.Content = _capturePage ??= new CapturePage()),
                 "volume" => Build(PageVolume, () => VolumeHost.Content = _volumePage ??= new VolumePage()),
+                "widgets" => Build(PageWidgets, () => WidgetsHost.Content = _widgetsPage ??= new WidgetsPage()),
                 "glass" => Build(PageGlass, () => GlassHost.Content ??= GlassSettings.Page()),
                 "general" => PageGeneral,
                 _ => PageTaskbar,
@@ -291,6 +296,37 @@ namespace WinPlus
         }
 
         // ---- Taskbar look ---------------------------------------------------------
+
+        /// <summary>Glass taskbar: Windows' own blur under our color, see-through. Its own
+        /// switch: the Liquid Glass page's main switch doesn't touch it.</summary>
+        private void OnTaskbarGlassChanged(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            SettingsStore.TaskbarStyle = TaskbarGlassBox.IsChecked == true ? 1 : 0;
+            TaskbarInjector.SignalRefresh();
+        }
+
+        private readonly System.Windows.Threading.DispatcherTimer _glassTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
+
+        private void OnTaskbarGlassSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (TaskbarGlassText == null) return;
+            TaskbarGlassText.Text = $"{(int)TaskbarGlassSlider.Value}%";
+            if (_loading) return;
+            SettingsStore.TaskbarOpacity = (int)TaskbarGlassSlider.Value;
+            if (TaskbarGlassBox.IsChecked != true) { TaskbarGlassBox.IsChecked = true; return; }  // moving it turns it on
+            // The taskbar follows live, not on every single step.
+            _glassTimer.Stop();
+            _glassTimer.Tick -= OnGlassTimer;
+            _glassTimer.Tick += OnGlassTimer;
+            _glassTimer.Start();
+        }
+
+        private void OnGlassTimer(object? sender, EventArgs e)
+        {
+            _glassTimer.Stop();
+            TaskbarInjector.SignalRefresh();
+        }
 
         private void OnLookChanged(object sender, RoutedEventArgs e)
         {

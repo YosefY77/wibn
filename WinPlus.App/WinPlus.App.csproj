@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- Windows 10 2004+ APIs (the "now playing" widget reads Windows' media controls). -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
@@ -16,7 +18,7 @@
     <Description>Wibn: My Windows is better now</Description>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <!-- Release builds get the number from the git tag (v1.2.3 → 1.2.3). -->
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

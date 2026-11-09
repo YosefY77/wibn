@@ -61,6 +61,38 @@ namespace WinPlus
             catch { return false; }
         }
 
+        /// <summary>Where one desktop icon sits (desktop list coordinates, real pixels), to
+        /// find how the icon grid is shifted. Null if the desktop has no icons.</summary>
+        public static POINT? AnyItemPosition()
+        {
+            try
+            {
+                var view = DesktopView();
+                if (view == null) return null;
+                view.ItemCount(2 /* SVGIO_ALLVIEW */, out int count);
+                if (count <= 0) return null;
+                view.Item(0, out IntPtr pidl);
+                if (pidl == IntPtr.Zero) return null;
+                try { return view.GetItemPosition(pidl, out POINT pt) == 0 ? pt : null; }
+                finally { Marshal.FreeCoTaskMem(pidl); }
+            }
+            catch { return null; }
+        }
+
+        /// <summary>The size of one icon cell on the desktop (real pixels), or null.</summary>
+        public static POINT? Spacing()
+        {
+            try
+            {
+                var view = DesktopView();
+                if (view == null) return null;
+                var pt = new POINT();
+                view.GetSpacing(ref pt);
+                return pt.X > 0 && pt.Y > 0 ? pt : null;
+            }
+            catch { return null; }
+        }
+
         private static IFolderView? DesktopView()
         {
             var windows = (IShellWindows)Activator.CreateInstance(

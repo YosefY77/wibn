@@ -74,6 +74,68 @@ namespace WinPlus
         public static bool IsLocked(string path) =>
             File.Exists(path) && path.EndsWith(Extension, StringComparison.OrdinalIgnoreCase);
 
+        // ---- The list of locked files (shown in the lock page) ----------------------
+
+        private const string ListKey = @"Software\WinPlus\TaskbarScroll";
+        private const string ListValue = "LockedFiles";
+        private static readonly object ListGate = new();
+
+        /// <summary>Files we locked that still exist (missing ones are dropped).</summary>
+        public static List<string> LockedFiles()
+        {
+            lock (ListGate)
+            {
+                var all = ReadList();
+                var alive = all.FindAll(File.Exists);
+                if (alive.Count != all.Count) WriteList(alive);
+                return alive;
+            }
+        }
+
+        public static event Action? ListChanged;
+
+        private static void Remember(string path)
+        {
+            try
+            {
+                lock (ListGate)
+                {
+                    var list = ReadList();
+                    list.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+                    list.Insert(0, path);
+                    WriteList(list);
+                }
+                ListChanged?.Invoke();
+            }
+            catch { }
+        }
+
+        private static void Forget(string path)
+        {
+            try
+            {
+                lock (ListGate)
+                {
+                    var list = ReadList();
+                    if (list.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) > 0) WriteList(list);
+                }
+                ListChanged?.Invoke();
+            }
+            catch { }
+        }
+
+        private static List<string> ReadList()
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(ListKey);
+            return key?.GetValue(ListValue) is string[] a ? new List<string>(a) : new List<string>();
+        }
+
+        private static void WriteList(List<string> list)
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(ListKey);
+            key.SetValue(ListValue, list.ToArray(), Microsoft.Win32.RegistryValueKind.MultiString);
+        }
+
         // ---- Lock -----------------------------------------------------------------
 
         /// <summary>Encrypts a file or folder into "name.wplock" next to it and removes the original.</summary>
@@ -105,6 +167,7 @@ namespace WinPlus
                 TryDelete(temp);
                 throw;
             }
+            Remember(target);
 
             try
             {
@@ -212,6 +275,7 @@ namespace WinPlus
                 else ReadFile(reader, target);
             }
             File.Delete(path);
+            Forget(path);
             return target;
         }
 

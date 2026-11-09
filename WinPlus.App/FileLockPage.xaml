@@ -60,5 +60,10 @@
                 </DockPanel>
             </Border>
         </UniformGrid>
+
+        <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'الملفات المقفولة'}"/>
+        <TextBlock x:Name="EmptyText" Foreground="{StaticResource Muted}" FontSize="12" Margin="2,0,0,0"
+                   Text="{local:Tr 'ما فيه ملفات مقفولة للحين'}"/>
+        <StackPanel x:Name="LockedList"/>
     </StackPanel>
 </UserControl>
