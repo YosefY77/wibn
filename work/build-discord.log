@@ -1,0 +1,136 @@
+571 INFO: PyInstaller: 6.22.2, contrib hooks: 2026.6
+571 INFO: Python: 3.12.10
+966 INFO: Platform: Windows-11-10.0.26300-SP0
+968 INFO: Python environment: C:\Users\YSIF\AppData\Local\Programs\Python\Python312
+12189 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni\\vendor',
+ 'C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages',
+ 'C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni',
+ 'C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni\\vendor']
+pygame 2.6.1 (SDL 2.28.4, Python 3.12.10)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+14907 INFO: Appending 'datas' from .spec
+15566 INFO: checking Analysis
+15567 INFO: Building Analysis because Analysis-00.toc is non existent
+15567 INFO: Looking for Python shared library...
+15567 INFO: Using Python shared library: C:\Users\YSIF\AppData\Local\Programs\Python\Python312\python312.dll
+15567 INFO: Running Analysis Analysis-00.toc
+15567 INFO: Target bytecode optimization level: 0
+15567 INFO: Initializing module dependency graph...
+15575 INFO: Initializing module graph hook caches...
+15630 INFO: Analyzing modules for base_library.zip ...
+20019 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+21638 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+23521 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+25128 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+25804 INFO: Caching module dependency graph...
+25865 INFO: Analyzing C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\work\harmoni\server.py
+26171 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+26463 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+26796 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+26984 INFO: Processing standard module hook 'hook-urllib3.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+27120 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+27122 INFO: SetuptoolsInfo: initializing cached setuptools info...
+29644 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+29656 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+29717 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+29730 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+29809 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+29815 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+29817 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+29833 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+29834 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+30029 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+30037 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+30722 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+31061 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+31064 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32236 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32238 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+32902 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32903 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+33447 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+33554 INFO: Processing standard module hook 'hook-charset_normalizer.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+33771 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+37611 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+39205 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+39838 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+40411 INFO: Processing standard module hook 'hook-jinja2.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+41973 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+41974 INFO: Setuptools: 'importlib_metadata' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.importlib_metadata'!
+42029 INFO: Processing standard module hook 'hook-setuptools._vendor.importlib_metadata.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+42151 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+42154 INFO: Setuptools: 'zipp' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.zipp'!
+43645 INFO: Processing standard module hook 'hook-yt_dlp.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\yt_dlp\\__pyinstaller'
+WARNING: Using Crypto since Cryptodome is not available. Install with: python3 -m pip install pycryptodomex
+581 WARNING: Failed to collect submodules for 'urllib3.contrib.emscripten' because importing 'urllib3.contrib.emscripten' raised: ModuleNotFoundError: No module named 'js'
+48836 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+49315 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+50754 INFO: Processing standard module hook 'hook-websockets.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+52763 INFO: Processing standard module hook 'hook-Crypto.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+54005 INFO: Processing standard module hook 'hook-pycparser.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+67009 INFO: Processing standard module hook 'hook-webview.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\webview\\__pyinstaller'
+67818 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+68019 INFO: Processing standard module hook 'hook-clr.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\pythonnet\\_pyinstaller'
+68323 INFO: Processing standard module hook 'hook-clr_loader.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+68780 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+71338 INFO: Processing standard module hook 'hook-psutil.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+72280 INFO: Processing standard module hook 'hook-comtypes.client.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+72808 INFO: Analyzing hidden import 'engineio.async_drivers.threading'
+72813 INFO: Analyzing hidden import 'yt_dlp.__main__'
+72815 INFO: Analyzing hidden import 'yt_dlp.__pyinstaller'
+72818 INFO: Analyzing hidden import 'yt_dlp.__pyinstaller.hook-yt_dlp'
+72869 INFO: Processing standard module hook 'hook-win32ctypes.core.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks'
+76644 INFO: Analyzing hidden import 'yt_dlp.compat._deprecated'
+76646 INFO: Analyzing hidden import 'yt_dlp.compat._legacy'
+76659 INFO: Analyzing hidden import 'yt_dlp.utils._deprecated'
+76666 INFO: Analyzing hidden import 'yt_dlp.utils._legacy'
+76680 INFO: Processing module hooks (post-graph stage)...
+76963 WARNING: Hidden import "pycparser.lextab" not found!
+76963 WARNING: Hidden import "pycparser.yacctab" not found!
+77174 INFO: Performing binary vs. data reclassification (1264 entries)
+78131 INFO: Looking for ctypes DLLs
+78709 INFO: Analyzing run-time hooks ...
+78721 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+78735 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+78754 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+78767 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+78779 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+78867 INFO: Creating base_library.zip...
+78898 INFO: Looking for dynamic libraries
+2976 INFO: Imported existing <module 'comtypes.gen' from 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\comtypes\\gen\\__init__.py'>
+2976 INFO: Using writeable comtypes cache directory: 'C:\Users\YSIF\AppData\Local\Programs\Python\Python312\Lib\site-packages\comtypes\gen'
+83093 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\numpy.libs']
+83093 INFO: Extra DLL search directories (PATH): []
+88386 INFO: Warnings written to C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\work\build-discord\HarmoniApp\warn-HarmoniApp.txt
+88659 INFO: Graph cross-reference written to C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\work\build-discord\HarmoniApp\xref-HarmoniApp.html
+88814 INFO: checking PYZ
+88814 INFO: Building PYZ because PYZ-00.toc is non existent
+88814 INFO: Building PYZ (ZlibArchive) C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\work\build-discord\HarmoniApp\PYZ-00.pyz
+90997 INFO: Building PYZ (ZlibArchive) C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\work\build-discord\HarmoniApp\PYZ-00.pyz completed successfully.
+91063 INFO: checking PKG
+91064 INFO: Building PKG because PKG-00.toc is non existent
+91064 INFO: Building PKG (CArchive) Harmoni.pkg
+91339 INFO: Building PKG (CArchive) Harmoni.pkg completed successfully.
+91341 INFO: Bootloader C:\Users\YSIF\AppData\Local\Programs\Python\Python312\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+91341 INFO: checking EXE
+91342 INFO: Building EXE because EXE-00.toc is non existent
+91342 INFO: Building EXE from EXE-00.toc
+91343 INFO: Copying bootloader EXE to C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\work\build-discord\HarmoniApp\Harmoni.exe
+91406 INFO: Copying icon to EXE
+91457 INFO: Copying 0 resources to EXE
+91457 INFO: Embedding manifest in EXE
+91510 INFO: Appending PKG archive to EXE
+91625 INFO: Fixing EXE headers
+92019 INFO: Building EXE from EXE-00.toc completed successfully.
+92090 INFO: checking COLLECT
+92091 INFO: Building COLLECT because COLLECT-00.toc is non existent
+92092 INFO: Building COLLECT COLLECT-00.toc
+99858 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+99901 INFO: Build complete! The results are available in: C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\outputs\Harmoni-discord
+Adding imports: ['yt_dlp.compat._legacy', 'yt_dlp.compat._deprecated', 'yt_dlp.utils._legacy', 'yt_dlp.utils._deprecated', 'Crypto', 'websockets', 'websockets.__main__', 'websockets.asyncio', 'websockets.asyncio.client', 'websockets.asyncio.connection', 'websockets.asyncio.messages', 'websockets.asyncio.router', 'websockets.asyncio.server', 'websockets.auth', 'websockets.cli', 'websockets.client', 'websockets.connection', 'websockets.datastructures', 'websockets.exceptions', 'websockets.extensions', 'websockets.extensions.base', 'websockets.extensions.permessage_deflate', 'websockets.frames', 'websockets.headers', 'websockets.http11', 'websockets.imports', 'websockets.legacy', 'websockets.legacy.auth', 'websockets.legacy.client', 'websockets.legacy.exceptions', 'websockets.legacy.framing', 'websockets.legacy.handshake', 'websockets.legacy.http', 'websockets.legacy.protocol', 'websockets.legacy.server', 'websockets.protocol', 'websockets.proxy', 'websockets.server', 'websockets.speedups', 'websockets.streams', 'websockets.sync', 'websockets.sync.client', 'websockets.sync.connection', 'websockets.sync.messages', 'websockets.sync.router', 'websockets.sync.server', 'websockets.sync.utils', 'websockets.trio', 'websockets.trio.client', 'websockets.trio.connection', 'websockets.trio.messages', 'websockets.trio.router', 'websockets.trio.server', 'websockets.trio.utils', 'websockets.typing', 'websockets.uri', 'websockets.utils', 'websockets.version', 'requests', 'requests.__version__', 'requests._internal_utils', 'requests._types', 'requests.adapters', 'requests.api', 'requests.auth', 'requests.certs', 'requests.compat', 'requests.cookies', 'requests.exceptions', 'requests.help', 'requests.hooks', 'requests.models', 'requests.packages', 'requests.sessions', 'requests.status_codes', 'requests.structures', 'requests.utils', 'urllib3', 'urllib3._base_connection', 'urllib3._collections', 'urllib3._request_methods', 'urllib3._version', 'urllib3.connection', 'urllib3.connectionpool', 'urllib3.contrib', 'urllib3.contrib.pyopenssl', 'urllib3.contrib.socks', 'urllib3.exceptions', 'urllib3.fields', 'urllib3.filepost', 'urllib3.http2', 'urllib3.http2.connection', 'urllib3.http2.probe', 'urllib3.poolmanager', 'urllib3.response', 'urllib3.util', 'urllib3.util.connection', 'urllib3.util.proxy', 'urllib3.util.request', 'urllib3.util.response', 'urllib3.util.retry', 'urllib3.util.ssl_', 'urllib3.util.ssl_match_hostname', 'urllib3.util.ssltransport', 'urllib3.util.timeout', 'urllib3.util.url', 'urllib3.util.util', 'urllib3.util.wait', 'mutagen', 'brotli', 'certifi', 'secretstorage', 'curl_cffi']

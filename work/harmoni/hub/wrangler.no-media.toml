@@ -1,0 +1,20 @@
+# نفس wrangler.toml بدون R2 (يستخدمه deploy-hub.bat لو R2 مو مفعّل بالحساب)
+name = "harmoni-hub"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+routes = [ { pattern = "hub.harmoni.click", custom_domain = true } ]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "harmoni-hub"
+database_id = "7d664ff1-3128-421f-9039-f241c8144715"
+
+# غرف الاستماع المشتركة: كل غرفة Durable Object (نسخة SQLite — متاحة بالخطة المجانية)
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomDO"]

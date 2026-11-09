@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0}iframe{width:100vw;height:100vh;border:0}</style></head>
+<body>
+<iframe id="f" src="/"></iframe>
+<pre id="out">pending</pre>
+<script>
+document.getElementById("f").addEventListener("load", () => {
+  setTimeout(() => {
+    try {
+      const d = document.getElementById("f").contentDocument;
+      const w = document.getElementById("f").contentWindow;
+      const info = { vw: w.innerWidth, vh: w.innerHeight, err: [] };
+      const grab = sel => {
+        const el = d.querySelector(sel);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        const cs = w.getComputedStyle(el);
+        return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height),
+                 disp: cs.display, pos: cs.position, vis: cs.visibility, op: cs.opacity, z: cs.zIndex };
+      };
+      info[".player-bar"] = grab(".player-bar");
+      info[".player-center"] = grab(".player-center");
+      info[".seek-row"] = grab(".seek-row");
+      info[".now-playing"] = grab(".now-playing");
+      info["#np-thumb"] = grab("#np-thumb");
+      info["#btn-shuffle"] = grab("#btn-shuffle");
+      const errs = d.querySelectorAll(".player-bar *");
+      info.controlsCount = errs.length;
+      document.title = "done";
+      document.getElementById("out").textContent = JSON.stringify(info);
+    } catch (e) {
+      document.getElementById("out").textContent = "ERR " + e.message;
+    }
+  }, 3500);
+});
+</script></body></html>

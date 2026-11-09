@@ -220,10 +220,12 @@ namespace WinPlus
         private CapturePage? _capturePage;
         private VolumePage? _volumePage;
         private WidgetsPage? _widgetsPage;
+        private PhonePage? _phonePage;
+        private SpecsPage? _specsPage;
 
         private FrameworkElement[] AllPages => new FrameworkElement[]
         {
-            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageWidgets, PageGlass, PageGeneral,
+            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PagePhone, PageWidgets, PageGlass, PageGeneral,
         };
 
         private void OnNavChanged(object sender, RoutedEventArgs e)
@@ -256,6 +258,8 @@ namespace WinPlus
                 "capture" => Build(PageCapture, () => CaptureHost.Content = _capturePage ??= new CapturePage()),
                 "volume" => Build(PageVolume, () => VolumeHost.Content = _volumePage ??= new VolumePage()),
                 "widgets" => Build(PageWidgets, () => WidgetsHost.Content = _widgetsPage ??= new WidgetsPage()),
+                "phone" => Build(PagePhone, () => PhoneHost.Content = _phonePage ??= new PhonePage()),
+                "specs" => Build(PageSpecs, () => SpecsHost.Content = _specsPage ??= new SpecsPage()),
                 "glass" => Build(PageGlass, () => GlassHost.Content ??= GlassSettings.Page()),
                 "general" => PageGeneral,
                 _ => PageTaskbar,

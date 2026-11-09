@@ -18,7 +18,7 @@
     <Description>Wibn: My Windows is better now</Description>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <!-- Release builds get the number from the git tag (v1.2.3 → 1.2.3). -->
-    <Version>1.0.6</Version>
+    <Version>1.0.7</Version>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -36,6 +36,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
   <!-- The logo: the exe's icon, the window/tray icon (app.ico) and the sidebar (logo.png). -->

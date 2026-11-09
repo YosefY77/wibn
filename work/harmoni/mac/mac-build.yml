@@ -1,0 +1,92 @@
+name: mac-build
+run-name: mac ${{ inputs.version }}
+# يبني نسخة الماك (Harmoni-mac.dmg) ويرفعها على نفس إصدار ويندوز. يشغّله publish-update.bat تلقائياً.
+on:
+  workflow_dispatch:
+    inputs:
+      version: { description: "Version (e.g. 2026.10.21.1530)", required: true }
+      repo: { description: "Release repo (owner/harmoni-app)", required: true }
+      src_tag: { description: "Source release tag in this repo", required: true }
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - name: Get source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ inputs.src_tag }}" -R "$GITHUB_REPOSITORY" -p harmoni-src.zip
+          mkdir src && cd src && unzip -q ../harmoni-src.zip
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/pip
+          key: pip-mac-${{ hashFiles('src/requirements-mac.txt') }}
+      - name: Install
+        working-directory: src
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-mac.txt
+      - name: Tests
+        working-directory: src
+        env:
+          HARMONI_REGION: none
+          MUSIC_HEADLESS: "1"
+        run: |
+          for t in test_ytdlp_live.py test_age_block.py test_badges.py test_profiles_merge.py; do
+            if [ -f "$t" ]; then python "$t" || exit 1; fi
+          done
+      - name: Build app
+        working-directory: src
+        run: |
+          python set_version.py "${{ inputs.version }}" "${{ inputs.repo }}"
+          for f in profiles.json profiles.json.bak .harmoni_secret discord_config.json spotify_links.json search_cache.json stream_cache.json artist_cache.json region.json panel_config.json; do rm -f "$f"; done
+          rm -rf audio_cache
+          pyinstaller HarmoniMac.spec --noconfirm
+          codesign --force --deep --sign - dist/Harmoni.app
+          codesign --verify --deep dist/Harmoni.app
+      - name: Smoke test (server starts)
+        working-directory: src
+        run: |
+          APP="$PWD/dist/Harmoni.app/Contents/MacOS/Harmoni"
+          (cd / && MUSIC_HEADLESS=1 MUSIC_PORT=5199 HARMONI_DATA_DIR="$RUNNER_TEMP/hd" "$APP" > "$RUNNER_TEMP/smoke.log" 2>&1) &
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5199/api/info >/dev/null 2>&1; then ok=1; break; fi
+            sleep 1
+          done
+          # من «/» زي ما يفتح من Finder: الصفحة وملفات الواجهة لازم توصل
+          if [ "$ok" = "1" ]; then
+            for u in / /static/app.js /static/refined.css /static/vendor/socket.io.min.js; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:5199$u")
+              echo "$u -> $code"
+              [ "$code" = "200" ] || ok=0
+            done
+          fi
+          pkill -f "Harmoni.app/Contents/MacOS/Harmoni" 2>/dev/null || true
+          if [ "$ok" != "1" ]; then cat "$RUNNER_TEMP/smoke.log"; exit 1; fi
+          echo "server OK"
+      - name: Make dmg
+        working-directory: src
+        run: |
+          mkdir dmgroot
+          cp -R dist/Harmoni.app dmgroot/
+          ln -s /Applications dmgroot/Applications
+          hdiutil create -volname "Harmoni" -srcfolder dmgroot -ov -format UDZO Harmoni-mac.dmg
+      - name: Upload to release
+        working-directory: src
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          for i in $(seq 1 60); do
+            gh release view "v${{ inputs.version }}" -R "${{ inputs.repo }}" >/dev/null 2>&1 && break
+            sleep 20
+          done
+          gh release upload "v${{ inputs.version }}" "Harmoni-mac.dmg#Harmoni for Mac" -R "${{ inputs.repo }}" --clobber

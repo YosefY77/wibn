@@ -1,0 +1,107 @@
+2026-10-21 17:39:39 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 17:41:49 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 17:42:07    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-21 17:42:07 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 17:42:10    Mac build: queued  (0:01)
+2026-10-21 17:42:26    Mac build: in progress  (0:17)
+2026-10-21 17:42:59    Mac build: completed  (0:50)
+2026-10-21 17:43:02 FAILED STEP LOG (last 150 lines):
+build	Smoke test (server starts)	﻿2026-10-21T14:42:40.9857860Z ##[group]Run APP="$PWD/dist/Harmoni.app/Contents/MacOS/Harmoni"
+build	Smoke test (server starts)	2026-10-21T14:42:40.9858240Z ^[[36;1mAPP="$PWD/dist/Harmoni.app/Contents/MacOS/Harmoni"^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9858680Z ^[[36;1m(cd / && MUSIC_HEADLESS=1 MUSIC_PORT=5199 HARMONI_DATA_DIR="$RUNNER_TEMP/hd" "$APP" > "$RUNNER_TEMP/smoke.log" 2>&1) &^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9859050Z ^[[36;1mok=0^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9859180Z ^[[36;1mfor i in $(seq 1 60); do^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9859490Z ^[[36;1m  if curl -fsS http://127.0.0.1:5199/api/info >/dev/null 2>&1; then ok=1; break; fi^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9859780Z ^[[36;1m  sleep 1^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9859910Z ^[[36;1mdone^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9860100Z ^[[36;1m# من «/» زي ما يفتح من Finder: الصفحة وملفات الواجهة لازم توصل^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9860330Z ^[[36;1mif [ "$ok" = "1" ]; then^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9860620Z ^[[36;1m  for u in / /static/app.js /static/refined.css /static/vendor/socket.io.min.js; do^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9861030Z ^[[36;1m    code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:5199$u")^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9861340Z ^[[36;1m    echo "$u -> $code"^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9861520Z ^[[36;1m    [ "$code" = "200" ] || ok=0^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9861680Z ^[[36;1m  done^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9861810Z ^[[36;1mfi^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9862030Z ^[[36;1mpkill -f "Harmoni.app/Contents/MacOS/Harmoni" 2>/dev/null || true^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9862350Z ^[[36;1mif [ "$ok" != "1" ]; then cat "$RUNNER_TEMP/smoke.log"; exit 1; fi^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9862590Z ^[[36;1mecho "server OK"^[[0m
+build	Smoke test (server starts)	2026-10-21T14:42:40.9915840Z shell: /bin/bash -e {0}
+build	Smoke test (server starts)	2026-10-21T14:42:40.9916020Z env:
+build	Smoke test (server starts)	2026-10-21T14:42:40.9916230Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+build	Smoke test (server starts)	2026-10-21T14:42:40.9916610Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+build	Smoke test (server starts)	2026-10-21T14:42:40.9916980Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+build	Smoke test (server starts)	2026-10-21T14:42:40.9917310Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+build	Smoke test (server starts)	2026-10-21T14:42:40.9917640Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+build	Smoke test (server starts)	2026-10-21T14:42:40.9918090Z ##[endgroup]
+build	Smoke test (server starts)	2026-10-21T14:42:42.0514760Z / -> 200
+build	Smoke test (server starts)	2026-10-21T14:42:42.0582800Z /static/app.js -> 200
+build	Smoke test (server starts)	2026-10-21T14:42:42.0653310Z /static/refined.css -> 200
+build	Smoke test (server starts)	2026-10-21T14:42:42.0732900Z /static/vendor/socket.io.min.js -> 404
+build	Smoke test (server starts)	2026-10-21T14:42:42.0881830Z /Users/runner/work/_temp/d11c3e1d-9488-43cd-a99e-fc5cda4bcc93.sh: line 2:  3565 Terminated: 15          MUSIC_HEADLESS=1 MUSIC_PORT=5199 HARMONI_DATA_DIR="$RUNNER_TEMP/hd" "$APP" > "$RUNNER_TEMP/smoke.log" 2>&1
+build	Smoke test (server starts)	2026-10-21T14:42:42.0895310Z 127.0.0.1 - - [21/Oct/2026 14:42:42] "^[[33mGET /static/vendor/socket.io.min.js HTTP/1.1^[[0m" 404 -
+build	Smoke test (server starts)	2026-10-21T14:42:42.0905510Z ##[error]Process completed with exit code 1.
+2026-10-21 17:43:02    MAC: Mac build failed: https://github.com/YosefY77/harmoni-src/actions/runs/39619143866
+2026-10-21 17:43:02 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 17:45:03 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 17:45:21    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-21 17:45:22 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 17:45:24    Mac build: queued  (0:01)
+2026-10-21 17:45:41    Mac build: in progress  (0:17)
+2026-10-21 17:46:30    Mac build: completed  (1:06)
+2026-10-21 17:46:31    Mac version ready - OK
+2026-10-21 17:46:31 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:22:31 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:22:49    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-21 18:22:49 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:22:52    Mac build: queued  (0:01)
+2026-10-21 18:23:08    Mac build: in progress  (0:17)
+2026-10-21 18:23:41    Mac build: completed  (0:50)
+2026-10-21 18:23:42    Mac version ready - OK
+2026-10-21 18:23:42 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:34:32 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:34:50    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-21 18:34:50 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:34:53    Mac build: queued  (0:01)
+2026-10-21 18:35:10    Mac build: in progress  (0:18)
+2026-10-21 18:35:42    Mac build: completed  (0:50)
+2026-10-21 18:35:43    Mac version ready - OK
+2026-10-21 18:35:43 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:40:46 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:41:05    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-21 18:41:05 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-21 18:41:08    Mac build: queued  (0:01)
+2026-10-21 18:41:24    Mac build: in progress  (0:17)
+2026-10-21 18:42:13    Mac build: completed  (1:06)
+2026-10-21 18:42:14    Mac version ready - OK
+2026-10-21 18:42:14 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 15:11:28 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 15:11:45    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-22 15:11:45 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 15:11:48    Mac build: queued  (0:01)
+2026-10-22 15:12:04    Mac build: in progress  (0:17)
+2026-10-22 15:12:37    Mac build: completed  (0:50)
+2026-10-22 15:12:38    Mac version ready - OK
+2026-10-22 15:12:38 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 16:13:48 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 16:14:05    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-22 16:14:05 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 16:14:08    Mac build: queued  (0:01)
+2026-10-22 16:14:24    Mac build: in progress  (0:17)
+2026-10-22 16:14:56    Mac build: completed  (0:50)
+2026-10-22 16:14:57    Mac version ready - OK
+2026-10-22 16:14:57 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 16:33:46 ---- start 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 16:34:01    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-22 16:34:02 ---- wait 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-22 16:34:04    Mac build: queued  (0:01)
+2026-10-22 16:34:53    Mac build: in progress  (0:50)
+2026-10-22 16:35:09    Mac build: in progress  (1:06)
+2026-10-22 16:35:26    Mac build: completed  (1:22)
+2026-10-22 16:35:27    Mac version ready - OK
+2026-10-22 16:35:27 ---- label 2026.10.21.1614 YosefY77/harmoni-app
+2026-10-24 16:52:57 ---- start 2026.10.24.1652 YosefY77/harmoni-app
+2026-10-24 16:53:02 gh release delete src-2026.10.24.1652 -R -> 1: release not found
+2026-10-24 16:53:12    Mac build started on GitHub (runs while Windows builds): https://github.com/YosefY77/harmoni-src/actions
+2026-10-24 16:55:03 ---- wait 2026.10.24.1652 YosefY77/harmoni-app
+2026-10-24 16:55:05    Mac build: completed  (0:00)
+2026-10-24 16:55:06    Mac version ready - OK

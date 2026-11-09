@@ -1,0 +1,63 @@
+/* «شفافية الماك»: Glassmorphism فوق Vibrancy الماك الأصلي (NSVisualEffectView ورا النافذة — mini_window._mac_vibrancy).
+   الماك يرسم ضبابية سطح المكتب ورا التطبيق، وهنا كل لوح وبطاقة «قزاز مثلّج» فوقه:
+   تعبئة بيضا شفافة متدرجة + ضبابية للي وراها داخل الصفحة + حد لامع + لمعة فوق + ظل ناعم. الماك بس (ويندوز ما يتأثر). */
+html[data-macglass]{
+  --mg-fill:rgba(255,255,255,.055);
+  --mg-fill-2:rgba(255,255,255,.085);
+  --mg-fill-hover:rgba(255,255,255,.12);
+  --mg-edge:rgba(255,255,255,.13);
+  --mg-edge-strong:rgba(255,255,255,.2);
+  --mg-shine:inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 .5px rgba(255,255,255,.04);
+  --mg-shadow:0 10px 34px rgba(0,0,0,.22);
+  --mg-blur:saturate(180%) blur(22px);
+  --mg-blur-deep:saturate(190%) blur(34px);
+}
+
+/* الألواح الكبيرة: الماك يغبّش اللي وراها — نضيف بس طبقة قزاز وحد ولمعة */
+html[data-theme="glass"][data-macglass] .sidebar,html[data-theme="glass"][data-macglass] .main,
+html[data-theme="glass"][data-macglass] .hm-library,html[data-theme="glass"][data-macglass] .hm-disc-panel{
+  background:linear-gradient(180deg,var(--mg-fill-2),var(--mg-fill))!important;
+  border:1px solid var(--mg-edge)!important;box-shadow:var(--mg-shine),var(--mg-shadow)!important}
+
+/* شريط التشغيل: قزاز أعمق (يطفو فوق المحتوى) */
+html[data-theme="glass"][data-macglass] .player-bar{
+  background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.05))!important;
+  border:1px solid var(--mg-edge-strong)!important;box-shadow:var(--mg-shine),0 14px 40px rgba(0,0,0,.3)!important;
+  -webkit-backdrop-filter:var(--mg-blur)!important;backdrop-filter:var(--mg-blur)!important}
+
+/* البطاقات: Glassmorphism كامل (تغبّش الصور والألوان اللي وراها داخل الصفحة) */
+html[data-theme="glass"][data-macglass] .track-card,html[data-theme="glass"][data-macglass] .hm-hero,
+html[data-theme="glass"][data-macglass] .settings-group,html[data-theme="glass"][data-macglass] .search-row,
+html[data-theme="glass"][data-macglass] .me-card,html[data-theme="glass"][data-macglass] .st-tabs,
+html[data-theme="glass"][data-macglass] .rm-card,html[data-theme="glass"][data-macglass] .f-item,
+html[data-theme="glass"][data-macglass] .friend-row{
+  background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.035))!important;
+  border:1px solid var(--mg-edge)!important;box-shadow:var(--mg-shine)!important;
+  -webkit-backdrop-filter:var(--mg-blur)!important;backdrop-filter:var(--mg-blur)!important}
+html[data-theme="glass"][data-macglass] .track-card:hover,html[data-theme="glass"][data-macglass] .rm-card:hover,
+html[data-theme="glass"][data-macglass] .f-item:hover,html[data-theme="glass"][data-macglass] .friend-row:hover{
+  background:linear-gradient(160deg,rgba(255,255,255,.15),rgba(255,255,255,.06))!important;border-color:var(--mg-edge-strong)!important}
+
+/* المنبثقات والقوائم: زجاج غامق عميق مثل قوائم الماك */
+html[data-theme="glass"][data-macglass] .modal-content,html[data-theme="glass"][data-macglass] .popup-card,
+html[data-theme="glass"][data-macglass] .upd-card,html[data-theme="glass"][data-macglass] .hcp,
+html[data-theme="glass"][data-macglass] .toast,html[data-theme="glass"][data-macglass] .friend-results{
+  background:linear-gradient(180deg,rgba(58,58,64,.62),rgba(30,30,34,.58))!important;
+  border:1px solid var(--mg-edge-strong)!important;color:#f5f7f9;
+  box-shadow:var(--mg-shine),0 24px 70px rgba(0,0,0,.5)!important;
+  -webkit-backdrop-filter:var(--mg-blur-deep)!important;backdrop-filter:var(--mg-blur-deep)!important}
+
+/* الحقول والأزرار */
+html[data-theme="glass"][data-macglass] input:not([type=range]):not([type=color]):not([type=checkbox]),
+html[data-theme="glass"][data-macglass] select,html[data-theme="glass"][data-macglass] textarea{
+  background:rgba(0,0,0,.18)!important;border:1px solid var(--mg-edge)!important;box-shadow:inset 0 1px 2px rgba(0,0,0,.25)!important}
+html[data-theme="glass"][data-macglass] .nav-btn.active,html[data-theme="glass"][data-macglass] .opt-btn.active,
+html[data-theme="glass"][data-macglass] .sf-chip.active,html[data-theme="glass"][data-macglass] .ps-side.active,
+html[data-theme="glass"][data-macglass] .tab.active{
+  background:rgba(255,255,255,.16)!important;border-color:var(--mg-edge-strong)!important;box-shadow:var(--mg-shine)!important}
+html[data-theme="glass"][data-macglass] .opt-btn:not(.active):hover,html[data-theme="glass"][data-macglass] .nav-btn:not(.active):hover{
+  background:var(--mg-fill-hover)!important}
+
+/* الماك ما يحتاج حبيبات (Grain) ولا ظل للكتابة — زجاجه ناعم */
+html[data-theme="glass"][data-macglass] body::after{display:none!important}
+html[data-theme="glass"][data-macglass] body{text-shadow:none}

@@ -1,0 +1,34 @@
+What's new in Harmoni
+
+Glass theme (new)
+- A see-through theme: your desktop shows behind the app window
+- Pick your own tint, with sliders for transparency, blur and grain
+- Also applies to the bubble and the Alt+P panel
+
+Redesigned Settings
+- Split into tabs: General, Appearance, Connections, Account, Updates
+- Preview of every theme before you pick it
+- On/off switches instead of checkboxes
+
+Spotify
+- Fixed account linking after Spotify's latest API changes (Premium required)
+- New songs and playlists you add on Spotify sync automatically on launch and every 5 minutes
+- New songs appear at the top of Favorites, with a notification when something new arrives
+
+Search
+- More accurate results: originals first, fewer duplicates, remixes and short clips ranked lower
+- Fixed the "HTTP Error 403" search error
+- SoundCloud search is much faster
+
+Alt+P panel
+- Playlists and search added next to Favorites
+- New layout for the controls, volume and seek bars
+- Now shows on top of games in Borderless / Windowed Fullscreen mode, and returns you to the game when closed
+
+Home
+- Song artwork fills the whole card, and the play button is centered
+- Removed the artists section
+- Fixed "Recently played" and suggestions disappearing on launch
+
+Profile
+- Removed the color presets from profile editing

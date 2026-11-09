@@ -1,0 +1,13 @@
+flask>=3.0
+flask-socketio>=5.3
+simple-websocket>=1.0
+requests>=2.31
+yt-dlp>=2024.1
+yt-dlp-ejs>=0.8.0
+pywebview>=5.0
+pyobjc-core
+pyobjc-framework-Cocoa
+pyobjc-framework-WebKit
+pyobjc-framework-Quartz
+pyobjc-framework-security
+pyinstaller>=6.6

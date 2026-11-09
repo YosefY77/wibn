@@ -1,0 +1,27 @@
+310 INFO: PyInstaller: 6.22.2, contrib hooks: 2026.6
+310 INFO: Python: 3.12.10
+344 INFO: Platform: Windows-11-10.0.26300-SP0
+344 INFO: Python environment: C:\Users\YSIF\AppData\Local\Programs\Python\Python312
+6467 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni\\vendor',
+ 'C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages',
+ 'C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni',
+ 'C:\\Users\\YSIF\\Documents\\Codex\\2026-10-09\\new-chat\\work\\harmoni\\vendor']
+pygame 2.6.1 (SDL 2.28.4, Python 3.12.10)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+9958 INFO: Appending 'datas' from .spec
+10091 INFO: checking Analysis
+10579 INFO: checking PYZ
+10729 INFO: checking PKG
+10733 INFO: Bootloader C:\Users\YSIF\AppData\Local\Programs\Python\Python312\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+10733 INFO: checking EXE
+10761 INFO: checking COLLECT
+10804 INFO: Removing dir C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\outputs\Harmoni-music-search\Harmoni
+11271 INFO: Building COLLECT COLLECT-00.toc
+23842 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+23883 INFO: Build complete! The results are available in: C:\Users\YSIF\Documents\Codex\2026-10-09\new-chat\outputs\Harmoni-music-search

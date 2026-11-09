@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Mini Player</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #141414; }
+  body {
+    color: #fff; font-family: "Segoe UI", Tahoma, sans-serif;
+    overflow: hidden; user-select: none; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    width: 452px; padding: 18px;
+    background: rgba(28,28,30,.97); border: 1px solid #3a3a3c; border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.55);
+    display: flex; gap: 14px; align-items: center; position: relative;
+  }
+  .close {
+    position: absolute; top: 6px; left: 10px;
+    background: none; border: none; color: #a7a7a7;
+    font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px; z-index: 5;
+  }
+  .close:hover, .close.kb-sel { color: #fff; }
+  .thumb {
+    width: 108px; height: 108px; border-radius: 12px; object-fit: cover;
+    background: #2a2a2a; flex-shrink: 0; margin-top: 10px;
+  }
+  .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .title-wrap {
+    overflow: hidden; white-space: nowrap; font-size: 15px; font-weight: 700;
+    margin-top: 8px; cursor: move;
+  }
+  .title-wrap span { display: inline-block; }
+  .title-wrap.scroll span { animation: mpScroll var(--dur, 8s) linear infinite alternate; }
+  @keyframes mpScroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(var(--shift, -40px)); }
+  }
+  .artist { font-size: 12px; color: #a7a7a7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; text-align: right; }
+  input[type="range"] { width: 100%; height: 4px; -webkit-appearance: none; appearance: none; background: #4d4d4d; border-radius: 2px; outline: none; cursor: pointer; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: #fff; }
+  .seek { margin-top: 2px; }
+  .controls { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .btn {
+    width: 38px; height: 38px; border-radius: 50%; border: none;
+    background: transparent; color: #fff; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .btn:hover { background: rgba(255,255,255,.08); }
+  .btn svg { width: 22px; height: 22px; fill: currentColor; }
+  .btn.play { background: #fff; color: #000; }
+  .btn.play:hover { background: #ededed; transform: scale(1.04); }
+  .kb-sel { box-shadow: 0 0 0 2px #1db954 !important; background: rgba(29,185,84,.25) !important; }
+  .btn.play.kb-sel { background: #fff !important; box-shadow: 0 0 0 2px #1db954 !important; }
+  .vol-ico { width: 17px; height: 17px; fill: #a7a7a7; flex-shrink: 0; }
+  .volume { width: 88px !important; }
+  .kb-hint { position: absolute; bottom: 4px; right: 14px; font-size: 9px; color: #6a6a6a; direction: rtl; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <button class="close" id="close" title="إغلاق">×</button>
+    <img class="thumb pywebview-drag-region" id="thumb" alt="">
+    <div class="meta">
+      <div class="title-wrap pywebview-drag-region" id="title-wrap"><span id="title">لا شيء قيد التشغيل</span></div>
+      <div class="artist" id="artist"></div>
+      <input class="seek" id="seek" type="range" min="0" max="100" step="0.1" value="0">
+      <div class="controls">
+        <button class="btn" id="prev" title="السابق">
+          <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM11.5 6l8.5 6-8.5 6V6z"/></svg>
+        </button>
+        <button class="btn play" id="play" title="تشغيل / إيقاف مؤقت">
+          <svg id="ico-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="ico-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <button class="btn" id="skip" title="تخطي">
+          <svg viewBox="0 0 24 24"><path d="M18 6h2v12h-2zM12.5 6l-8.5 6 8.5 6V6z"/></svg>
+        </button>
+        <svg class="vol-ico" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+        <input class="volume" id="volume" type="range" min="0" max="100" step="1" value="60">
+      </div>
+    </div>
+    <div class="kb-hint">⇧⇩ صوت &nbsp; ⇦⇨ تحديد &nbsp; ⏎ تنفيذ</div>
+  </div>
+<script>
+(function () {
+  var uid = new URLSearchParams(location.search).get("uid") || "";
+  try { uid = localStorage.getItem("mu_uid") || uid; localStorage.setItem("mu_uid", uid); } catch (e) {}
+  var BASE = location.origin;
+
+  var st = { current: null, playing: false, position: 0, updated_at: Date.now() / 1000 };
+  var seekDragging = false;
+  var volDragging = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  async function api(path, opts) {
+    try {
+      var r = await fetch(BASE + path, opts);
+      return await r.json();
+    } catch (e) { return null; }
+  }
+
+  function poll() {
+    api("/api/state_snapshot?uid=" + encodeURIComponent(uid)).then(function (s) {
+      if (s && typeof s.rid === "string") st = s;
+    });
+  }
+  setInterval(poll, 700);
+  poll();
+
+  setInterval(function () {
+    var cur = st.current;
+    if (!cur) {
+      $("thumb").removeAttribute("src");
+      $("title").textContent = "لا شيء قيد التشغيل";
+      $("artist").textContent = "";
+      $("title-wrap").classList.remove("scroll");
+      return;
+    }
+    if ($("thumb").getAttribute("src") !== (cur.thumbnail || "")) {
+      $("thumb").src = cur.thumbnail || "";
+    }
+    $("title").textContent = cur.title || "—";
+    $("artist").textContent = cur.artist || "";
+    marquee();
+    var playing = !!st.playing;
+    $("ico-play").style.display = playing ? "none" : "";
+    $("ico-pause").style.display = playing ? "" : "none";
+    if (!seekDragging && cur.duration) {
+      var pos = st.position + (playing ? Date.now() / 1000 - st.updated_at : 0);
+      $("seek").value = Math.min(100, Math.max(0, pos / cur.duration * 100));
+    }
+  }, 250);
+
+  function marquee() {
+    var wrap = $("title-wrap"), span = $("title");
+    var over = span.scrollWidth - wrap.clientWidth;
+    if (over > 4) {
+      wrap.classList.add("scroll");
+      var rtl = getComputedStyle(wrap).direction === "rtl";
+      wrap.style.setProperty("--shift", (rtl ? over : -over) + "px");
+      wrap.style.setProperty("--dur", Math.max(4, over / 22) + "s");
+    } else {
+      wrap.classList.remove("scroll");
+    }
+  }
+
+  $("play").onclick = function () {
+    api("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid: uid, action: "play_pause" }) });
+  };
+  $("prev").onclick = function () {
+    api("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid: uid, action: "prev" }) });
+  };
+  $("skip").onclick = function () {
+    api("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid: uid, action: "skip" }) });
+  };
+  $("seek").addEventListener("input", function () { seekDragging = true; });
+  $("seek").addEventListener("change", function () {
+    seekDragging = false;
+    var cur = st.current;
+    if (!cur || !cur.duration) return;
+    var pos = parseFloat($("seek").value) / 100 * cur.duration;
+    api("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid: uid, action: "seek", pos: pos }) });
+  });
+
+  api("/api/sys_volume").then(function (r) {
+    if (!r || r.ok !== true || typeof r.volume !== "number") {
+      $("volume").disabled = true;
+      $("volume").style.opacity = ".35";
+      return;
+    }
+    if (!volDragging) { $("volume").value = r.volume; sysVol = r.volume; }
+  });
+  $("volume").addEventListener("input", function () {
+    volDragging = true;
+    var v = parseFloat(this.value);
+    sysVol = v;
+    api("/api/sys_volume", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ volume: v }) });
+  });
+  $("volume").addEventListener("change", function () { volDragging = false; });
+
+  $("close").onclick = function () {
+    try {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.hide) {
+        window.pywebview.api.hide();
+        return;
+      }
+    } catch (e) {}
+    window.close();
+  };
+
+  /* ===== إخفاء تلقائي بعد 5 ثواني خمول ===== */
+  var hideTimer = null;
+  function armHide() {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function () {
+      try {
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.hide) {
+          window.pywebview.api.hide();
+          return;
+        }
+      } catch (e) {}
+      window.close();
+    }, 5000);
+  }
+  ["mousemove", "mousedown", "keydown", "wheel"].forEach(function (ev) {
+    document.addEventListener(ev, armHide, { passive: true });
+  });
+  armHide();
+
+  /* ===== تحكم بالكيبورد: الأسهم للتحديد، Enter للتنفيذ، فوق/تحت للصوت ===== */
+  var kbOrder = ["prev", "play", "skip"];
+  var kbIdx = -1;
+  var sysVol = 60;
+
+  function kbRender() {
+    kbOrder.forEach(function (id, i) {
+      var el = $(id);
+      if (el) el.classList.toggle("kb-sel", i === kbIdx);
+    });
+  }
+  function setSysVol(v) {
+    v = Math.min(100, Math.max(0, Math.round(v)));
+    sysVol = v;
+    $("volume").value = v;
+    api("/api/sys_volume", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ volume: v }) });
+  }
+
+  document.addEventListener("keydown", function (e) {
+    var k = e.key;
+    if (k === "ArrowUp") { e.preventDefault(); setSysVol(sysVol + 5); return; }
+    if (k === "ArrowDown") { e.preventDefault(); setSysVol(sysVol - 5); return; }
+    if (k === "ArrowRight" || k === "ArrowLeft") {
+      e.preventDefault();
+      if (kbIdx === -1) { kbIdx = 0; }
+      else if (k === "ArrowRight") { kbIdx = Math.max(0, kbIdx - 1); }
+      else { kbIdx = Math.min(kbOrder.length - 1, kbIdx + 1); }
+      kbRender();
+      return;
+    }
+    if (k === "Enter" && kbIdx >= 0) {
+      e.preventDefault();
+      var el = $(kbOrder[kbIdx]);
+      if (el) el.click();
+      return;
+    }
+    if (k === "Escape") { $("close").click(); }
+  });
+})();
+</script>
+</body>
+</html>

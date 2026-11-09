@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Harmoni</title>
+  <link rel="icon" type="image/png" href="/static/icon-harmoni.png?v=2">
+  <link rel="apple-touch-icon" href="/static/icon-harmoni.png?v=2">
+  <link rel="stylesheet" href="/static/vendor/cropper.min.css">
+  <link rel="stylesheet" href="/static/style.css?v=65">
+  <link rel="stylesheet" href="/static/refined.css?v=21">
+</head>
+<body>
+
+  <div class="app">
+
+    <header class="m-topbar">
+      <button id="m-menu-btn" class="m-menu-btn" aria-label="القائمة">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <input id="m-search" autocomplete="off" data-i18n-placeholder="search.placeholder" placeholder="ابحث عن أغنية...">
+    </header>
+
+    <div id="m-overlay"></div>
+
+    <aside class="sidebar">
+
+      <div class="friend-search">
+        <input id="friend-search" autocomplete="off" data-i18n-placeholder="friends.ph" placeholder="@يوزر صديقك...">
+        <div id="friend-results" class="friend-results hidden"></div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-view="home"><span data-i18n="nav.home">الرئيسية</span></button>
+        <button class="nav-btn" data-view="queue"><span data-i18n="nav.queue">قائمة الانتظار</span> <span id="queue-count" class="badge">0</span></button>
+        <button class="nav-btn" data-view="room"><span data-i18n="nav.room">غرفة الاستماع</span></button>
+        <button class="nav-btn" data-view="likes"><span data-i18n="nav.likes">الأغاني المفضلة</span> <span id="likes-count" class="badge">0</span></button>
+        <button class="nav-btn" data-view="settings"><span data-i18n="nav.settings">الإعدادات</span></button>
+      </nav>
+
+      <div class="sidebar-footer" data-i18n="footer.host">تعمل على جهاز المستضيف</div>
+
+    </aside>
+
+    <main class="main">
+
+      <section id="view-home" class="view active">
+
+        <h2 class="view-title" data-i18n="home.title">استمع إلى الموسيقى مع أصدقائك</h2>
+
+        <div class="search-row">
+          <select id="source-select" class="select">
+            <option value="youtube" data-i18n="source.youtube">يوتيوب</option>
+            <option value="soundcloud" data-i18n="source.soundcloud">ساوند كلاود</option>
+            <option value="spotify" data-i18n="source.spotify">سبوتيفاي</option>
+          </select>
+          <input id="search-input" class="search-input" type="text" data-i18n-placeholder="search.placeholder" placeholder="ابحث عن أغنية أو الصق رابط (يوتيوب / سبوتيفاي / ساوند كلاود)...">
+          <button id="search-btn" class="btn btn-primary" data-i18n="search.btn">بحث</button>
+        </div>
+
+        <div id="search-filters" class="search-filters" role="radiogroup" aria-label="فلاتر البحث">
+          <span class="sf-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg><span id="sf-label-text">فلاتر البحث</span></span>
+          <button type="button" class="sf-chip active" data-sort="" role="radio" aria-checked="true" id="sf-rel">الأكثر صلة</button>
+          <button type="button" class="sf-chip" data-sort="popular" role="radio" aria-checked="false" id="sf-pop">الأكثر شهرة</button>
+          <button type="button" class="sf-chip" data-sort="oldest" role="radio" aria-checked="false" id="sf-old">الأقدم أولاً</button>
+          <button type="button" class="sf-chip" data-sort="playlists" role="radio" aria-checked="false" id="sf-pl">بلاي لست</button>
+        </div>
+
+        <div id="search-msg" class="msg"></div>
+        <div id="pl-open-bar" class="pl-open-bar hidden"></div>
+        <div id="results" class="grid"></div>
+        <button id="more-results" class="btn btn-block hidden">عرض المزيد من النتائج</button>
+
+        <div class="section-head">
+          <h3 data-i18n="history.title">استمعت مؤخرًا</h3>
+          <button id="clear-history" class="link-btn" data-i18n="history.clear">مسح السجل</button>
+        </div>
+        <div id="history" class="grid"></div>
+
+        <div class="section-head">
+          <h3 data-i18n="suggest.title">مقترحة لك</h3>
+        </div>
+        <div id="suggestions" class="grid"></div>
+        <button id="more-suggestions" class="btn btn-block hidden">عرض المزيد من المقترحات</button>
+
+      </section>
+
+      <section id="view-queue" class="view">
+        <div class="queue-head">
+          <h2 class="view-title" data-i18n="queue.title">قائمة الانتظار</h2>
+          <button id="shuffle-btn" class="btn" data-i18n="shuffle.btn">خلط عشوائي</button>
+        </div>
+        <div id="queue-list" class="queue-list"></div>
+      </section>
+
+      <section id="view-room" class="view">
+        <div id="rm-lobby" class="rm-lobby">
+          <div class="rm-hero">
+            <div class="rm-hero-art">🎧</div>
+            <h2 class="rm-hero-title">اسمعوا مع بعض</h2>
+            <p class="rm-hero-text">كلكم تسمعون نفس الأغنية بنفس اللحظة، وأي أحد يقدر يضيف أغاني.</p>
+            <button id="rm-start" class="btn btn-primary rm-big">ابدأ غرفة</button>
+            <div class="rm-or"><span>أو ادخل غرفة صاحبك بالكود</span></div>
+            <div class="rm-join-row">
+              <input id="rm-code" class="rm-code-input" inputmode="numeric" maxlength="6" placeholder="••••••" dir="ltr" autocomplete="off">
+              <button id="rm-join" class="btn">دخول</button>
+            </div>
+          </div>
+          <div class="rm-public">
+            <div class="room-title">غرف مفتوحة الآن</div>
+            <div id="room-list" class="room-list"></div>
+          </div>
+        </div>
+
+        <div id="rm-live" class="rm-live hidden">
+          <div class="rm-head">
+            <div class="rm-head-info">
+              <div class="rm-live-dot"></div>
+              <div>
+                <div id="room-name-title" class="rm-name"></div>
+                <div id="rm-sub" class="rm-sub"></div>
+              </div>
+            </div>
+            <div class="rm-head-actions">
+              <button id="room-code-badge" class="rm-code" title="نسخ الكود" dir="ltr"></button>
+              <button id="rm-invite" class="btn btn-primary">🔗 نسخ الدعوة</button>
+              <button id="rm-settings-btn" class="btn hidden" title="إعدادات الغرفة">⚙</button>
+              <button id="leave-room-btn" class="btn btn-leave">خروج</button>
+            </div>
+          </div>
+          <div id="rm-settings" class="rm-settings hidden"></div>
+          <div id="members" class="rm-members"></div>
+          <div class="room-layout">
+            <div class="room-queue-box">
+              <div class="room-title">يشتغل الآن والتالي</div>
+              <div id="room-queue-list" class="rq-list"></div>
+            </div>
+            <div class="room-add-box">
+              <div class="room-title">أضف أغنية</div>
+              <div class="radd-row">
+                <input id="room-search-input" autocomplete="off" data-i18n-placeholder="search.placeholder" placeholder="ابحث عن أغنية...">
+                <button id="room-search-btn" class="btn btn-primary" data-i18n="search.btn">بحث</button>
+              </div>
+              <div id="room-search-results" class="radd-results"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-likes" class="view">
+        <div class="queue-head">
+          <h2 class="view-title" data-i18n="likes.title">الأغاني التي أعجبتني</h2>
+          <button id="clear-likes" class="link-btn" data-i18n="likes.clear">مسح المفضلة</button>
+        </div>
+        <div id="likes-list" class="grid"></div>
+      </section>
+
+      <section id="view-settings" class="view">
+        <h2 class="view-title" data-i18n="settings.title">الإعدادات</h2>
+        <div id="settings-body" class="settings-body"></div>
+      </section>
+
+      <section id="view-profile" class="view">
+        <div class="profile-card">
+          <div class="banner" id="banner">
+            <div id="banner-fallback" class="banner-fallback"></div>
+          </div>
+          <div class="profile-body">
+            <div class="profile-head">
+              <div class="avatar-wrap">
+                <div id="avatar" class="avatar"><span id="avatar-fallback"></span></div>
+                <span id="presence-full" class="presence-dot big off"></span>
+              </div>
+              <div class="profile-name-row">
+                <div class="profile-name" id="profile-name" data-i18n="me.default">مستمع مجهول</div>
+                <div class="profile-user" id="profile-user"></div>
+                <div class="profile-stats" id="profile-stats"></div>
+              </div>
+            </div>
+            <div class="edit-row">
+              <button id="edit-profile-btn" class="btn btn-primary btn-edit" data-i18n="edit.profile">تعديل البروفايل</button>
+              <button id="follow-btn" class="btn btn-follow hidden">متابعة</button>
+              <button id="my-stats-btn" class="btn btn-stats hidden">📊 <span>إحصائياتي</span></button>
+            </div>
+            <div class="profile-bio" id="profile-bio"></div>
+          </div>
+        </div>
+
+        <div id="pl-sections"></div>
+
+        <div class="section-head"><h3 id="likes-title" data-i18n="likes.title">الأغاني التي أعجبتني</h3></div>
+        <div id="likes" class="grid"></div>
+      </section>
+
+      <section id="view-artist" class="view">
+        <button id="artist-back" class="btn artist-back-btn">← <span data-i18n="artist.back">رجوع</span></button>
+        <div class="artist-banner" id="ap-banner"></div>
+        <div class="artist-page-head">
+          <div class="artist-hero-avatar page" id="ap-avatar"></div>
+          <div class="ap-info">
+            <h2 id="ap-name" class="ap-name"></h2>
+            <div id="ap-subs" class="artist-hero-subs"></div>
+            <button id="ap-fav" class="btn btn-fav-artist"></button>
+          </div>
+        </div>
+        <div id="ap-local-wrap" class="hidden">
+          <div class="section-sub" data-i18n="artist.local">من سجلّك ومفضلتك</div>
+          <div id="ap-local" class="grid artist-grid"></div>
+        </div>
+        <div class="section-sub" data-i18n="artist.channel">أغاني قناة الفنان</div>
+        <div id="ap-channel"><div class="msg spinner-row"><span class="spinner"></span> <span data-i18n="artist.loading">جارٍ جلب أغاني القناة…</span></div></div>
+      </section>
+
+      <section id="view-stats" class="view">
+        <button id="stats-back" class="btn artist-back-btn">← <span data-i18n="artist.back">رجوع</span></button>
+        <div id="my-stats" class="my-stats"></div>
+      </section>
+
+      <section id="view-playlist" class="view">
+        <button id="playlist-back" class="btn artist-back-btn">← <span data-i18n="artist.back">رجوع</span></button>
+        <div class="plv-head">
+          <div class="plv-cover" id="plv-cover"></div>
+          <div class="plv-info">
+            <div class="plv-kind" id="plv-kind">بلاي لست</div>
+            <h2 class="plv-name" id="plv-name"></h2>
+            <div class="plv-meta" id="plv-meta"></div>
+            <div class="plv-actions" id="plv-actions"></div>
+          </div>
+        </div>
+        <div id="plv-tracks" class="plv-tracks"></div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <div class="me-card" id="me-card">
+    <div id="me-avatar" class="m-avatar"></div>
+    <div class="me-info">
+      <div class="m-name" id="me-name">مستمع مجهول</div>
+      <div class="m-sub" id="me-user"></div>
+    </div>
+  </div>
+
+  <div class="player-bar">
+
+    <div class="now-playing">
+      <img id="np-thumb" class="np-thumb" alt="">
+      <div class="np-meta">
+        <div class="np-title" id="np-title" data-i18n="np.nothing">لا شيء قيد التشغيل</div>
+        <div class="np-artist" id="np-artist"></div>
+      </div>
+      <button id="np-pl" class="np-pl" title="إضافة إلى بلاي لست" data-i18n-title="btn.pl.tip">
+        <svg viewBox="0 0 24 24"><path d="M14 10H2v2h12v-2zm0-4H2v2h12V6zM2 16h8v-2H2v2zm14-4v4h-4v2h4v4h2v-4h4v-2h-4v-4h-2z"/></svg>
+      </button>
+      <button id="np-like" class="np-like" title="أضف إلى المفضلة" data-i18n-title="btn.like.tip">
+        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </button>
+    </div>
+
+    <div class="player-center">
+      <div class="player-controls">
+        <button id="btn-shuffle" class="icon-btn" title="خلط عشوائي" data-i18n-title="btn.shuffle.tip">
+          <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+        </button>
+        <button id="btn-prev" class="icon-btn" title="السابق" data-i18n-title="btn.prev.tip">
+          <svg viewBox="0 0 24 24"><path d="M6 6H4v12h2zM11.5 6l8.5 6-8.5 6V6z"/></svg>
+        </button>
+        <button id="btn-play" class="icon-btn play-btn" title="تشغيل / إيقاف مؤقت" data-i18n-title="btn.play.tip">
+          <svg id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="icon-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <button id="btn-skip" class="icon-btn" title="تخطي" data-i18n-title="btn.skip.tip">
+          <svg viewBox="0 0 24 24"><path d="M18 6h2v12h-2zM12.5 6l-8.5 6 8.5 6V6z"/></svg>
+        </button>
+        <button id="btn-loop" class="icon-btn" title="تكرار" data-i18n-title="btn.loop.tip">
+          <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+        </button>
+      </div>
+
+      <div class="seek-row">
+        <span id="cur-time" class="time">0:00</span>
+        <input id="seek" class="seek" type="range" min="0" max="100" step="0.1" value="0">
+        <span id="dur-time" class="time">0:00</span>
+      </div>
+    </div>
+
+    <div class="player-right">
+      <button id="btn-volume" class="icon-btn" title="كتم" data-i18n-title="btn.volume.tip">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zM16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+      </button>
+      <input id="volume" class="volume" type="range" min="0" max="100" step="1" value="25">
+    </div>
+
+  </div>
+
+  <audio id="audio"></audio>
+  <audio id="solo-audio"></audio>
+
+  <div id="mini-player" class="mini-player hidden">
+    <button id="mp-close" class="mp-close" title="إغلاق">×</button>
+    <img id="mp-thumb" class="mp-thumb" alt="">
+    <div class="mp-meta">
+      <div class="mp-title" id="mp-title-wrap"><span id="mp-title">—</span></div>
+      <div class="mp-artist" id="mp-artist"></div>
+      <input id="mp-seek" class="mp-seek" type="range" min="0" max="100" step="0.1" value="0">
+      <div class="mp-controls">
+        <button id="mp-play" class="mp-btn mp-play-btn">
+          <svg id="mp-icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="mp-icon-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <button id="mp-skip" class="mp-btn" title="تخطي">
+          <svg viewBox="0 0 24 24"><path d="M18 6h2v12h-2zM12.5 6l-8.5 6 8.5 6V6z"/></svg>
+        </button>
+        <svg class="mp-vol-ico" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>
+        <input id="mp-volume" class="mp-volume" type="range" min="0" max="100" step="1" value="100">
+      </div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <h3 id="modal-title" data-i18n="edit.profile">تعديل البروفايل</h3>
+        <button id="modal-close" class="icon-btn">✕</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="crop-modal" class="modal hidden">
+    <div class="modal-content crop-content">
+      <div class="modal-head">
+        <h3 id="crop-title" data-i18n="crop.title">قص الصورة</h3>
+        <button id="crop-close" class="icon-btn">✕</button>
+      </div>
+      <div class="crop-area"><img id="crop-img" alt=""></div>
+      <p class="crop-hint" data-i18n="crop.hint">حرّك الصورة وقرّبها بزر الفأرة لاختيار المكان المناسب</p>
+      <div class="crop-actions">
+        <button id="crop-cancel" class="btn" data-i18n="btn.cancel">إلغاء</button>
+        <button id="crop-confirm" class="btn btn-primary" data-i18n="btn.confirm">تأكيد</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="profile-popup" class="popup-overlay hidden">
+    <div class="popup-card">
+      <div class="popup-banner" id="popup-banner"></div>
+      <div class="popup-body">
+        <div class="popup-row">
+          <div class="popup-avatar" id="popup-avatar"></div>
+          <div class="popup-main">
+            <div class="popup-name-row">
+              <div class="popup-name" id="popup-name"></div>
+              <span class="profile-user" id="popup-user"></span>
+              <span id="popup-crown" class="crown hidden" data-i18n-title="room.crown">👑</span>
+              <button id="popup-kick" class="popup-kick-btn hidden" data-i18n="room.kick">طرد</button>
+              <button id="popup-full" class="popup-full-btn" data-i18n="popup.full">عرض البروفايل كامل</button>
+            </div>
+            <div class="popup-bio" id="popup-bio"></div>
+            <div class="popup-stats" id="popup-stats"></div>
+            <button id="popup-follow" class="popup-follow-btn hidden">متابعة</button>
+            <div class="popup-now hidden" id="popup-now">
+              <span class="popup-now-dot"></span>
+              <div class="popup-now-text">
+                <div class="popup-now-label" data-i18n="now.label">يستمع الآن</div>
+                <div class="popup-now-track" id="popup-now-track"></div>
+                <div class="popup-now-time" id="popup-now-time"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="brand-name big">Harmoni</div>
+      </div>
+      <div class="auth-tabs">
+        <button id="auth-tab-login" class="active" data-i18n="auth.login">دخول</button>
+        <button id="auth-tab-reg" data-i18n="auth.register">حساب جديد</button>
+      </div>
+      <div id="auth-login-form">
+        <input id="al-user" dir="ltr" autocomplete="username" data-i18n-placeholder="account.restore.ph" placeholder="@username">
+        <input id="al-pass" type="password" dir="ltr" autocomplete="current-password" data-i18n-placeholder="auth.pass" placeholder="كلمة المرور">
+        <button id="al-submit" class="btn btn-primary btn-block" data-i18n="auth.login">دخول</button>
+      </div>
+      <div id="auth-reg-form" class="hidden">
+        <input id="ar-user" dir="ltr" autocomplete="off" data-i18n-placeholder="account.restore.ph" placeholder="@username">
+        <input id="ar-pass" type="password" dir="ltr" autocomplete="new-password" data-i18n-placeholder="auth.pass" placeholder="كلمة المرور">
+        <input id="ar-pass2" type="password" dir="ltr" autocomplete="new-password" data-i18n-placeholder="auth.pass2" placeholder="تأكيد كلمة المرور">
+        <button id="ar-submit" class="btn btn-primary btn-block" data-i18n="auth.create">إنشاء حساب</button>
+      </div>
+      <div id="auth-msg" class="auth-msg"></div>
+    </div>
+  </div>
+
+  <div id="np-overlay" class="np-overlay hidden">
+    <button id="np-ov-close" class="icon-btn" title="إغلاق"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    <img id="np-ov-img" class="np-ov-img" alt="">
+    <div class="np-ov-title" id="np-ov-title"></div>
+    <div class="np-ov-artist clickable" id="np-ov-artist"></div>
+    <div class="np-ov-seek-slot"></div>
+    <div class="np-ov-controls-slot"></div>
+    <div class="np-ov-vol-slot"></div>
+  </div>
+
+  <script src="/static/vendor/hls.min.js"></script>
+  <script src="/static/vendor/socket.io.min.js"></script>
+  <script src="/static/vendor/cropper.min.js"></script>
+  <script src="/static/bubble-bridge.js?v=3"></script>
+  <script src="/static/color-picker.js?v=1"></script>
+  <script src="/static/app.js?v=106"></script>
+  <script src="/static/search-filters.js?v=2"></script>
+  <script src="/static/room.js?v=1"></script>
+  <script src="/static/playlist-page.js?v=1"></script>
+  <script src="/static/discord.js?v=2"></script>
+  <script src="/static/panel-settings.js?v=1"></script>
+  <script src="/static/refined.js?v=5"></script>
+  <script src="/static/stats.js?v=1"></script>
+  <script src="/static/accent-fix.js?v=1"></script>
+  <script src="/static/updater.js?v=1"></script>
+  <script src="/static/glass-theme.js?v=3"></script>
+
+</body>
+</html>

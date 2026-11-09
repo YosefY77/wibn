@@ -1,0 +1,148 @@
+/* ===== نسخة الجوال (html.hm-m) — شريط تبويبات تحت + مشغل مصغّر + مشغل كامل الشاشة + قوائم من تحت ===== */
+#m-tabs{display:none}
+.m-np-close,.m-np-extra{display:none}
+html.hm-m .player-bar:not(.m-full) .m-np-close,html.hm-m .player-bar:not(.m-full) .m-np-extra{display:none!important}
+
+html.hm-m{--m-tabs-h:60px;--m-safe:env(safe-area-inset-bottom,0px);--m-mini-h:64px}
+html.hm-m body{overscroll-behavior-y:contain;-webkit-tap-highlight-color:transparent}
+html.hm-m .app{padding:0 0 calc(var(--m-tabs-h) + var(--m-mini-h) + var(--m-safe) + 24px)!important}
+html.hm-m .main{padding:12px 14px!important}
+html.hm-m button,html.hm-m .btn,html.hm-m .opt-btn{touch-action:manipulation}
+
+/* الشريط العلوي: البحث العلوي ما نحتاجه في الرئيسية (فيها بحث) */
+html.hm-m .m-topbar{position:sticky;top:0;z-index:90;padding:10px 14px calc(10px)!important;padding-top:calc(10px + env(safe-area-inset-top,0px))!important}
+html.hm-m .m-topbar{display:flex!important;align-items:center;gap:10px}
+html.hm-m .m-topbar #m-search{flex:1;min-width:0;height:42px;font-size:15px;-webkit-appearance:none;appearance:none}
+/* البحث فوق بس: نشيل خانة البحث وزرها من الرئيسية (اختيار المصدر يبقى) */
+html.hm-m #view-home .search-row #search-input,html.hm-m #view-home .search-row #search-btn{display:none!important}
+html.hm-m #view-home .search-row{padding:0!important;background:none!important;border:0!important;box-shadow:none!important}
+html.hm-m #view-home .search-row .select{max-width:none!important;flex:1 1 100%!important}
+/* مكتبتي: البلاي لستات فوق المفضلة */
+#m-pls{display:none}
+html.hm-m #m-pls{display:block;margin:4px 0 14px}
+html.hm-m .m-pls-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
+html.hm-m .m-pls-head h3,html.hm-m .m-favs-title{font-size:17px;margin:0}
+html.hm-m .m-favs-title{margin-top:18px}
+html.hm-m .m-pl-new{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--fg);font-size:18px}
+html.hm-m .m-pls-row{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;scroll-snap-type:x mandatory}
+html.hm-m .m-pls-row::-webkit-scrollbar{display:none}
+html.hm-m .m-pl{flex:0 0 120px;display:flex;flex-direction:column;gap:3px;background:none;border:0;color:var(--fg);padding:0;text-align:start;scroll-snap-align:start;font:inherit}
+html.hm-m .m-pl-cover{position:relative;width:120px;height:120px;border-radius:14px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--muted);overflow:hidden}
+html.hm-m .m-pl-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+html.hm-m .m-pl b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
+html.hm-m .m-pl small{font-size:11.5px;color:var(--muted)}
+html.hm-m .m-pls-empty{color:var(--muted);font-size:13px;margin:4px 0}
+/* الزجاجي للكمبيوتر بس */
+html.hm-m .opt-btn[data-theme-opt="glass"]{display:none!important}
+
+/* ===== شريط التبويبات ===== */
+html.hm-m #m-tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:240;height:calc(var(--m-tabs-h) + var(--m-safe));padding:0 6px var(--m-safe);
+  background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--border)}
+html.hm-m #m-tabs button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:0;color:var(--muted);font:inherit;font-size:10.5px;padding:6px 0;min-width:0}
+html.hm-m #m-tabs button svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+html.hm-m #m-tabs button.on{color:var(--fg)}
+html.hm-m #m-tabs button.on svg{stroke:var(--accent,#1db954)}
+html.hm-m .hm-library-toggle{display:none!important}
+html.hm-m .hm-library{top:auto!important;left:0!important;right:0!important;bottom:0!important;width:auto!important;max-height:82vh;border-radius:22px 22px 0 0!important;padding-bottom:calc(16px + var(--m-safe))!important;z-index:260!important}
+html.hm-m .hm-library-shade:not([hidden]){z-index:259!important}
+
+/* ===== المشغل المصغّر ===== */
+html.hm-m .player-bar{position:fixed!important;inset:auto 8px calc(var(--m-tabs-h) + var(--m-safe) + 6px) 8px!important;bottom:calc(var(--m-tabs-h) + var(--m-safe) + 6px)!important;
+  height:var(--m-mini-h)!important;display:flex!important;flex-wrap:nowrap!important;align-items:center;gap:6px!important;padding:8px 10px!important;border-radius:16px!important;overflow:hidden;z-index:230}
+html.hm-m .player-bar::after{content:"";position:absolute;inset:auto 12px 0 12px;height:2px;border-radius:2px;
+  background:linear-gradient(to var(--m-dir-end,left),var(--accent,#1db954) calc(var(--m-prog,0)*100%),transparent 0);opacity:.9}
+html[dir="ltr"].hm-m .player-bar::after{--m-dir-end:right}
+html.hm-m .now-playing{flex:1 1 auto!important;min-width:0;display:flex;align-items:center;gap:10px;cursor:pointer}
+html.hm-m #np-thumb{width:46px!important;height:46px!important;border-radius:10px!important;flex:0 0 46px;object-fit:cover}
+html.hm-m .np-meta{min-width:0;flex:1}
+html.hm-m .np-title{font-size:14px!important;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.hm-m .np-artist{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.hm-m .player-center{flex:0 0 auto!important;order:2;display:flex;align-items:center}
+html.hm-m .player-controls{gap:2px!important}
+html.hm-m .player-bar:not(.m-full) #btn-shuffle,html.hm-m .player-bar:not(.m-full) #btn-loop,html.hm-m .player-bar:not(.m-full) #btn-prev,
+html.hm-m .player-bar:not(.m-full) .seek-row,html.hm-m .player-bar:not(.m-full) .np-pl,html.hm-m .player-bar:not(.m-full) .player-right{display:none!important}
+html.hm-m .player-bar:not(.m-full) .np-like{display:inline-flex!important;width:36px;height:36px;align-items:center;justify-content:center}
+html.hm-m .player-bar .icon-btn{width:42px!important;height:42px!important}
+html.hm-m .player-bar button svg{width:24px!important;height:24px!important}
+html.hm-m .player-bar:not(.m-full) .play-btn{width:42px!important;height:42px!important}
+
+/* ===== المشغل الكامل ===== */
+html.hm-m .player-bar.m-full{inset:0!important;bottom:0!important;height:auto!important;border-radius:0!important;z-index:400;flex-direction:column!important;align-items:stretch;justify-content:flex-start;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 24px calc(22px + var(--m-safe))!important;gap:0!important;overflow-y:auto;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent,#1db954) 22%,var(--bg)) 0%,var(--bg) 62%)!important;animation:mnpUp .28s ease}
+html.hm-m .player-bar.m-full::after{display:none}
+@keyframes mnpUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+html.hm-m .player-bar.m-full .m-np-close{order:0;display:flex!important;align-self:center;align-items:center;justify-content:center;width:100%;height:36px;background:none;border:0;color:var(--fg);margin-bottom:8px}
+html.hm-m .player-bar.m-full .m-np-close svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+html.hm-m .player-bar.m-full .now-playing{flex-direction:column!important;align-items:center;gap:0;cursor:default;flex:0 0 auto!important;position:relative!important;width:100%!important;margin-top:auto;order:1!important;inset:auto!important;transform:none!important;left:auto!important;right:auto!important;top:auto!important}
+html.hm-m .player-bar.m-full #np-thumb{width:min(82vw,48vh,380px)!important;height:min(82vw,48vh,380px)!important;max-width:none!important;max-height:none!important;flex:none!important;border-radius:18px!important;box-shadow:0 18px 50px #0008;margin:4px auto 28px!important;position:static!important}
+html.hm-m .player-bar.m-full .np-meta{width:100%;text-align:start;padding-inline-end:96px;min-height:54px}
+html.hm-m .player-bar.m-full .np-title{font-size:21px!important;font-weight:700;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+html.hm-m .player-bar.m-full .np-artist{font-size:15px;margin-top:4px}
+html.hm-m .player-bar.m-full #np-pl,html.hm-m .player-bar.m-full #np-like{display:inline-flex!important;position:absolute!important;bottom:8px;top:auto!important;width:42px;height:42px;align-items:center;justify-content:center}
+html.hm-m .player-bar.m-full #np-like{inset-inline-end:0}
+html.hm-m .player-bar.m-full #np-pl{inset-inline-end:46px}
+html.hm-m .player-bar.m-full .player-center{flex-direction:column-reverse!important;align-items:stretch;gap:18px;margin-top:18px;order:3!important;width:100%;inset:auto!important;transform:none!important;position:relative!important;top:auto!important}
+html.hm-m .player-bar.m-full .seek-row{display:grid!important;grid-template-columns:1fr 1fr;width:100%;gap:6px 0}
+html.hm-m .player-bar.m-full .seek-row .seek{grid-column:1/-1;grid-row:1;width:100%;height:28px}
+html.hm-m .player-bar.m-full .seek-row #cur-time{grid-row:2;justify-self:start}
+html.hm-m .player-bar.m-full .seek-row #dur-time{grid-row:2;justify-self:end}
+html.hm-m .player-bar.m-full .player-controls{justify-content:space-between;width:100%}
+html.hm-m .player-bar.m-full .play-btn{width:72px!important;height:72px!important}
+html.hm-m .player-bar.m-full .play-btn svg{width:34px!important;height:34px!important}
+html.hm-m .player-bar.m-full #btn-prev svg,html.hm-m .player-bar.m-full #btn-skip svg{width:30px!important;height:30px!important}
+html.hm-m .player-bar.m-full .player-right{display:none!important}
+html.hm-m .player-bar.m-full .m-np-extra{display:flex!important;justify-content:center;gap:12px;margin-top:26px;margin-bottom:auto;order:4}
+html.hm-m .player-bar.m-full .m-np-extra button{background:var(--bg3);border:1px solid var(--border);color:var(--fg);border-radius:999px;padding:10px 16px;font:inherit;font-size:13px}
+html.hm-m body.m-np-open{overflow:hidden}
+html.hm-m body.m-np-open #m-tabs{display:none}
+
+/* ===== القوائم والنوافذ: تطلع من تحت ===== */
+html.hm-m .modal{align-items:flex-end!important;padding:0!important}
+html.hm-m .modal .modal-content{width:100%!important;max-width:none!important;max-height:88vh;overflow-y:auto;border-radius:22px 22px 0 0!important;margin:0!important;
+  padding:12px 18px calc(20px + var(--m-safe))!important;animation:mSheet .25s ease}
+html.hm-m .modal .modal-content::before{content:"";display:block;width:42px;height:5px;border-radius:3px;background:var(--border);margin:0 auto 10px}
+html.hm-m .popup-overlay{align-items:flex-end!important}
+html.hm-m .popup-card{width:100%!important;max-width:none!important;border-radius:22px 22px 0 0!important;max-height:88vh;overflow-y:auto;animation:mSheet .25s ease;padding-bottom:var(--m-safe)}
+@keyframes mSheet{from{transform:translateY(60px);opacity:.5}to{transform:none;opacity:1}}
+html.hm-m .sidebar{z-index:270!important}
+
+/* ===== قوائم الأغاني: صفوف بدل بطاقات ===== */
+html.hm-m .grid:not(.artist-grid){display:flex!important;flex-direction:column;gap:2px!important}
+html.hm-m .grid:not(.artist-grid) .track-card{display:grid!important;grid-template-columns:52px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;column-gap:12px;
+  padding:7px 6px!important;border-radius:12px;background:transparent!important;border:0!important;box-shadow:none!important;min-height:64px;cursor:pointer}
+html.hm-m .grid:not(.artist-grid) .track-card:active{background:var(--bg2)!important}
+html.hm-m .grid:not(.artist-grid) .track-thumb{grid-row:1/3;width:52px!important;height:52px!important;aspect-ratio:1;border-radius:9px;margin:0!important}
+html.hm-m .grid:not(.artist-grid) .track-title{grid-column:2;font-size:14.5px;font-weight:600;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;margin:0!important;display:block!important;-webkit-line-clamp:unset!important;min-height:0!important;height:auto!important}
+html.hm-m .grid:not(.artist-grid) .track-artist{grid-column:2;font-size:12.5px;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;margin:0!important}
+html.hm-m .grid:not(.artist-grid) .track-actions{grid-column:3;grid-row:1/3;display:flex;gap:2px;margin:0!important;padding:0!important}
+html.hm-m .grid:not(.artist-grid) .track-actions .act-listen,html.hm-m .grid:not(.artist-grid) .track-actions .act-edit{display:none!important}
+html.hm-m .grid:not(.artist-grid) .track-actions .btn{width:38px;height:38px;min-width:38px;padding:0!important;display:inline-flex;align-items:center;justify-content:center;background:transparent!important;border:0!important}
+html.hm-m .grid:not(.artist-grid) .track-actions .btn span{display:none}
+html.hm-m .grid:not(.artist-grid) .track-actions svg{width:20px;height:20px}
+html.hm-m .grid:not(.artist-grid) .playlist-card,html.hm-m .grid:not(.artist-grid) .pl-result{grid-template-columns:52px minmax(0,1fr) auto}
+
+/* أهداف لمس أكبر */
+html.hm-m .nav-btn,html.hm-m .opt-btn,html.hm-m .settings-group .btn{min-height:44px}
+html.hm-m input[type=range]{height:28px}
+html.hm-m .st-tabs{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none}
+html.hm-m .st-tabs::-webkit-scrollbar{display:none}
+html.hm-m .st-tab{flex:0 0 auto}
+html.hm-m .toast,html.hm-m #toast{bottom:calc(var(--m-tabs-h) + var(--m-mini-h) + var(--m-safe) + 18px)!important;left:16px!important;right:16px!important;transform:none!important;max-width:none!important}
+html.hm-m .hm-library .hm-disc-panel{display:none}
+html.hm-m .hm-library .hm-favorites{margin-top:4px}
+html.hm-m #view-likes .queue-head .view-title{display:none}
+html.hm-m .m-favs-title{margin-bottom:6px}
+html.hm-m .m-lib-title{font-size:26px;margin:0 0 14px}
+html.hm-m #hc-btn{display:none!important}
+
+/* آيفون: شريط «أضف للشاشة الرئيسية» */
+#ios-tip{position:fixed;left:12px;right:12px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:9999;
+  background:#113835;color:#fff;border-radius:16px;padding:14px 40px 14px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);
+  font-size:14px;line-height:1.5}
+[dir="rtl"] #ios-tip{padding:14px 14px 14px 40px}
+#ios-tip .ios-tip-t{font-weight:700;margin-bottom:4px}
+#ios-tip .ios-tip-d{opacity:.9}
+#ios-tip .ios-tip-x{position:absolute;top:8px;right:8px;background:none;border:0;color:#fff;font-size:16px;padding:6px;cursor:pointer}
+[dir="rtl"] #ios-tip .ios-tip-x{right:auto;left:8px}
+html.hm-m .popup-card.pc-preview{width:100%!important;border-radius:20px!important;animation:none;max-height:none}

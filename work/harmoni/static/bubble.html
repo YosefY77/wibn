@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Harmoni · Bubble</title>
+<!--
+  الفقاعة (من جديد): مشغّل صغير يطلع من فوق الشاشة لما البرنامج مصغّر.
+  - الزوايا الدائرية والحد يرسمها ويندوز 11 نفسه (ناعمة) — الصفحة تعبّي النافذة كاملة بدون حواف خاصة فيها.
+  - الحركة: دخول واحد قصير ومتدرّج (الغلاف ← الكلام ← الأزرار)، تبديل ناعم لما تتغير الأغنية، وكلها تنطفي مع «تقليل الحركة».
+  - نفس واجهة بايثون: api.state / api.cmd / api.get_config / api.set_config و __bubbleShown / __bubbleHiding / __bubbleConfig.
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d1113; --bg2: #15191d; --bg3: #1f252a; --fg: #f2f5f4; --muted: #a3adb0;
+    --border: #2b3337; --accent: #1db954; --on-accent: #04130a; --accent-text: #1db954;
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
+  }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  html { background: var(--bg2); }
+  body {
+    color: var(--fg); user-select: none; -webkit-user-select: none; cursor: default;
+    font: 13px/1.35 "Segoe UI Variable Text", "Segoe UI", Tahoma, sans-serif;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,0) 55%),
+      var(--bg2);
+    display: flex; align-items: center;
+    padding: 10px calc(25% + 14px) 10px 12px;   /* الربع اليمين للغلاف */
+  }
+
+  /* ===== الترتيب ===== */
+  .layout { width: 100%; display: grid; direction: ltr; grid-template-columns: auto minmax(0, 1fr);
+            grid-template-rows: auto auto; column-gap: 14px; row-gap: 8px; align-items: center; }
+  /* يسار: أزرار التشغيل على سطر العنوان، وتحتها مباشرة الصوت (على سطر شريط الأغنية) */
+  .layout > .ctl { grid-column: 1; grid-row: 1; }
+  .layout > .sound { grid-column: 1; grid-row: 2; }
+  .top { grid-column: 2; grid-row: 1; display: flex; align-items: center; justify-content: flex-end; min-width: 0; direction: ltr; }
+  .layout > .bar { grid-column: 2; grid-row: 2; }
+  /* الغلاف: يغطي الربع اليمين كامل (من فوق لتحت) ويذوب بهدوء في الخلفية من جهة الكلام */
+  .art {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 25%; overflow: hidden; background: var(--bg3);
+    -webkit-mask-image: linear-gradient(to left, #000 70%, transparent); mask-image: linear-gradient(to left, #000 70%, transparent);
+    transform-origin: 100% 50%;
+  }
+  .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .art img:not([src]) { visibility: hidden; }
+  .art .ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
+  .art .ph svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .art.has .ph { display: none; }
+
+  .meta { flex: 1 1 auto; min-width: 0; text-align: right; }   /* الاسم ياخذ مكانه أول والصوت ياخذ الباقي */
+  .title-row { display: flex; align-items: center; justify-content: flex-end; gap: 7px; min-width: 0; }
+  .title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title, .artist { unicode-bidi: plaintext; text-align: right; }   /* الأسماء الإنجليزية تنقص من آخرها مو من أولها */
+  .artist { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+  /* موجات صغيرة جنب الاسم وقت التشغيل */
+  .eq { display: flex; gap: 2px; align-items: flex-end; height: 11px; flex-shrink: 0; direction: ltr; opacity: 0; transition: opacity .2s; }
+  .eq i { width: 2.5px; height: 35%; border-radius: 2px; background: var(--accent-text); }
+  body.playing .eq { opacity: 1; }
+  body.playing .eq i { animation: eq 1s ease-in-out infinite alternate; }
+  .eq i:nth-child(2) { animation-delay: -.35s !important; }
+  .eq i:nth-child(3) { animation-delay: -.7s !important; }
+  @keyframes eq { from { height: 25%; } to { height: 100%; } }
+
+  .ctl { display: flex; align-items: center; gap: 6px; flex-shrink: 0; direction: ltr; }
+  /* الصوت فوق جنب أزرار التشغيل */
+  .btn {
+    width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--fg);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; outline: none;
+    transition: background-color .15s, transform .12s var(--ease-out), opacity .15s;
+  }
+  .btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .btn:hover { background: rgba(255,255,255,.09); }
+  .btn:active { transform: scale(.9); transition-duration: .05s; }
+  .btn:focus-visible { box-shadow: 0 0 0 2px var(--accent-text); }
+  .btn.play { width: 38px; height: 38px; background: var(--fg); color: var(--bg2); }
+  .btn.play:hover { background: #fff; }
+  .btn.play svg { width: 18px; height: 18px; }
+  .btn.play .i-pause { display: none; }
+  body.playing .btn.play .i-play { display: none; }
+  body.playing .btn.play .i-pause { display: block; }
+
+  /* ===== الصف الثاني: الوقت + الشريط + الصوت ===== */
+  .bar { display: flex; align-items: center; gap: 8px; direction: ltr; }
+  .time { font-size: 11px; color: var(--muted); min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; height: 16px; background: transparent; cursor: pointer; outline: none;
+    --p: 0%;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 4px;
+    background: linear-gradient(to right, var(--fg) var(--p), rgba(255,255,255,.16) var(--p));
+    transition: height .15s;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4); transform: scale(0); transition: transform .15s var(--ease-out);
+  }
+  input[type=range]:hover::-webkit-slider-thumb, input[type=range]:active::-webkit-slider-thumb,
+  input[type=range]:focus-visible::-webkit-slider-thumb { transform: scale(1); }
+  input[type=range]:focus-visible::-webkit-slider-runnable-track { box-shadow: 0 0 0 2px var(--accent-text); }
+  .seek { flex: 1; min-width: 0; }
+  /* الصوت: الأيقونة على نفس سطر العنوان، والشريط تحتها مباشرة على سطر اسم الفنان */
+  .sound { display: flex; align-items: center; gap: 4px; min-width: 0; direction: ltr; }
+  .vol { flex: 1 1 0; min-width: 0; width: 0; }   /* بعرض أزرار التشغيل بالضبط */
+  .vbtn { width: 26px; min-width: 26px; height: 24px; border-radius: 7px; }
+  .vbtn svg { width: 15px; height: 15px; }
+  .vbtn .i-mute { display: none; }
+  body.muted .vbtn .i-vol { display: none; }
+  body.muted .vbtn .i-mute { display: block; }
+
+  body.empty .ctl .btn, body.empty .bar { opacity: .35; pointer-events: none; }
+
+  /* ===== المكان والتثبيت: يطلع لما تقرّب الماوس من فوق ===== */
+  /* منطقة صغيرة بنص الحافة الفوقية بس (عليها خط صغير يدلّك) — الأزرار تطلع لما تحط الماوس عليها */
+  .grip { position: fixed; top: 0; left: 50%; width: 96px; height: 14px; margin-left: -48px; z-index: 5;
+          display: flex; justify-content: center; direction: ltr; }
+  .grip::before { content: ""; margin-top: 4px; width: 32px; height: 4px; border-radius: 3px;
+                  background: rgba(255,255,255,.22); transition: opacity .15s; }
+  .grip:hover, .grip.open { width: 170px; margin-left: -85px; height: 40px; }
+  .grip:hover::before, .grip.open::before { opacity: 0; }
+  .tools {
+    position: absolute; top: 4px; display: flex; gap: 2px; padding: 3px; border-radius: 10px;
+    background: var(--bg3); box-shadow: 0 0 0 1px rgba(255,255,255,.07) inset, 0 6px 18px rgba(0,0,0,.45);
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .16s, transform .2s var(--ease-out);
+  }
+  .grip:hover .tools, .grip.open .tools { opacity: 1; transform: none; pointer-events: auto; }
+  .gt {
+    width: 28px; height: 24px; border: 0; border-radius: 7px; background: transparent; color: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; outline: none;
+    transition: background-color .12s, color .12s;
+  }
+  .gt:hover { background: rgba(255,255,255,.08); color: var(--fg); }
+  .gt:focus-visible { box-shadow: 0 0 0 2px var(--accent-text); }
+  .gt.on { background: rgba(255,255,255,.14); color: var(--fg); }
+  .gt svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sep { width: 1px; margin: 4px 2px; background: rgba(255,255,255,.1); }
+
+  /* ===== الوضع الزجاجي (لون المستخدم) ===== */
+  body.glass {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0) 60%),
+      radial-gradient(130% 170% at 12% 0%, color-mix(in srgb, var(--accent) 34%, #171b21), color-mix(in srgb, var(--accent) 12%, #121519) 72%);
+  }
+
+  /* ===== الحركة ===== */
+  /* دخول: الغلاف يكبر شوي، بعده الكلام، بعده الأزرار (متدرّج وقصير — أقل من نص ثانية) */
+  .art, .meta, .ctl, .sound, .bar { transition: opacity .18s var(--ease-out), transform .24s var(--ease-out); }
+  .sound { transition-delay: .04s; }
+  .meta { transition-delay: .02s; }
+  .ctl { transition-delay: .04s; }
+  .bar { transition-delay: .06s; }
+  body.off .art { opacity: 0; transform: scale(1.06); }
+  body.off .meta { opacity: 0; transform: translateY(5px); }
+  body.off .ctl, body.off .sound, body.off .bar { opacity: 0; transform: translateY(3px); }
+  body.off .art, body.off .meta, body.off .ctl, body.off .sound, body.off .bar { transition-duration: .09s; transition-delay: 0s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .art, .meta, .ctl, .sound, .bar, body.off .art, body.off .meta, body.off .ctl, body.off .sound, body.off .bar {
+      transform: none !important; transition: opacity .18s ease !important;
+    }
+    body.playing .eq i { animation: none; }
+    .eq i:nth-child(1) { height: 55%; } .eq i:nth-child(2) { height: 90%; } .eq i:nth-child(3) { height: 45%; }
+    .tools { transform: none !important; }
+  }
+
+  /* ================= Liquid Glass (تجربة) =================
+     خلفية الفقاعة = صورة الأغنية مغبّشة (عشان يكون فيه شي ينكسر خلف الزجاج)،
+     وأزرار التشغيل + أدوات المكان «قزاز سائل»: الحواف تكسر اللي وراها (SVG displacement يتولّد بالـ JS حسب حجم كل عنصر)
+     + لمعة فوق + انعكاس يتبع الماوس. متصفح أبل (الماك) ما يدعم الانكسار ⇒ يصير قزاز مغبّش عادي. */
+  .bgart { position: fixed; inset: -40px; z-index: -2; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
+  .bgart img { width: 100%; height: 100%; object-fit: cover; filter: blur(26px) saturate(1.7) brightness(.78); transform: scale(1.15); }
+  body.has-art .bgart { opacity: 1; }
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+                background: linear-gradient(90deg, rgba(8,10,12,.55), rgba(8,10,12,.28) 70%, rgba(8,10,12,.1)); }
+  body.has-art { background: transparent; }
+
+  .glass {
+    position: relative; isolation: isolate;
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.05));
+    -webkit-backdrop-filter: blur(10px) saturate(1.8); backdrop-filter: blur(10px) saturate(1.8);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),      /* لمعة الحافة فوق */
+      inset 0 -1px 0 rgba(255,255,255,.08),
+      inset 0 0 0 1px rgba(255,255,255,.12),     /* حد القزاز */
+      0 6px 18px rgba(0,0,0,.28);
+  }
+  .glass.lg-refract { -webkit-backdrop-filter: var(--lg-filter); backdrop-filter: var(--lg-filter); }
+  .glass::before { /* انعكاس الضوء: يتبع الماوس */
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+    background: radial-gradient(120px 60px at var(--mx, 30%) var(--my, 0%), rgba(255,255,255,.22), transparent 70%);
+    opacity: .8; transition: opacity .2s;
+  }
+  .ctl.glass { padding: 4px; border-radius: 999px; gap: 2px; }
+  .ctl.glass .btn:not(.play):hover { background: rgba(255,255,255,.14); }
+  .ctl.glass .btn.play { background: rgba(255,255,255,.92); color: #0b0d10;
+                         box-shadow: inset 0 1px 0 #fff, 0 2px 8px rgba(0,0,0,.25); }
+  .ctl.glass:active { transform: scale(.985); }
+  .tools.glass { background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.07)); border-radius: 12px; }
+
+  /* الشريطين: مجرى قزاز */
+  body.has-art input[type=range]::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, rgba(255,255,255,.95) var(--p), rgba(255,255,255,.2) var(--p));
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.25);
+  }
+  body.has-art .artist, body.has-art .time { color: rgba(255,255,255,.72); }
+  body.has-art .title, body.has-art .artist, body.has-art .time { text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass, .glass.lg-refract { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(40,44,50,.96); }
+    .bgart { display: none; }
+  }
+</style>
+</head>
+<body class="empty off">
+  <div class="bgart" aria-hidden="true"><img id="bgthumb" alt=""></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="lgdefs"></defs></svg>
+  <div class="grip" id="grip">
+    <div class="tools glass" data-glass role="toolbar" aria-label="مكان الفقاعة">
+      <button class="gt" data-pos="left" title="يسار الشاشة" aria-label="يسار الشاشة"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M6.5 8.5h5" stroke-width="2.6"/></svg></button>
+      <button class="gt" data-pos="center" title="بالمنتصف" aria-label="بالمنتصف"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M9.5 8.5h5" stroke-width="2.6"/></svg></button>
+      <button class="gt" data-pos="right" title="يمين الشاشة" aria-label="يمين الشاشة"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M12.5 8.5h5" stroke-width="2.6"/></svg></button>
+      <span class="sep"></span>
+      <button class="gt" id="pin" title="تثبيت" aria-label="تثبيت"><svg viewBox="0 0 24 24"><path d="M9 3h6l-1 6 4 4H6l4-4z"/><path d="M12 13v8"/></svg></button>
+    </div>
+  </div>
+
+  <div class="art" id="art">
+    <img id="thumb" alt="">
+    <span class="ph"><svg viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg></span>
+  </div>
+
+  <!-- يسار: أزرار التشغيل جنب الشريط. يمين: الصوت (يبدأ بنفس مكان شريط الأغنية) لين اسم الأغنية -->
+  <div class="layout">
+    <div class="ctl glass" data-glass>
+      <button class="btn" id="prev" title="السابق" aria-label="السابق"><svg viewBox="0 0 24 24"><path d="M6 6h2.2v12H6zM9.6 12 18 18V6z"/></svg></button>
+      <button class="btn play" id="play" title="تشغيل / إيقاف" aria-label="تشغيل / إيقاف">
+        <svg class="i-play" viewBox="0 0 24 24"><path d="M8.5 5.5v13l10.5-6.5z"/></svg>
+        <svg class="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>
+      </button>
+      <button class="btn" id="next" title="التالي" aria-label="التالي"><svg viewBox="0 0 24 24"><path d="M15.8 6H18v12h-2.2zM6 18l8.4-6L6 6z"/></svg></button>
+    </div>
+    <div class="top">
+      <div class="meta">
+        <div class="title-row">
+          <div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="title" id="title">لا شيء قيد التشغيل</div>
+        </div>
+        <div class="artist" id="artist">Harmoni</div>
+      </div>
+    </div>
+    <div class="sound">
+      <button class="btn vbtn" id="mute" title="كتم الصوت" aria-label="كتم الصوت">
+        <svg class="i-vol" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+        <svg class="i-mute" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>
+      </button>
+      <input class="vol" id="vol" type="range" min="0" max="100" step="1" value="25" title="الصوت" aria-label="الصوت">
+    </div>
+    <div class="bar">
+      <span class="time" id="cur">0:00</span>
+      <input class="seek" id="seek" type="range" min="0" max="100" step="0.1" value="0" aria-label="مكان الأغنية">
+      <span class="time" id="dur">0:00</span>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var body = document.body;
+  var st = null, stamp = 0, seekDrag = false, volDrag = false, volLockUntil = 0;
+  var reduce = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+
+  function api() { return window.pywebview && window.pywebview.api; }
+  function fmt(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function fill(el, v, max) { el.style.setProperty("--p", (max ? Math.min(100, Math.max(0, v / max * 100)) : 0) + "%"); }
+
+  /* ألوان البرنامج (تتغير مع الثيم) */
+  var KEYS = { bg: "--bg", bg2: "--bg2", bg3: "--bg3", fg: "--fg", muted: "--muted", border: "--border",
+               accent: "--accent", onAccent: "--on-accent", accentText: "--accent-text" };
+  var lastTheme = "";
+  function theme(th) {
+    if (!th) return;
+    var k = JSON.stringify(th);
+    if (k === lastTheme) return;
+    lastTheme = k;
+    for (var n in KEYS) if (th[n]) document.documentElement.style.setProperty(KEYS[n], th[n]);
+  }
+
+  /* تبديل ناعم لما تتغير الأغنية */
+  function swap(el, dy) {
+    if (!el || !el.animate || body.classList.contains("off")) return;
+    el.animate(reduce.matches ? [{ opacity: 0 }, { opacity: 1 }]
+                              : [{ opacity: 0, transform: "translateY(" + dy + "px)" }, { opacity: 1, transform: "none" }],
+               { duration: reduce.matches ? 160 : 280, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
+  var lastKey = null, lastPlaying = null;
+
+  function render() {
+    if (st && st.theme) theme(st.theme);
+    body.classList.toggle("glass", !!(st && st.glass));
+    var has = !!(st && st.title);
+    body.classList.toggle("empty", !has);
+    body.classList.toggle("playing", !!(has && st.playing));
+    body.classList.toggle("muted", !!(st && st.muted));
+    if (!has) {
+      $("title").textContent = "لا شيء قيد التشغيل";
+      $("artist").textContent = "Harmoni";
+      $("thumb").removeAttribute("src");
+      $("bgthumb").removeAttribute("src");
+      body.classList.remove("has-art");
+      $("art").classList.remove("has");
+      $("cur").textContent = "0:00"; $("dur").textContent = "0:00";
+      $("seek").value = 0; fill($("seek"), 0, 1);
+      lastKey = null;
+      return;
+    }
+    var key = st.title + "|" + (st.artist || "");
+    if (key !== lastKey) {
+      var first = lastKey === null;
+      lastKey = key;
+      $("title").textContent = st.title;
+      $("artist").textContent = st.artist || "";
+      if (!first) { swap(document.querySelector(".meta"), 5); swap($("art"), 0); }
+    }
+    var src = st.thumbnail || "";
+    if (src !== ($("thumb").getAttribute("src") || "")) {
+      if (src) { $("thumb").src = src; $("bgthumb").src = src; } else { $("thumb").removeAttribute("src"); $("bgthumb").removeAttribute("src"); }
+    }
+    body.classList.toggle("has-art", !!src);
+    $("art").classList.toggle("has", !!src);
+    if (lastPlaying !== null && lastPlaying !== !!st.playing && !reduce.matches) {
+      var ico = document.querySelector(st.playing ? ".btn.play .i-pause" : ".btn.play .i-play");
+      if (ico && ico.animate) ico.animate([{ transform: "scale(.55)", opacity: .2 }, { transform: "scale(1)", opacity: 1 }],
+                                          { duration: 170, easing: "cubic-bezier(.2,.8,.2,1)" });
+    }
+    lastPlaying = !!st.playing;
+    var dur = st.duration || 0;
+    var pos = (st.position || 0) + (st.playing ? (Date.now() - stamp) / 1000 : 0);
+    if (dur) pos = Math.min(pos, dur);
+    if (!seekDrag) {
+      $("seek").max = dur || 100;
+      $("seek").value = pos;
+      fill($("seek"), pos, dur);
+      $("cur").textContent = fmt(pos);
+    }
+    $("dur").textContent = fmt(dur);
+    if (!volDrag && Date.now() > volLockUntil) {
+      var v = st.muted ? 0 : (st.volume || 0);
+      $("vol").value = v;
+      fill($("vol"), v, 100);
+    }
+  }
+
+  /* الحالة من البرنامج */
+  var busy = false;
+  function poll() {
+    var a = api();
+    if (!a || !a.state || busy) return;
+    busy = true;
+    var guard = setTimeout(function () { busy = false; }, 1500);
+    Promise.resolve(a.state()).then(function (s) {
+      clearTimeout(guard); busy = false;
+      if (s && s.hidden) return;
+      st = s || null; stamp = Date.now(); render();
+    }).catch(function () { clearTimeout(guard); busy = false; });
+  }
+  function cmd(action, value) {
+    var a = api();
+    if (!a || !a.cmd) return;
+    Promise.resolve(a.cmd(action, value == null ? null : value)).then(function () { setTimeout(poll, 120); });
+  }
+  setInterval(poll, 500);
+  setInterval(function () { if (st && st.playing && !seekDrag) render(); }, 250);
+  window.addEventListener("pywebviewready", function () { poll(); loadCfg(); });
+
+  /* ظهور / اختفاء (بايثون يتلاشى النافذة، وهنا يتحرك المحتوى) */
+  window.__bubbleShown = function () {
+    window.__hidingNow = false;
+    poll(); loadCfg();
+    body.classList.add("off");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { body.classList.remove("off"); }); });
+    setTimeout(function () { if (window.__lgRefresh) window.__lgRefresh(); }, 560);
+  };
+  window.__bubbleHiding = function () { window.__hidingNow = true; body.classList.add("off"); $("grip").classList.remove("open"); };
+  // احتياط: لو رسالة الظهور ما وصلت
+  document.addEventListener("mouseover", function () { if (!window.__hidingNow && body.classList.contains("off")) body.classList.remove("off"); });
+
+  /* المكان + التثبيت */
+  var cfg = null;
+  function paintCfg() {
+    if (!cfg) return;
+    document.querySelectorAll(".gt[data-pos]").forEach(function (b) {
+      var on = b.dataset.pos === cfg.position;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+    var pin = $("pin");
+    pin.classList.toggle("on", !!cfg.pinned);
+    pin.setAttribute("aria-pressed", String(!!cfg.pinned));
+    pin.title = cfg.pinned ? "إلغاء التثبيت" : "تثبيت (ما تختفي لو بعدت الماوس)";
+  }
+  window.__bubbleConfig = function (c) { cfg = c; paintCfg(); };
+  function loadCfg() {
+    var a = api();
+    if (!a || !a.get_config) return;
+    Promise.resolve(a.get_config()).then(function (c) { if (c) { cfg = c; paintCfg(); } }).catch(function () {});
+  }
+  function saveCfg(patch) {
+    var a = api();
+    if (!a || !a.set_config) return;
+    Promise.resolve(a.set_config(patch)).then(function (c) { if (c) { cfg = c; paintCfg(); } }).catch(function () {});
+  }
+  document.querySelectorAll(".gt[data-pos]").forEach(function (b) {
+    b.onclick = function (e) { e.stopPropagation(); saveCfg({ position: b.dataset.pos }); };
+  });
+  $("pin").onclick = function (e) { e.stopPropagation(); saveCfg({ pinned: !(cfg && cfg.pinned) }); };
+  setTimeout(loadCfg, 800);
+
+  /* التحكم */
+  $("play").onclick = function () { cmd("play_pause"); if (st) { st.playing = !st.playing; render(); } };
+  $("next").onclick = function () { cmd("skip"); };
+  $("prev").onclick = function () { cmd("prev"); };
+  $("mute").onclick = function () { cmd("mute"); if (st) { st.muted = !st.muted; render(); } };
+  $("seek").addEventListener("input", function () { seekDrag = true; fill(this, +this.value, +this.max); $("cur").textContent = fmt(+this.value); });
+  $("seek").addEventListener("change", function () {
+    seekDrag = false;
+    if (st) { st.position = +this.value; stamp = Date.now(); }
+    cmd("seek", +this.value);
+  });
+  $("vol").addEventListener("input", function () { volDrag = true; fill(this, +this.value, 100); cmd("volume", +this.value); });
+  $("vol").addEventListener("change", function () { volDrag = false; volLockUntil = Date.now() + 800; });
+  document.addEventListener("wheel", function (e) {
+    var v = Math.max(0, Math.min(100, (+$("vol").value) + (e.deltaY < 0 ? 5 : -5)));
+    $("vol").value = v; fill($("vol"), v, 100); volLockUntil = Date.now() + 800; cmd("volume", v);
+  }, { passive: true });
+
+  /* ===== Liquid Glass: خريطة انكسار لكل عنصر (حواف القزاز تكسر اللي وراها مثل العدسة) ===== */
+  var lgOk = /Chrome\//.test(navigator.userAgent) && !reduce.matches;   // WebView2 (ويندوز) يدعمه؛ متصفح أبل لا
+  function lensMap(w, h, r, bezel) {
+    var c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    var g = c.getContext("2d"), img = g.createImageData(w, h), d = img.data;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        // المسافة لأقرب حافة في مستطيل بزوايا دائرية + اتجاه الحافة
+        var qx = Math.abs(x + .5 - w / 2) - (w / 2 - r), qy = Math.abs(y + .5 - h / 2) - (h / 2 - r);
+        var ox = Math.max(qx, 0), oy = Math.max(qy, 0);
+        var dist = r - (Math.sqrt(ox * ox + oy * oy) + Math.min(Math.max(qx, qy), 0));   // داخل: موجب
+        var nx = 0, ny = 0;
+        if (qx > 0 || qy > 0) { var L = Math.sqrt(ox * ox + oy * oy) || 1; nx = ox / L; ny = oy / L; }
+        else if (qx > qy) nx = 1; else ny = 1;
+        nx *= (x + .5 < w / 2) ? -1 : 1; ny *= (y + .5 < h / 2) ? -1 : 1;
+        var m = dist < bezel ? Math.pow(1 - Math.max(dist, 0) / bezel, 2.2) : 0;   // قوي عند الحافة ويختفي للداخل
+        var i = (y * w + x) * 4;
+        d[i] = 128 - nx * m * 127; d[i + 1] = 128 - ny * m * 127; d[i + 2] = 128; d[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return c.toDataURL();
+  }
+  var lgN = 0;
+  function makeGlass(el) {
+    if (!lgOk || !el) return;
+    var w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
+    var bb = el.getBoundingClientRect();
+    var ox = Math.round(bb.left), oy = Math.round(bb.top);   // backdrop-filter: إحداثيات الفلتر من زاوية الصفحة
+    var sig = w + "x" + h + "@" + ox + "," + oy;
+    if (w < 8 || h < 8 || el.__lgSize === sig) return;
+    el.__lgSize = sig;
+    var r = Math.min(h / 2, parseFloat(getComputedStyle(el).borderTopLeftRadius) || 12);
+    var id = el.__lgId || ("lg" + (++lgN));
+    el.__lgId = id;
+    var old = document.getElementById(id);
+    if (old) old.remove();
+    var ns = "http://www.w3.org/2000/svg";
+    var f = document.createElementNS(ns, "filter");
+    f.setAttribute("id", id);
+    f.setAttribute("x", "0"); f.setAttribute("y", "0"); f.setAttribute("width", w); f.setAttribute("height", h);
+    f.setAttribute("filterUnits", "userSpaceOnUse"); f.setAttribute("color-interpolation-filters", "sRGB");
+    f.innerHTML =
+      // الغبش والتشبع من CSS (فلتر SVG للغبش داخل backdrop-filter ينزاح في كروم) — هنا الانكسار بس
+      '<feImage href="' + lensMap(w, h, r, Math.min(14, h / 2.2)) + '" x="0" y="0" width="' + w + '" height="' + h + '" preserveAspectRatio="none" result="map"/>' +
+      '<feDisplacementMap in="SourceGraphic" in2="map" scale="24" xChannelSelector="R" yChannelSelector="G"/>';
+    $("lgdefs").appendChild(f);
+    el.style.setProperty("--lg-filter", "url(#" + id + ") blur(4px) saturate(1.8)");
+    el.classList.add("lg-refract");
+    [80, 300].forEach(function (t) { setTimeout(function () { refresh(el); }, t); });
+  }
+  function glassAll() { document.querySelectorAll("[data-glass]").forEach(makeGlass); }
+  // كروم يحفظ نتيجة الفلتر من وقت ما كان العنصر يتحرك ⇒ بعد ما توقف الحركة نعيد تطبيقه (وإلا يطلع مستطيل غلط داخل الزجاج)
+  function refresh(el) {
+    if (!el.classList.contains("lg-refract")) return;
+    el.style.webkitBackdropFilter = el.style.backdropFilter = "none";
+    void el.offsetWidth;
+    el.style.webkitBackdropFilter = el.style.backdropFilter = "";
+  }
+  function refreshAll() { document.querySelectorAll(".lg-refract").forEach(refresh); }
+  document.querySelectorAll("[data-glass]").forEach(function (el) {
+    el.addEventListener("transitionend", function (e) { if (e.target === el && e.propertyName === "transform") refresh(el); });
+  });
+  window.__lgRefresh = refreshAll;
+  // انعكاس الضوء يتبع الماوس
+  document.querySelectorAll("[data-glass]").forEach(function (el) {
+    el.addEventListener("pointermove", function (e) {
+      var b = el.getBoundingClientRect();
+      el.style.setProperty("--mx", ((e.clientX - b.left) / b.width * 100).toFixed(1) + "%");
+      el.style.setProperty("--my", ((e.clientY - b.top) / b.height * 100).toFixed(1) + "%");
+    });
+    el.addEventListener("pointerleave", function () { el.style.removeProperty("--mx"); el.style.removeProperty("--my"); });
+  });
+  window.addEventListener("resize", glassAll);
+  setTimeout(glassAll, 60);
+  // أدوات المكان مخفية أول (حجمها صفر) ⇒ نجهز زجاجها أول ما تبين
+  $("grip").addEventListener("mouseenter", function () { setTimeout(glassAll, 30); });
+  document.addEventListener("keydown", function (e) {
+    if (e.target && e.target.tagName === "INPUT") return;
+    if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+})();
+</script>
+</body>
+</html>

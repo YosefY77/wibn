@@ -1,0 +1,22 @@
+131 INFO: PyInstaller: 6.22.2, contrib hooks: 2026.6
+132 INFO: Python: 3.12.10
+152 INFO: Platform: Windows-11-10.0.26200-SP0
+152 INFO: Python environment: C:\Users\YSIF\AppData\Local\Programs\Python\Python312
+1769 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\YSIF\\Documents\\music_app',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\Users\\YSIF\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages',
+ 'C:\\Users\\YSIF\\Documents\\music_app']
+2492 INFO: Appending 'datas' from .spec
+2567 INFO: checking Analysis
+2778 INFO: checking PYZ
+2866 INFO: checking PKG
+2868 INFO: Bootloader C:\Users\YSIF\AppData\Local\Programs\Python\Python312\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+2868 INFO: checking EXE
+2878 INFO: checking COLLECT
+2891 INFO: Building COLLECT COLLECT-00.toc
+4448 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+4472 INFO: Build complete! The results are available in: C:\Users\YSIF\Documents\music_app\dist_harmoni2

@@ -80,6 +80,10 @@ namespace WinPlus
                 3, 3, () => new PictureWidget()),
             new("text", "", Lang.T("كتابة"), Lang.T("كلامك على سطح المكتب بدون إطار ولا خلفية. دبل كليك عليه عشان تكتب، وكليك يمين عشان تغيّر الخط والحجم واللون"),
                 4, 2, () => new TextWidget()),
+            new("shortcuts", "", Lang.T("اختصارات"), Lang.T("برامجك ومجلداتك المفضلة، كليك وحدة وتفتح. اسحبها عليه من أي مكان، أو كليك يمين عليه ← أضف"),
+                3, 3, () => new ShortcutsWidget()),
+            new("adhkar", "", Lang.T("أذكار"), Lang.T("ذكر مع مصدره، وكل ما ضغطت عليه يطلع لك ذكر ثاني عشوائي"),
+                4, 2, () => new AdhkarWidget()),
         };
 
         public static Kind? KindOf(string type) => Kinds.FirstOrDefault(k => k.Type == type);

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0d1113">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Harmoni Connect">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=3">
+<title>Harmoni Connect</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root { --bg: #0d1113; --bg2: #151b1e; --bg3: #1e272b; --fg: #eef3f2; --muted: #9caaa9; --border: #2a3437; --accent: #1db954; --on-accent: #04130a; }
+  html, body { background: var(--bg); color: var(--fg); font-family: "Segoe UI", Tahoma, system-ui, sans-serif; min-height: 100%; }
+  body { padding: calc(14px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom)); max-width: 560px; margin: 0 auto; user-select: none; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  header b { font-size: 17px; letter-spacing: .2px; }
+  .dot { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .dot i { width: 8px; height: 8px; border-radius: 50%; background: #e5534b; }
+  .dot.on i { background: var(--accent); }
+  .np { display: flex; gap: 14px; align-items: center; }
+  .art { width: 96px; height: 96px; border-radius: 16px; object-fit: cover; background: var(--bg3); flex: none; box-shadow: 0 10px 30px #0006; }
+  .meta { min-width: 0; flex: 1; }
+  .title { font-size: 18px; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .artist { color: var(--muted); font-size: 14px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seek-wrap { margin-top: 18px; direction: ltr; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--p,0%), var(--bg3) var(--p,0%)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--fg); margin-top: -6.5px; }
+  input[type=range]::-moz-range-track { height: 5px; border-radius: 4px; background: var(--bg3); }
+  input[type=range]::-moz-range-progress { height: 5px; border-radius: 4px; background: var(--accent); }
+  .times { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: -2px; }
+  .ctl { display: flex; align-items: center; justify-content: space-between; direction: ltr; margin: 14px 4px 0; }
+  .b { width: 52px; height: 52px; border: 0; border-radius: 50%; background: transparent; color: var(--fg); display: inline-flex; align-items: center; justify-content: center; }
+  .b:active { transform: scale(.92); background: var(--bg3); }
+  .b svg { width: 28px; height: 28px; fill: currentColor; }
+  .b.small svg { width: 22px; height: 22px; }
+  .b.on { color: var(--accent); }
+  .b.play { width: 74px; height: 74px; background: var(--accent); color: var(--on-accent); }
+  .b.play svg { width: 34px; height: 34px; }
+  .vol { display: flex; align-items: center; gap: 10px; margin-top: 16px; direction: ltr; }
+  .vol .b { width: 40px; height: 40px; flex: none; }
+  .vol .b svg { width: 22px; height: 22px; }
+  .tabs { display: flex; gap: 8px; margin: 24px 0 10px; }
+  .tab { flex: 1; padding: 11px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg2); color: var(--muted); font: inherit; font-size: 14px; }
+  .tab.on { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+  .list { display: flex; flex-direction: column; gap: 2px; padding-bottom: 20px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 12px; background: none; border: 0; color: inherit; text-align: start; font: inherit; width: 100%; }
+  .row:active { background: var(--bg2); }
+  .row img, .row .ph { width: 48px; height: 48px; border-radius: 9px; object-fit: cover; background: var(--bg3); flex: none; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 20px; }
+  .row .t { min-width: 0; flex: 1; }
+  .row .t b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t small { display: block; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .row.cur b { color: var(--accent); }
+  .back { margin: 0 0 6px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg2); color: var(--fg); font: inherit; font-size: 13px; }
+  .msg { color: var(--muted); font-size: 14px; text-align: center; padding: 26px 10px; line-height: 1.7; }
+  .like.on svg { fill: #ff4d6d; }
+</style>
+</head>
+<body>
+  <header><b>Harmoni Connect</b><span class="dot" id="dot"><i></i><span id="dot-t">…</span></span></header>
+
+  <div class="np">
+    <img class="art" id="art" alt="">
+    <div class="meta">
+      <div class="title" id="title">…</div>
+      <div class="artist" id="artist"></div>
+    </div>
+    <button class="b small like" id="like" aria-label="إعجاب"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+  </div>
+
+  <div class="seek-wrap">
+    <input id="seek" type="range" min="0" max="100" step="0.5" value="0">
+    <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+  </div>
+
+  <div class="ctl">
+    <button class="b small" id="shuffle" aria-label="عشوائي"><svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg></button>
+    <button class="b" id="prev" aria-label="السابق"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12l8.5 6V6z"/></svg></button>
+    <button class="b play" id="play" aria-label="تشغيل"><svg id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><svg id="i-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+    <button class="b" id="next" aria-label="التالي"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+    <button class="b small" id="loop" aria-label="تكرار"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
+  </div>
+
+  <div class="vol">
+    <button class="b" id="mute" aria-label="كتم"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg></button>
+    <input id="vol" type="range" min="0" max="100" step="1" value="50">
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="likes">♥ المفضلة</button>
+    <button class="tab" data-tab="pls">♫ البلاي لستات</button>
+  </div>
+  <div class="list" id="list"><p class="msg">…</p></div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var q = new URLSearchParams(location.search);
+  var KEY = q.get("k") || "";
+  try { if (KEY) localStorage.setItem("hc_key", KEY); else KEY = localStorage.getItem("hc_key") || ""; } catch (e) {}
+  if (KEY && !q.get("k")) history.replaceState(null, "", "/remote?k=" + KEY);
+  var st = null, stamp = 0, lists = null, tab = "likes", openPl = null, seekDrag = false, volLock = 0, online = false;
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fmt(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function paint(el, v, max) { el.style.setProperty("--p", (max ? Math.min(100, v / max * 100) : 0) + "%"); }
+
+  function cmd(action, value, kind) {
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
+    return fetch("/api/remote/cmd", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ k: KEY, action: action, value: value == null ? null : value, kind: kind || null }) })
+      .then(function () { setTimeout(poll, 350); }).catch(function () {});
+  }
+
+  function render() {
+    $("dot").classList.toggle("on", online);
+    $("dot-t").textContent = online ? "متصل" : "الكمبيوتر مو متصل";
+    var has = !!(st && st.title);
+    $("title").textContent = has ? st.title : (online ? "ما فيه شي يشتغل" : "افتح هارموني على الكمبيوتر");
+    $("artist").textContent = has ? (st.artist || "") : "";
+    var th = has && st.thumbnail ? st.thumbnail : "";
+    if (th && !/^(https?:|data:|\/)/.test(th)) th = "";
+    if ((th || "") !== ($("art").getAttribute("src") || "")) { if (th) $("art").src = th; else $("art").removeAttribute("src"); }
+    var playing = has && st.playing;
+    $("i-play").style.display = playing ? "none" : "";
+    $("i-pause").style.display = playing ? "" : "none";
+    $("shuffle").classList.toggle("on", !!(st && st.shuffle));
+    $("loop").classList.toggle("on", !!(st && st.loop));
+    $("like").classList.toggle("on", !!(st && st.liked));
+    var dur = has ? (st.duration || 0) : 0;
+    var pos = has ? (st.position || 0) + (playing ? (Date.now() - stamp) / 1000 : 0) : 0;
+    if (dur) pos = Math.min(pos, dur);
+    if (!seekDrag) { $("seek").max = dur || 100; $("seek").value = pos; paint($("seek"), pos, dur); $("cur").textContent = fmt(pos); }
+    $("dur").textContent = fmt(dur);
+    if (st && Date.now() > volLock) { var v = st.muted ? 0 : (st.volume || 0); $("vol").value = v; paint($("vol"), v, 100); }
+  }
+
+  function row(t, i, kind, cur) {
+    var img = t.thumbnail ? '<img src="' + esc(t.thumbnail) + '" alt="" loading="lazy">' : '<span class="ph">♫</span>';
+    return '<button class="row' + (cur ? " cur" : "") + '" data-i="' + i + '" data-kind="' + esc(kind) + '">' + img +
+      '<span class="t"><b>' + esc(t.title) + "</b><small>" + esc(t.artist || "") + "</small></span></button>";
+  }
+  function renderList() {
+    var box = $("list");
+    if (!lists) { box.innerHTML = '<p class="msg">' + (online ? "جاري التحميل…" : "أول ما يتصل الكمبيوتر تطلع قوائمك هنا") + "</p>"; return; }
+    var cur = lists.current || "";
+    var keyOf = function (t) { return t.web_url || t.title; };
+    if (tab === "likes") {
+      var items = (lists.likes && lists.likes.items) || [];
+      box.innerHTML = items.length ? items.map(function (t, i) { return row(t, i, "likes", cur && keyOf(t) === cur); }).join("") : '<p class="msg">ما فيه أغاني بالمفضلة</p>';
+      return;
+    }
+    var pls = lists.playlists || [];
+    if (openPl) {
+      var p = pls.filter(function (x) { return String(x.id) === String(openPl); })[0];
+      if (!p) { openPl = null; return renderList(); }
+      box.innerHTML = '<button class="back" id="back">→ رجوع للبلاي لستات</button>' +
+        ((p.items || []).length ? p.items.map(function (t, i) { return row(t, i, "pl:" + p.id, cur && keyOf(t) === cur); }).join("") : '<p class="msg">البلاي لست فاضية</p>');
+      $("back").onclick = function () { openPl = null; renderList(); };
+      return;
+    }
+    box.innerHTML = pls.length ? pls.map(function (p) {
+      var img = p.img ? '<img src="' + esc(p.img) + '" alt="" loading="lazy">' : '<span class="ph">♫</span>';
+      return '<button class="row" data-pl="' + esc(p.id) + '">' + img + '<span class="t"><b>' + esc(p.name) + "</b><small>" + (p.count || 0) + " أغنية</small></span></button>";
+    }).join("") : '<p class="msg">ما عندك بلاي لستات</p>';
+  }
+  $("list").addEventListener("click", function (e) {
+    var pl = e.target.closest("[data-pl]");
+    if (pl) { openPl = pl.dataset.pl; renderList(); window.scrollTo({ top: $("list").offsetTop - 60, behavior: "smooth" }); return; }
+    var r = e.target.closest("[data-i]");
+    if (r) cmd("play", +r.dataset.i, r.dataset.kind);
+  });
+  document.querySelectorAll(".tab").forEach(function (b) {
+    b.onclick = function () {
+      tab = b.dataset.tab; openPl = null;
+      document.querySelectorAll(".tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+      renderList();
+    };
+  });
+
+  var busy = false, lastLists = 0, fails = 0;
+  function poll() {
+    if (busy || !KEY) return;
+    busy = true;
+    var wantLists = !lists || Date.now() - lastLists > 15000;
+    fetch("/api/remote/state?k=" + encodeURIComponent(KEY) + (wantLists ? "&lists=1" : ""), { cache: "no-store" })
+      .then(function (r) { if (r.status === 403) throw new Error("key"); return r.json(); })
+      .then(function (j) {
+        fails = 0;
+        online = !!j.online;
+        st = j.state || null; stamp = Date.now();
+        if (wantLists && j.lists) { var changed = JSON.stringify(j.lists) !== JSON.stringify(lists); lists = j.lists; lastLists = Date.now(); if (changed) renderList(); }
+        else if (wantLists && !lists) renderList();
+        render();
+      })
+      .catch(function (e) {
+        if (e && e.message === "key") {
+          $("title").textContent = "الرابط انتهى — امسح رمز QR من جديد من الكمبيوتر";
+          try { localStorage.removeItem("hc_key"); } catch (er) {}
+          KEY = "";
+        } else if (++fails > 2) { online = false; render(); }
+      })
+      .then(function () { busy = false; });
+  }
+
+  $("play").onclick = function () { if (st) { st.playing = !st.playing; render(); } cmd("play_pause"); };
+  $("next").onclick = function () { cmd("skip"); };
+  $("prev").onclick = function () { cmd("prev"); };
+  $("shuffle").onclick = function () { cmd("shuffle"); };
+  $("loop").onclick = function () { cmd("loop"); };
+  $("like").onclick = function () { if (st) { st.liked = !st.liked; render(); } cmd("like"); };
+  $("mute").onclick = function () { cmd("mute"); };
+  $("seek").addEventListener("input", function () { seekDrag = true; paint(this, +this.value, +this.max); $("cur").textContent = fmt(+this.value); });
+  $("seek").addEventListener("change", function () { seekDrag = false; if (st) { st.position = +this.value; stamp = Date.now(); } cmd("seek", +this.value); });
+  var volT = 0;
+  $("vol").addEventListener("input", function () {
+    var el = this; paint(el, +el.value, 100); volLock = Date.now() + 1500;
+    clearTimeout(volT); volT = setTimeout(function () { cmd("volume", +el.value); }, 120);
+  });
+
+  if (!KEY) { $("title").textContent = "امسح رمز QR من هارموني على الكمبيوتر"; return; }
+  poll();
+  setInterval(poll, 1000);
+  setInterval(function () { if (st && st.playing && !seekDrag) render(); }, 250);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) poll(); });
+})();
+</script>
+</body>
+</html>

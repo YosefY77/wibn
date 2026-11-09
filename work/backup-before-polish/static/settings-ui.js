@@ -1,0 +1,155 @@
+/* صفحة الإعدادات الجديدة: تبويبات (عام / المظهر / الربط / الحساب / التحديثات) + أيقونات + معاينة الثيمات + مفاتيح تشغيل بدل المربعات.
+   ما تغيّر منطق أي إعداد — ترتّب وتزيّن المجموعات اللي تبنيها app.js وdiscord.js وpanel-settings.js وupdater.js. */
+(function () {
+  "use strict";
+  var TAB_KEY = "harmoni_settings_tab";
+  function L(ar, en) { return (typeof settings !== "undefined" && settings.lang === "en") ? en : ar; }
+  function svg(d) {
+    return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + "</svg>";
+  }
+  var IC = {
+    general: svg('<circle cx="12" cy="12" r="3.5"/><path d="M12 2.5v3M12 18.5v3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M2.5 12h3M18.5 12h3M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/>'),
+    appearance: svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>'),
+    connections: svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+    account: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+    about: svg('<circle cx="12" cy="12" r="9"/><path d="M12 16V8M8.5 11.5L12 8l3.5 3.5"/>'),
+    lang: svg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
+    hotkey: svg('<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7.5 14h9"/>'),
+    desktop: svg('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
+    panel: svg('<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M15 4v16"/>'),
+    spotify: svg('<circle cx="12" cy="12" r="9"/><path d="M7.5 9.8c3.2-1 6.6-.7 9.2.9M8 13c2.6-.8 5.3-.5 7.4.8M8.6 16c2-.5 4-.3 5.6.6"/>'),
+    discord: svg('<path d="M21 12a8.5 8.5 0 0 1-12.3 7.6L3.5 21l1.4-4.9A8.5 8.5 0 1 1 21 12z"/>')
+  };
+  IC.theme = IC.appearance; IC.account2 = IC.account; IC.updates = IC.about;
+
+  var CATS = [
+    { id: "general", ar: "عام", en: "General" },
+    { id: "appearance", ar: "المظهر", en: "Appearance" },
+    { id: "connections", ar: "الربط", en: "Connections" },
+    { id: "account", ar: "الحساب", en: "Account" },
+    { id: "about", ar: "التحديثات", en: "Updates" }
+  ];
+  // الترتيب داخل كل تبويب + وصف قصير للمجموعات اللي ما لها وصف
+  var KEYS = {
+    lang:    { cat: "general", ar: "لغة واجهة البرنامج.", en: "The language of the app interface." },
+    hotkey:  { cat: "general", ar: "اختصار يفتح المشغّل المصغّر — اضغط الزر وبعدين الاختصار الجديد.", en: "Shortcut that opens the mini player — click it, then press the new keys." },
+    desktop: { cat: "general" },
+    panel:   { cat: "general" },
+    theme:   { cat: "appearance", ar: "اختار شكل البرنامج. الزجاجي يخلي النافذة شفافة فوق سطح المكتب وتقدر تتحكم بلونه.", en: "Choose how Harmoni looks. Glass makes the window see-through with your own tint." },
+    spotify: { cat: "connections" },
+    discord: { cat: "connections" },
+    account: { cat: "account" },
+    updates: { cat: "about" },
+    other:   { cat: "general" }
+  };
+  var ORDER = ["lang", "hotkey", "desktop", "panel", "theme", "spotify", "discord", "account", "updates", "other"];
+
+  function keyOf(g) {
+    if (g.dataset.key) return g.dataset.key;
+    if (g.id === "panel-settings") return "panel";
+    if (g.id === "update-settings") return "updates";
+    if (g.querySelector("#discord-client-id")) return "discord";
+    return "other";
+  }
+  function getTab() { try { return localStorage.getItem(TAB_KEY) || "general"; } catch (e) { return "general"; } }
+  function setTab(id) { try { localStorage.setItem(TAB_KEY, id); } catch (e) {} }
+
+  var busy = false, obs = null, raf = 0;
+
+  function decorate(g, key) {
+    var head = g.querySelector(".settings-head");
+    if (head && !head.querySelector(".st-ico")) {
+      var txt = head.textContent;
+      head.innerHTML = '<span class="st-ico">' + (IC[key] || IC.general) + '</span><span class="st-title"></span>';
+      head.querySelector(".st-title").textContent = txt;
+    }
+    var meta = KEYS[key] || {};
+    if (head && meta.ar && !g.querySelector(".st-sub")) {
+      var sub = document.createElement("p");
+      sub.className = "st-sub";
+      head.insertAdjacentElement("afterend", sub);
+    }
+    var subEl = g.querySelector(".st-sub");
+    if (subEl && meta.ar) { var t = L(meta.ar, meta.en); if (subEl.textContent !== t) subEl.textContent = t; }
+    if (key === "theme") {
+      var box = g.querySelector(".settings-options");
+      if (box && !box.classList.contains("theme-tiles")) box.classList.add("theme-tiles");
+      g.querySelectorAll(".opt-btn[data-theme-opt]").forEach(function (b) {
+        if (b.classList.contains("theme-tile")) return;
+        var name = b.textContent;
+        b.classList.add("theme-tile");
+        b.innerHTML = '<span class="tt-prev tt-' + b.dataset.themeOpt + '"><i></i><i></i><i></i></span><span class="tt-name"></span>';
+        b.querySelector(".tt-name").textContent = name;
+      });
+    }
+    if (key === "lang") {
+      var lo = g.querySelector(".settings-options");
+      if (lo && !lo.classList.contains("st-seg")) lo.classList.add("st-seg");
+    }
+  }
+
+  function tabs(view, present, active) {
+    var nav = view.querySelector(".st-tabs");
+    if (!nav) {
+      nav = document.createElement("nav");
+      nav.className = "st-tabs";
+      nav.setAttribute("role", "tablist");
+      var title = view.querySelector(".view-title");
+      if (title) title.insertAdjacentElement("afterend", nav); else view.insertBefore(nav, view.firstChild);
+      nav.addEventListener("click", function (e) {
+        var b = e.target.closest(".st-tab");
+        if (!b) return;
+        setTab(b.dataset.cat);
+        organize();
+      });
+    }
+    var html = CATS.filter(function (c) { return present[c.id]; }).map(function (c) {
+      return '<button type="button" role="tab" class="st-tab' + (c.id === active ? " active" : "") + '" data-cat="' + c.id + '" aria-selected="' + (c.id === active) + '">' +
+        IC[c.id] + "<span>" + L(c.ar, c.en) + "</span></button>";
+    }).join("");
+    if (nav.innerHTML !== html) nav.innerHTML = html;
+  }
+
+  function organize() {
+    var body = document.getElementById("settings-body");
+    var view = document.getElementById("view-settings");
+    if (!body || !view || busy) return;
+    busy = true;
+    try {
+      body.classList.add("st-v2");
+      var groups = Array.prototype.filter.call(body.children, function (el) { return el.classList.contains("settings-group"); });
+      var present = {};
+      groups.forEach(function (g) {
+        var key = keyOf(g);
+        var cat = (KEYS[key] || KEYS.other).cat;
+        if (g.dataset.key !== key) g.dataset.key = key;
+        if (g.dataset.cat !== cat) g.dataset.cat = cat;
+        present[cat] = true;
+        decorate(g, key);
+      });
+      var active = getTab();
+      if (!present[active]) active = present.general ? "general" : (CATS.filter(function (c) { return present[c.id]; })[0] || { id: "general" }).id;
+      // ترتيب ثابت — نحرك العناصر بس لو الترتيب غلط (عشان ما نسبب دوران مع المراقب)
+      var sorted = groups.slice().sort(function (a, b) { return ORDER.indexOf(a.dataset.key) - ORDER.indexOf(b.dataset.key); });
+      if (sorted.some(function (g, i) { return g !== groups[i]; })) sorted.forEach(function (g) { body.appendChild(g); });
+      groups.forEach(function (g) { g.classList.toggle("st-show", g.dataset.cat === active); });
+      if (body.dataset.cat !== active) body.dataset.cat = active;
+      tabs(view, present, active);
+    } finally {
+      if (obs) obs.takeRecords();
+      busy = false;
+    }
+  }
+
+  function schedule() { cancelAnimationFrame(raf); raf = requestAnimationFrame(organize); }
+  function start() {
+    var body = document.getElementById("settings-body");
+    if (!body) return;
+    obs = new MutationObserver(function () { if (!busy) schedule(); });
+    obs.observe(body, { childList: true, subtree: true });
+    organize();
+    try { document.documentElement.setAttribute("data-settings-ui-ready", "1"); } catch (e) {}
+  }
+  window.harmoniSettingsTab = function (id) { setTab(id); organize(); };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+})();

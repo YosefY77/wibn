@@ -209,6 +209,7 @@ namespace WinPlus
             }
 
             if (Features.IsOn("widgets")) Widgets.Start(); else Widgets.Stop();
+            if (Features.IsOn("phone")) PhoneClipboard.Start(); else PhoneClipboard.Stop();
 
             DragSpaceHook.Refresh();  // Space / R / C while dragging a file → convert / resize / compress
         }

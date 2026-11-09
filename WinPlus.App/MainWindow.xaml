@@ -57,6 +57,8 @@
                         <TextBlock Style="{StaticResource SideGroup}" Text="{local:Tr 'الأدوات'}"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE765;"
                                      Content="{local:Tr 'اختصارات الكيبورد'}" CommandParameter="hotkeys" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE7F8;"
+                                     Content="{local:Tr 'مواصفات الجهاز'}" CommandParameter="specs" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE964;"
                                      Content="{local:Tr 'استهلاك الرام'}" CommandParameter="ram" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE72E;"
@@ -79,6 +81,8 @@
                                      Content="{local:Tr 'إرسال الملفات'}" CommandParameter="transfer" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE722;"
                                      Content="{local:Tr 'تصوير الشاشة'}" CommandParameter="capture" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8EA;"
+                                     Content="{local:Tr 'النسخ من الجوال'}" CommandParameter="phone" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE767;"
                                      Content="{local:Tr 'أصوات البرامج'}" CommandParameter="volume" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8A9;"
@@ -466,6 +470,24 @@
                     <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'أصوات البرامج'}"/>
                     <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'علّي أو خفّض صوت كل برنامج مفتوح لحاله، أو اكتمه.'}"/>
                     <ContentControl x:Name="VolumeHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- The PC's specs (built when opened) -->
+            <ScrollViewer x:Name="PageSpecs" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'مواصفات الجهاز'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'كل شي عن جهازك في مكان واحد. تقدر تنسخها كلها وترسلها لأحد.'}"/>
+                    <ContentControl x:Name="SpecsHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Copy on the phone, paste on the PC (built when opened) -->
+            <ScrollViewer x:Name="PagePhone" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'النسخ من الجوال'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'انسخ في الآيفون وأرسله لحافظة الكمبيوتر، أو خذ المنسوخ من الكمبيوتر للجوال. كله داخل شبكة بيتك.'}"/>
+                    <ContentControl x:Name="PhoneHost"/>
                 </StackPanel>
             </ScrollViewer>
 

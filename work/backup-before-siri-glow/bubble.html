@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Harmoni · Bubble</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d1113; --bg2: #141a1d; --bg3: #1c2428; --fg: #eef3f2; --muted: #9caaa9;
+    --border: #2b3639; --accent: #1db954; --on-accent: #04130a; --accent-text: #1db954;
+  }
+  html { width: 100%; height: 100%; background: #010203; overflow: hidden; }
+  body {
+    width: 100%; height: 100%; overflow: hidden;
+    color: var(--fg); user-select: none;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    background: var(--bg2); border-radius: 18px;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 12px 22px;
+  }
+  .top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .thumb {
+    width: 46px; height: 46px; border-radius: 12px; object-fit: cover; flex-shrink: 0;
+    background: var(--bg3); border: 1px solid var(--border);
+  }
+  .meta { flex: 1; min-width: 0; }
+  .title { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .artist { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+  .eq { display: flex; gap: 2.5px; align-items: flex-end; height: 14px; flex-shrink: 0; direction: ltr; opacity: 0; }
+  .eq i { width: 3px; border-radius: 2px; height: 30%; background: var(--accent-text); }
+  body.playing .eq { opacity: 1; }
+  body.playing .eq i { animation: bar .9s ease-in-out infinite alternate; }
+  .eq i:nth-child(2) { animation-delay: -.3s !important; }
+  .eq i:nth-child(3) { animation-delay: -.6s !important; }
+  .eq i:nth-child(4) { animation-delay: -.15s !important; }
+  @keyframes bar { 0% { height: 20%; } 100% { height: 100%; } }
+
+  .ctl { display: flex; align-items: center; gap: 4px; flex-shrink: 0; direction: ltr; }
+  .btn {
+    width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--fg);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: background .15s, transform .15s;
+  }
+  .btn:hover { background: color-mix(in srgb, var(--fg) 10%, transparent); }
+  .btn:active { transform: scale(.9); }
+  .btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .btn.play { width: 36px; height: 36px; background: var(--accent); color: var(--on-accent); }
+  .btn.play:hover { background: color-mix(in srgb, var(--accent) 85%, #fff); }
+
+  .row { display: flex; align-items: center; gap: 9px; direction: ltr; margin-top: 9px; }
+  .time { font-size: 10px; color: var(--muted); min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; outline: none; cursor: pointer;
+    background: linear-gradient(to right, var(--accent-text) var(--p, 0%), var(--bg4, color-mix(in srgb, var(--fg) 16%, transparent)) var(--p, 0%));
+  }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--fg); }
+  .seek { flex: 1; }
+  .vol { width: 64px; }
+  .vbtn { width: 24px; height: 24px; }
+  .vbtn svg { width: 15px; height: 15px; }
+  .empty .ctl, .empty .row { opacity: .35; pointer-events: none; }
+</style>
+</head>
+<body class="empty">
+  <div class="top">
+    <img class="thumb" id="thumb" alt="">
+    <div class="meta">
+      <div class="title" id="title">لا شيء قيد التشغيل</div>
+      <div class="artist" id="artist">Harmoni</div>
+    </div>
+    <div class="eq"><i></i><i></i><i></i><i></i></div>
+    <div class="ctl">
+      <button class="btn" id="prev" title="السابق"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12l8.5 6V6z"/></svg></button>
+      <button class="btn play" id="play" title="تشغيل / إيقاف">
+        <svg id="ico-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="ico-pause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <button class="btn" id="next" title="التالي"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+    </div>
+  </div>
+  <div class="row">
+    <span class="time" id="cur">0:00</span>
+    <input class="seek" id="seek" type="range" min="0" max="100" step="0.1" value="0">
+    <span class="time" id="dur">0:00</span>
+    <button class="btn vbtn" id="mute" title="كتم">
+      <svg id="ico-vol" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+      <svg id="ico-mute" viewBox="0 0 24 24" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>
+    </button>
+    <input class="vol" id="vol" type="range" min="0" max="100" step="1" value="25" title="الصوت">
+  </div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var st = null, seekDrag = false, volDrag = false, volLockUntil = 0, stamp = 0;
+
+  function api() { return window.pywebview && window.pywebview.api; }
+  function fmt(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+  function paint(el, value, max) { el.style.setProperty("--p", (max ? Math.min(100, value / max * 100) : 0) + "%"); }
+
+  var THEME_KEYS = { bg: "--bg", bg2: "--bg2", bg3: "--bg3", fg: "--fg", muted: "--muted", border: "--border", accent: "--accent", onAccent: "--on-accent", accentText: "--accent-text" };
+  var lastTheme = "";
+  function applyTheme(th) {
+    if (!th) return;
+    var key = JSON.stringify(th);
+    if (key === lastTheme) return;
+    lastTheme = key;
+    for (var k in THEME_KEYS) if (th[k]) document.documentElement.style.setProperty(THEME_KEYS[k], th[k]);
+  }
+  function render() {
+    if (st && st.theme) applyTheme(st.theme);
+    var has = !!(st && st.title);
+    document.body.classList.toggle("empty", !has);
+    document.body.classList.toggle("playing", !!(has && st.playing));
+    if (!has) {
+      $("title").textContent = "لا شيء قيد التشغيل";
+      $("artist").textContent = "Harmoni";
+      $("thumb").removeAttribute("src");
+      return;
+    }
+    $("title").textContent = st.title;
+    $("artist").textContent = st.artist || "";
+    if ((st.thumbnail || "") !== ($("thumb").getAttribute("src") || "")) {
+      if (st.thumbnail) $("thumb").src = st.thumbnail; else $("thumb").removeAttribute("src");
+    }
+    $("ico-play").style.display = st.playing ? "none" : "";
+    $("ico-pause").style.display = st.playing ? "" : "none";
+    var dur = st.duration || 0;
+    var pos = st.position + (st.playing ? (Date.now() - stamp) / 1000 : 0);
+    if (dur) pos = Math.min(pos, dur);
+    if (!seekDrag) {
+      $("seek").max = dur || 100;
+      $("seek").value = pos;
+      paint($("seek"), pos, dur);
+      $("cur").textContent = fmt(pos);
+    }
+    $("dur").textContent = fmt(dur);
+    if (!volDrag && Date.now() > volLockUntil) {
+      $("vol").value = st.muted ? 0 : st.volume;
+      paint($("vol"), st.muted ? 0 : st.volume, 100);
+    }
+    $("ico-vol").style.display = st.muted ? "none" : "";
+    $("ico-mute").style.display = st.muted ? "" : "none";
+  }
+
+  var busy = false;
+  function poll() {
+    var a = api();
+    if (!a || !a.state || busy) return;
+    busy = true;
+    var guard = setTimeout(function () { busy = false; }, 1500);
+    Promise.resolve(a.state()).then(function (s) {
+      clearTimeout(guard);
+      busy = false;
+      if (s && s.hidden) return;
+      st = s || null; stamp = Date.now(); render();
+    }).catch(function () { clearTimeout(guard); busy = false; });
+  }
+  function cmd(action, value) {
+    var a = api();
+    if (!a || !a.cmd) return;
+    Promise.resolve(a.cmd(action, value == null ? null : value)).then(function () { setTimeout(poll, 120); });
+  }
+
+  setInterval(poll, 500);
+  setInterval(function () { if (st && st.playing && !seekDrag) render(); }, 250);
+  window.addEventListener("pywebviewready", poll);
+  window.__bubbleShown = function () { poll(); };
+  window.__bubbleHiding = function () {};
+
+  $("play").onclick = function () { cmd("play_pause"); if (st) { st.playing = !st.playing; render(); } };
+  $("next").onclick = function () { cmd("skip"); };
+  $("prev").onclick = function () { cmd("prev"); };
+  $("mute").onclick = function () { cmd("mute"); };
+  $("seek").addEventListener("input", function () {
+    seekDrag = true; paint(this, +this.value, +this.max); $("cur").textContent = fmt(+this.value);
+  });
+  $("seek").addEventListener("change", function () {
+    seekDrag = false;
+    if (st) { st.position = +this.value; stamp = Date.now(); }
+    cmd("seek", +this.value);
+  });
+  $("vol").addEventListener("input", function () {
+    volDrag = true; paint(this, +this.value, 100); cmd("volume", +this.value);
+  });
+  $("vol").addEventListener("change", function () { volDrag = false; volLockUntil = Date.now() + 800; });
+  document.addEventListener("wheel", function (e) {
+    var v = Math.max(0, Math.min(100, (+$("vol").value) + (e.deltaY < 0 ? 5 : -5)));
+    $("vol").value = v; paint($("vol"), v, 100); volLockUntil = Date.now() + 800; cmd("volume", v);
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>

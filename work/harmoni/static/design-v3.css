@@ -1,0 +1,192 @@
+/* ============================================================================
+   Harmoni — التصميم الجديد (v3): نفس روح الفقاعة على البرنامج كله.
+   - خلفية = صورة الأغنية الحالية مغبّشة (تتبدل بنعومة مع كل أغنية)
+   - الألواح «قزاز» فوق الخلفية، وأزرار التشغيل كبسولة قزاز وزر تشغيل أبيض
+   - حركة قصيرة وهادية (دخول الصفحات، البطاقات، النوافذ) — تنطفي مع «تقليل الحركة»
+   كله تحت html.v3 (design-v3.js يحطها). الإعدادات ← «تصميم البرنامج» ← الكلاسيكي يرجّع الشكل القديم كامل.
+   ============================================================================ */
+
+html.v3 {
+  --v3-surface: rgba(20, 24, 29, .58);
+  --v3-surface-2: rgba(255, 255, 255, .05);
+  --v3-surface-3: rgba(255, 255, 255, .09);
+  --v3-line: rgba(255, 255, 255, .08);
+  --v3-line-strong: rgba(255, 255, 255, .14);
+  --v3-shine: inset 0 1px 0 rgba(255, 255, 255, .07);
+  --v3-text: #f2f5f4;
+  --v3-muted: #a5afb3;
+  --v3-ease: cubic-bezier(.2, .8, .2, 1);
+  --v3-spring: cubic-bezier(.34, 1.36, .64, 1);
+  --fg: var(--v3-text);
+  --muted: var(--v3-muted);
+  --border: var(--v3-line);
+  --bg2: var(--v3-surface-2);
+  --bg3: var(--v3-surface-3);
+  --bg4: rgba(255, 255, 255, .14);
+  background: #0b0e11 !important;
+}
+html.v3 body {
+  background: transparent !important;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, Tahoma, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- الخلفية: صورة الأغنية مغبّشة ---------- */
+#v3-backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; display: none; }
+html.v3 #v3-backdrop { display: block; }
+#v3-backdrop img {
+  position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover;
+  filter: blur(70px) saturate(1.6) brightness(.62); opacity: 0; transition: opacity .9s ease;
+  transform: scale(1.05);
+}
+#v3-backdrop img.on { opacity: .9; }
+#v3-backdrop::after {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(11, 14, 17, .15), rgba(11, 14, 17, .62)),
+    linear-gradient(180deg, rgba(11, 14, 17, .2), rgba(11, 14, 17, .55));
+}
+/* بدون صورة: توهج هادي بلون البرنامج */
+#v3-backdrop .glow {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(60% 50% at 85% 10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    radial-gradient(50% 45% at 10% 90%, rgba(80, 110, 255, .14), transparent 70%);
+}
+
+/* ---------- الألواح: قزاز ---------- */
+html.v3 .sidebar, html.v3 .main, html.v3 .hm-library, html.v3 .player-bar, html.v3 .hm-disc-panel {
+  background: var(--v3-surface) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.5); backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid var(--v3-line) !important;
+  box-shadow: var(--v3-shine), 0 12px 36px rgba(0, 0, 0, .28) !important;
+  border-radius: 22px !important;
+}
+html.v3 .hm-hero, html.v3 .search-row, html.v3 .settings-group, html.v3 .rm-card {
+  background: var(--v3-surface-2) !important;
+  border: 1px solid var(--v3-line) !important;
+  box-shadow: var(--v3-shine) !important;
+  border-radius: 18px !important;
+}
+
+/* ---------- الكلام ---------- */
+html.v3 .view-title, html.v3 .section-head h3, html.v3 h2, html.v3 h3 { letter-spacing: -.01em; color: var(--v3-text); }
+html.v3 .track-artist, html.v3 .np-artist, html.v3 .time, html.v3 .section-sub { color: var(--v3-muted) !important; }
+
+/* ---------- الأزرار ---------- */
+html.v3 .btn {
+  border-radius: 12px; border: 1px solid var(--v3-line) !important; background: var(--v3-surface-3) !important;
+  transition: background-color .15s, transform .12s var(--v3-ease), box-shadow .15s;
+}
+html.v3 .btn:hover { background: rgba(255, 255, 255, .14) !important; }
+html.v3 .btn:active { transform: scale(.97); }
+html.v3 .btn-primary {
+  background: #f2f5f4 !important; color: #0b0d10 !important; border-color: transparent !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25), inset 0 1px 0 #fff !important;
+}
+html.v3 .btn-primary:hover { background: #fff !important; }
+html.v3 :focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 80%, #fff) !important; outline-offset: 2px; }
+
+/* القائمة الجانبية */
+html.v3 .nav-btn { border-radius: 12px !important; transition: background-color .15s, color .15s; }
+html.v3 .nav-btn:hover { background: rgba(255, 255, 255, .06) !important; }
+html.v3 .nav-btn.active {
+  background: rgba(255, 255, 255, .12) !important; color: var(--v3-text) !important; border-color: var(--v3-line-strong) !important;
+  box-shadow: var(--v3-shine) !important;
+}
+html.v3 .nav-btn.active svg { color: var(--accent); }
+
+/* شرائح الفلاتر */
+html.v3 .sf-chip, html.v3 .opt-btn {
+  border-radius: 999px !important; background: var(--v3-surface-3) !important; border: 1px solid var(--v3-line) !important; color: var(--v3-text) !important;
+}
+html.v3 .sf-chip.active, html.v3 .opt-btn.active {
+  background: #f2f5f4 !important; color: #0b0d10 !important; border-color: transparent !important;
+}
+
+/* الحقول */
+html.v3 input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=radio]), html.v3 select, html.v3 textarea {
+  background: rgba(0, 0, 0, .26) !important; border: 1px solid var(--v3-line) !important; color: var(--v3-text) !important;
+  border-radius: 12px !important; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .25);
+}
+html.v3 input:not([type=range]):focus, html.v3 select:focus, html.v3 textarea:focus { border-color: color-mix(in srgb, var(--accent) 70%, #fff) !important; }
+
+/* ---------- البطاقات ---------- */
+html.v3 .track-card {
+  background: var(--v3-surface-2) !important; border: 1px solid var(--v3-line) !important; border-radius: 18px !important;
+  box-shadow: var(--v3-shine);
+  transition: transform .28s var(--v3-ease), background-color .2s, box-shadow .28s var(--v3-ease), border-color .2s !important;
+}
+html.v3 .track-card:hover {
+  transform: translateY(-3px); background: rgba(255, 255, 255, .08) !important; border-color: var(--v3-line-strong) !important;
+  box-shadow: var(--v3-shine), 0 14px 30px rgba(0, 0, 0, .35);
+}
+html.v3 .track-thumb { border-radius: 13px !important; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); }
+html.v3 .plv-row { border-radius: 12px; transition: background-color .15s; }
+html.v3 .plv-row:hover { background: rgba(255, 255, 255, .06); }
+
+/* ---------- شريط التشغيل: مثل الفقاعة ---------- */
+html.v3 .player-bar { --accent-text: #f2f5f4; }
+html.v3 .np-thumb { border-radius: 12px !important; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+html.v3 .np-title { font-size: 13px !important; font-weight: 600; }
+html.v3 .player-controls {
+  gap: 4px !important; padding: 4px 6px; border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .13), rgba(255, 255, 255, .04));
+  -webkit-backdrop-filter: blur(10px) saturate(1.8); backdrop-filter: blur(10px) saturate(1.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), inset 0 0 0 1px rgba(255, 255, 255, .1), 0 6px 18px rgba(0, 0, 0, .25);
+}
+html.v3 .player-controls .icon-btn { width: 34px; height: 34px; transition: background-color .15s, transform .12s var(--v3-ease); }
+html.v3 .player-controls .icon-btn:hover { background: rgba(255, 255, 255, .12) !important; }
+html.v3 .player-controls .icon-btn:active { transform: scale(.9); }
+html.v3 .player-bar .play-btn {
+  width: 40px !important; height: 40px !important; background: #f2f5f4 !important; color: #0b0d10 !important;
+  box-shadow: inset 0 1px 0 #fff, 0 3px 10px rgba(0, 0, 0, .3) !important;
+}
+html.v3 .player-bar .play-btn svg { fill: #0b0d10 !important; color: #0b0d10 !important; }
+html.v3 .player-bar .play-btn:hover { background: #fff !important; transform: scale(1.04); }
+html.v3 .seek, html.v3 .volume { height: 4px !important; border-radius: 4px !important; }
+html.v3 .seek::-webkit-slider-thumb, html.v3 .volume::-webkit-slider-thumb {
+  transform: scale(0); transition: transform .15s var(--v3-ease); background: #fff !important; box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+html.v3 .seek:hover::-webkit-slider-thumb, html.v3 .volume:hover::-webkit-slider-thumb,
+html.v3 .seek:active::-webkit-slider-thumb, html.v3 .volume:active::-webkit-slider-thumb { transform: scale(1); }
+
+/* ---------- النوافذ المنبثقة والتنبيهات ---------- */
+html.v3 .modal { background: rgba(5, 7, 9, .45) !important; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+html.v3 .modal-content, html.v3 .popup-card {
+  background: rgba(28, 32, 38, .78) !important; -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6);
+  border: 1px solid var(--v3-line-strong) !important; border-radius: 22px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 30px 80px rgba(0, 0, 0, .5) !important;
+}
+html.v3 .toast {
+  background: rgba(30, 34, 40, .82) !important; -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  border: 1px solid var(--v3-line-strong) !important; border-radius: 999px !important; color: var(--v3-text) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .4) !important;
+}
+
+/* ---------- الحركة ---------- */
+@keyframes v3-view-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes v3-card-in { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes v3-pop-in { from { opacity: 0; transform: scale(.95) translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes v3-toast-in { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes v3-fade-in { from { opacity: 0; } to { opacity: 1; } }
+html.v3 .view.v3-enter { animation: v3-view-in .32s var(--v3-ease) both; }
+html.v3 .v3-card-in { animation: v3-card-in .38s var(--v3-ease) both; animation-delay: var(--v3-d, 0ms); }
+html.v3 .modal:not(.hidden) { animation: v3-fade-in .18s ease both; }
+html.v3 .modal:not(.hidden) .modal-content { animation: v3-pop-in .28s var(--v3-spring) both; }
+html.v3 .toast:not(.hidden) { animation: v3-toast-in .32s var(--v3-spring) both; }
+html.v3 .np-meta.v3-swap { animation: v3-view-in .3s var(--v3-ease) both; }
+html.v3 .np-thumb.v3-swap { animation: v3-pop-in .34s var(--v3-ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html.v3 .view.v3-enter, html.v3 .v3-card-in, html.v3 .modal:not(.hidden) .modal-content, html.v3 .toast:not(.hidden),
+  html.v3 .np-meta.v3-swap, html.v3 .np-thumb.v3-swap { animation: v3-fade-in .16s ease both !important; }
+  html.v3 .track-card:hover, html.v3 .player-bar .play-btn:hover { transform: none; }
+  #v3-backdrop img { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html.v3 .sidebar, html.v3 .main, html.v3 .hm-library, html.v3 .player-bar, html.v3 .modal-content, html.v3 .popup-card, html.v3 .toast {
+    background: #171b20 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+  #v3-backdrop img { display: none; }
+}
