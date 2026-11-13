@@ -179,7 +179,18 @@ namespace WinPlus
             catch { c = default; return false; }
         }
 
+        /// <summary>Every icon in black and white (the widget's option).</summary>
+        private bool Gray => Info?.Options.TryGetValue("gray", out var g) == true && g == "1";
+
         private FrameworkElement IconElement(string path)
+        {
+            var element = ColorIconElement(path);
+            if (!Gray) return element;
+            if (element is Image { Source: BitmapSource source } image) image.Source = ToGray(source);
+            return element;
+        }
+
+        private FrameworkElement ColorIconElement(string path)
         {
             if (CustomIcon(path) is { } file)
             {
@@ -196,8 +207,41 @@ namespace WinPlus
                 }
                 catch { }
             }
-            if (FolderColor() is { } color && Directory.Exists(path) && new DirectoryInfo(path).Parent != null) return Folder(color);   // drives keep their icon
+            if (FolderColor() is { } color && Directory.Exists(path) && new DirectoryInfo(path).Parent != null)   // drives keep their icon
+                return Folder(Gray ? ToGray(color) : color);
             return new Image { Source = Icon(path), Stretch = Stretch.Uniform };
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BitmapSource, BitmapSource> GrayCache = new();
+
+        /// <summary>The picture in black and white, its see-through edges kept (made once per picture).</summary>
+        private static BitmapSource ToGray(BitmapSource source)
+        {
+            if (GrayCache.TryGetValue(source, out var done)) return done;
+            try
+            {
+                var pbgra = new FormatConvertedBitmap(source, PixelFormats.Pbgra32, null, 0);
+                int w = pbgra.PixelWidth, h = pbgra.PixelHeight, stride = w * 4;
+                var px = new byte[stride * h];
+                pbgra.CopyPixels(px, stride, 0);
+                for (int i = 0; i < px.Length; i += 4)
+                {
+                    // Brightness as the eye sees it; with the colors already multiplied by alpha, so is this.
+                    byte y = (byte)Math.Min(255, (px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8);
+                    px[i] = px[i + 1] = px[i + 2] = y;
+                }
+                var gray = BitmapSource.Create(w, h, source.DpiX, source.DpiY, PixelFormats.Pbgra32, null, px, stride);
+                gray.Freeze();
+                GrayCache.AddOrUpdate(source, gray);
+                return gray;
+            }
+            catch { return source; }
+        }
+
+        private static Color ToGray(Color c)
+        {
+            byte y = (byte)Math.Min(255, (c.B * 29 + c.G * 150 + c.R * 77) >> 8);
+            return Color.FromRgb(y, y, y);
         }
 
         /// <summary>A folder like Windows 11's, in any color: the back a shade darker, the front with a soft light from the top.</summary>
@@ -360,7 +404,7 @@ namespace WinPlus
             return false;
         }
 
-        private static string NameOf(string path)
+        internal static string NameOf(string path)
         {
             try
             {
@@ -438,11 +482,14 @@ namespace WinPlus
             add.Items.Add(folder);
             yield return add;
             yield return FolderColorMenu();
+            var gray = new MenuItem { Header = Lang.T("أبيض وأسود"), IsCheckable = true, IsChecked = Gray };
+            gray.Click += (_, _) => SetLook("gray", gray.IsChecked ? "1" : null);
+            yield return gray;
         }
 
         // ---- Icons (as big and sharp as Explorer's) -----------------------------------------------
 
-        private static ImageSource? Icon(string path)
+        internal static ImageSource? Icon(string path)
         {
             if (IconCache.TryGetValue(path, out var cached)) return cached;
             ImageSource? image = null;
@@ -488,6 +535,26 @@ namespace WinPlus
                     bool anyAlpha = false;
                     for (int i = 3; i < pixels.Length && !anyAlpha; i += 4) anyAlpha = pixels[i] != 0;
                     if (!anyAlpha) for (int i = 3; i < pixels.Length; i += 4) pixels[i] = 255;
+                    // The shell gives some icons with their colors already multiplied by the see-through
+                    // amount, and some without (a color brighter than its alpha gives those away). Read
+                    // the wrong way, the clear pixels' leftover colors show as a faint square around it.
+                    bool straight = false;
+                    for (int i = 0; i < pixels.Length && !straight; i += 4)
+                    {
+                        byte a = pixels[i + 3];
+                        straight = pixels[i] > a || pixels[i + 1] > a || pixels[i + 2] > a;
+                    }
+                    for (int i = 0; i < pixels.Length; i += 4)
+                    {
+                        byte a = pixels[i + 3];
+                        if (a == 0) { pixels[i] = pixels[i + 1] = pixels[i + 2] = 0; continue; }
+                        if (straight && a < 255)
+                        {
+                            pixels[i] = (byte)(pixels[i] * a / 255);
+                            pixels[i + 1] = (byte)(pixels[i + 1] * a / 255);
+                            pixels[i + 2] = (byte)(pixels[i + 2] * a / 255);
+                        }
+                    }
                     var source = BitmapSource.Create(w, h, 96, 96, PixelFormats.Pbgra32, null, pixels, w * 4);
                     source.Freeze();
                     return source;

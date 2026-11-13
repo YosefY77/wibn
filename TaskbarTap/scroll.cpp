@@ -1,4 +1,5 @@
 #include "scroll.h"
+#include "color.h"
 
 #include <winrt/Windows.UI.Xaml.Automation.h>
 
@@ -251,6 +252,7 @@ void ScrollController::Disable() {
         if (m_exitHandler) repeater.RemoveHandler(UIElement::PointerExitedEvent(), m_exitHandler);
         repeater.LayoutUpdated(m_layoutToken);
         RestoreMargin(repeater);
+        ClearTaskbarFit(repeater, m_settings);
         if (m_repeaterClipApplied) {
             if (repeater.Clip() == m_repeaterClip) repeater.Clip(m_originalRepeaterClip);
             m_repeaterClipApplied = false;
@@ -383,8 +385,10 @@ void ScrollController::Update() {
         m_centerOffset = 0;
         m_haveCenterSample = false;
         m_centerGain = 1;
+        m_centerHold = false;
         Log(L"Alignment: centered=%d", centered);
     }
+    double centerWidth = 0, centerTarget = 0;   // for the overflow check further down
     if (centered) {
         laidOutShift = m_appliedScroll;
         originBase = actual.X + laidOutShift;
@@ -435,11 +439,38 @@ void ScrollController::Update() {
         double rootWidth = repeater.XamlRoot().Size().Width;
         double regionEnd = ComputeVisibleEnd(repeater, false, 1);
         if (std::isnan(regionEnd)) regionEnd = rootWidth;
-        double target = width <= regionEnd - 1
+        bool wantCenter = width <= regionEnd - 1;
+        if (m_centerHold) {
+            // Back to the middle only once it's narrower by half a button (an app closed),
+            // not on the few pixels that made it flip before.
+            double slack = std::max(12.0, m_itemExtent / 2);
+            if (wantCenter && width < m_centerHoldWidth - slack) {
+                m_centerHold = false;
+                Log(L"Centering: fits again (width %.0f), back to the middle", width);
+            } else {
+                wantCenter = false;
+            }
+        }
+        double target = wantCenter
             ? std::clamp(rootWidth / 2 - width / 2, 0.0, std::max(0.0, regionEnd - width))
             : 0.0;
+        centerWidth = width;
+        centerTarget = target;
         double error = groupStart - target;
-        if (std::abs(error) > 0.5) {
+
+        ULONGLONG now = GetTickCount64();
+        if (now - m_fixWindowStart > 1000) {
+            m_fixWindowStart = now;
+            m_fixCount = 0;
+        }
+        bool paused = now < m_centerPausedUntil;
+        if (std::abs(error) > 0.5 && !paused && ++m_fixCount > 40) {
+            m_centerPausedUntil = now + 5000;
+            paused = true;
+            Log(L"Centering: %d corrections in a second (error %.0f), pausing 5 s so the taskbar stays up",
+                m_fixCount, error);
+        }
+        if (std::abs(error) > 0.5 && !paused) {
             // How much the group moves per pixel of margin (depends on how
             // Windows centers it); learned from the previous correction.
             if (m_haveCenterSample && std::abs(m_centerOffset - m_prevCenterOffset) > 0.5) {
@@ -451,6 +482,23 @@ void ScrollController::Update() {
             m_haveCenterSample = true;
             m_centerOffset -= error / m_centerGain;
             m_centerOffset = std::clamp(m_centerOffset, -100000.0, 100000.0);
+        }
+    }
+
+    // "Fit to the apps": tell the background where the apps and the tray are.
+    if (!vertical && !entries.empty()) {
+        if (m_settings.fitApps) {
+            double appsStart = std::numeric_limits<double>::infinity(), appsEnd = -appsStart;
+            for (auto& e : entries) {
+                appsStart = std::min(appsStart, e.base);
+                appsEnd = std::max(appsEnd, e.base + e.extent);
+            }
+            double trayStart = ComputeVisibleEnd(repeater, false, 1);
+            if (std::isnan(trayStart)) trayStart = repeater.XamlRoot().Size().Width;
+            appsEnd = std::min(appsEnd, trayStart);   // more than fits: it scrolls up to the tray
+            ReportTaskbarFit(repeater, appsStart, appsEnd, trayStart, m_settings);
+        } else {
+            ClearTaskbarFit(repeater, m_settings);
         }
     }
 
@@ -515,6 +563,12 @@ void ScrollController::Update() {
         }
 
         m_maxScroll = std::max(0.0, lastEnd - visibleEnd);
+        // Centered, and that made it run past the tray: keep it at the edge from now on.
+        if (centered && !m_centerHold && centerTarget > 0.5 && m_maxScroll > 0.5) {
+            m_centerHold = true;
+            m_centerHoldWidth = centerWidth;
+            Log(L"Centering: overflows by %.0f at width %.0f, staying at the edge", m_maxScroll, centerWidth);
+        }
         m_scroll = std::clamp(m_scroll, 0.0, m_maxScroll);
         m_targetScroll = std::clamp(m_targetScroll, 0.0, m_maxScroll);
 

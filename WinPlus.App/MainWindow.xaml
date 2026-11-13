@@ -85,12 +85,16 @@
                                      Content="{local:Tr 'النسخ من الجوال'}" CommandParameter="phone" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE767;"
                                      Content="{local:Tr 'أصوات البرامج'}" CommandParameter="volume" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE7FC;"
+                                     Content="{local:Tr 'وضع الألعاب'}" CommandParameter="game" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8A9;"
                                      Content="Widgets" CommandParameter="widgets" Checked="OnNavChanged"/>
 
                         <TextBlock Style="{StaticResource SideGroup}" Text="{local:Tr 'الشكل'}"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE790;"
                                      Content="Liquid Glass" CommandParameter="glass" Checked="OnNavChanged"/>
+                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE945;"
+                                     Content="{local:Tr 'الحركات'}" CommandParameter="anim" Checked="OnNavChanged"/>
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
@@ -104,6 +108,7 @@
                 <StackPanel Margin="40,28,40,28" MaxWidth="980">
                     <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'التاسك بار'}"/>
                     <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'كل تعديلات التاسك بار في مكان واحد.'}"/>
+                    <ContentControl x:Name="CustomTaskbarHost"/>
 
                     <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'عام'}" Margin="2,24,0,8" FontSize="18"/>
                     <UniformGrid Columns="2" Margin="-3,0">
@@ -131,131 +136,8 @@
                         </Border>
                     </UniformGrid>
 
-                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'السكرول'}" Margin="2,24,0,8" FontSize="18"/>
-                    <Border x:Name="AlignWarning" Visibility="Collapsed" Background="#3A2F1A" CornerRadius="6"
-                            Padding="16,12" Margin="0,0,0,6">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource FlatButton}" Content="{local:Tr 'خله على اليسار'}"
-                                    Click="OnAlignLeft" Margin="0"/>
-                            <TextBlock TextWrapping="Wrap" Foreground="#FFD27A" VerticalAlignment="Center"
-                                       Text="{local:Tr 'التاسك بار عندك في المنتصف. الميزة تحتاج المحاذاة لليسار عشان تشتغل صح.'}"/>
-                        </DockPanel>
-                    </Border>
-                    <UniformGrid Columns="2" Margin="-3,0">
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <DockPanel>
-                                <CheckBox x:Name="EnabledBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                          Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8CB;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'سكرول التاسك بار'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'بدل قائمة (...) تضيف تطبيقات بلا حدود وتتنقل بالعجلة'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <DockPanel>
-                                <ComboBox x:Name="StepBox" DockPanel.Dock="Right" Width="70" VerticalAlignment="Center"
-                                          SelectionChanged="OnSettingChanged">
-                                    <ComboBoxItem Content="1"/>
-                                    <ComboBoxItem Content="2"/>
-                                    <ComboBoxItem Content="3"/>
-                                    <ComboBoxItem Content="4"/>
-                                    <ComboBoxItem Content="5"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE962;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'سرعة السكرول'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'كم أيقونة مع كل حركة عجلة'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <DockPanel>
-                                <CheckBox x:Name="SmoothBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                          Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE945;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'سكرول ناعم'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'الأيقونات تنزلق بالتدريج بدل ما تقفز'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <DockPanel>
-                                <CheckBox x:Name="ReverseBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                          Checked="OnSettingChanged" Unchecked="OnSettingChanged"/>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8AB;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'عكس اتجاه السكرول'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <DockPanel>
-                                <CheckBox x:Name="RunningFirstBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                          Checked="OnRunningFirstChanged" Unchecked="OnRunningFirstChanged"/>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8FD;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'البرامج الشغالة فوق'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'المفتوحة أول، وبعدها المثبتة اللي مو شغالة. يحتاج السكرول شغّال'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-                    </UniformGrid>
-
-                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'حجم الأيقونات'}" Margin="2,24,0,8" FontSize="18"/>
-                    <UniformGrid Columns="2" Margin="-3,0">
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <StackPanel>
-                                <DockPanel>
-                                    <CheckBox x:Name="IconSizeBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                              Checked="OnIconSizeChanged" Unchecked="OnIconSizeChanged"/>
-                                    <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8E9;"/>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'حجم مخصص للأيقونات'}"/>
-                                        <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'حجم ويندوز العادي 24 بكسل'}"/>
-                                    </StackPanel>
-                                </DockPanel>
-                                <DockPanel Margin="34,8,0,0">
-                                    <TextBlock x:Name="IconSizeText" DockPanel.Dock="Right" Width="48" VerticalAlignment="Center"
-                                               TextAlignment="Center" FlowDirection="LeftToRight"/>
-                                    <Slider x:Name="IconSlider" Minimum="16" Maximum="40" TickFrequency="2"
-                                            IsSnapToTickEnabled="True" FlowDirection="LeftToRight" VerticalAlignment="Center"
-                                            ValueChanged="OnIconSliderChanged"/>
-                                </DockPanel>
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <DockPanel>
-                                <ComboBox x:Name="SmallButtonsBox" DockPanel.Dock="Right" Width="100" VerticalAlignment="Center"
-                                          SelectionChanged="OnSmallButtonsChanged">
-                                    <ComboBoxItem Content="{local:Tr 'لا'}" Tag="1"/>
-                                    <ComboBoxItem Content="{local:Tr 'لما يمتلي'}" Tag="2"/>
-                                    <ComboBoxItem Content="{local:Tr 'دائمًا'}" Tag="0"/>
-                                </ComboBox>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE73F;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'تاسك بار أنحف'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'أزرار ويندوز الصغيرة'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-                    </UniformGrid>
-
                     <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'الشكل'}" Margin="2,24,0,8" FontSize="18"/>
                     <UniformGrid Columns="2" Margin="-3,0">
-                        <Border Style="{StaticResource Row}" Margin="3,0,3,6">
-                            <DockPanel>
-                                <CheckBox x:Name="FloatingBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
-                                          Checked="OnLookChanged" Unchecked="OnLookChanged"/>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8A7;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'تاسك بار عائم'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'مسافة عن طرف الشاشة وزوايا مدورة'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
                         <Border Style="{StaticResource Row}" Margin="3,0,3,6">
                             <DockPanel>
                                 <CheckBox x:Name="MagnifyBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
@@ -263,7 +145,7 @@
                                 <TextBlock Style="{StaticResource RowIcon}" Text="&#xE71E;"/>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'تكبير الأيقونات تحت الماوس'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'مثل الماك: الأيقونة تكبر واللي جنبها شوي. يحتاج السكرول شغّال'}"/>
+                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'مثل الماك: الأيقونة تكبر واللي جنبها شوي'}"/>
                                 </StackPanel>
                             </DockPanel>
                         </Border>
@@ -473,6 +355,15 @@
                 </StackPanel>
             </ScrollViewer>
 
+            <!-- Game mode (built when opened) -->
+            <ScrollViewer x:Name="PageGame" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'وضع الألعاب'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'خل المعالج كله للعبة: يوقف اللي يشتغل في الخلفية وأنت تلعب، ويرجّعه بعدها.'}"/>
+                    <ContentControl x:Name="GameHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
             <!-- The PC's specs (built when opened) -->
             <ScrollViewer x:Name="PageSpecs" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
                 <StackPanel Margin="40,28,40,24" MaxWidth="980">
@@ -506,6 +397,15 @@
                     <TextBlock Style="{StaticResource PageTitle}" Text="Liquid Glass"/>
                     <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'التأثير الزجاجي لكل الميزات من مكان واحد: شغّله أو طفّه، اختر وين يطلع، وعدّل شكله.'}"/>
                     <ContentControl x:Name="GlassHost"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Animations (built when opened) -->
+            <ScrollViewer x:Name="PageAnim" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="40,28,40,24" MaxWidth="980">
+                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'الحركات'}"/>
+                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'تحكم بحركة ظهور الويدجتات وسرعتها، وسرعة فتح النوافذ.'}"/>
+                    <ContentControl x:Name="AnimHost"/>
                 </StackPanel>
             </ScrollViewer>
 

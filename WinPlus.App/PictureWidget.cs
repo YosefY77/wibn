@@ -87,6 +87,14 @@ namespace WinPlus
             if (_frames.Length > 1) _player.Start();
         }
 
+        /// <summary>Under a maximized / full-screen window: the GIF stops until it shows again.</summary>
+        public override void Covered(bool covered)
+        {
+            if (!_running) return;
+            if (covered) _player.Stop();
+            else if (_frames.Length > 1) _player.Start();
+        }
+
         public override void Stop()
         {
             _running = false;

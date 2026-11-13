@@ -24,6 +24,17 @@ namespace WinPlus
             key.SetValue(name, value, RegistryValueKind.DWord);
         }
 
+        /// <summary>The scroll, icon size, floating and "fit to the apps" options were removed:
+        /// keep them off for people who had them on. The list engine only runs for magnify.</summary>
+        public static void RetireRemovedTaskbarOptions()
+        {
+            if (Get("Floating", 0) != 0) Floating = false;
+            if (Get("FitApps", 0) != 0) FitApps = false;
+            if (Get("RunningFirst", 0) != 0) RunningFirst = false;
+            if (Get("IconSize", 0) != 0) IconSize = 0;
+            if (Enabled != Magnify) Enabled = Magnify;
+        }
+
         public static bool Enabled
         {
             get => Get("Enabled", 1) != 0;
@@ -78,6 +89,8 @@ namespace WinPlus
         /// <summary>0-100: how much color over the glass / see-through.</summary>
         public static int TaskbarOpacity { get => Get("TaskbarOpacity", 60); set => Set("TaskbarOpacity", value); }
         public static bool Floating { get => Get("Floating", 0) != 0; set => Set("Floating", value ? 1 : 0); }
+        /// <summary>The taskbar's background only as wide as its apps (the tray gets its own piece).</summary>
+        public static bool FitApps { get => Get("FitApps", 0) != 0; set => Set("FitApps", value ? 1 : 0); }
         public static bool Magnify { get => Get("Magnify", 0) != 0; set => Set("Magnify", value ? 1 : 0); }
         public static bool IndicatorColor { get => Get("IndicatorColor", 0) != 0; set => Set("IndicatorColor", value ? 1 : 0); }
 

@@ -17,35 +17,21 @@ namespace WinPlus
         public MainWindow()
         {
             InitializeComponent();
+            Help.AddButtons(this, AllPages);   // a "!" next to every page's title
 
-            EnabledBox.IsChecked = SettingsStore.Enabled;
-            StepBox.SelectedIndex = Math.Clamp(SettingsStore.ScrollStep, 1, 5) - 1;
-            ReverseBox.IsChecked = SettingsStore.Reverse;
-            SmoothBox.IsChecked = SettingsStore.Smooth;
             StartupBox.IsChecked = SettingsStore.StartWithWindows;
             LanguageBox.SelectedIndex = Lang.English ? 1 : 0;
             _languageReady = true;
             ColorBox.IsChecked = SettingsStore.ColorEnabled;
             SetupColorPicker();
-            int iconSize = SettingsStore.IconSize;
-            IconSizeBox.IsChecked = iconSize > 0;
-            IconSlider.Value = iconSize > 0 ? iconSize : 24;
-            IconSizeText.Text = $"{(int)IconSlider.Value} px";
             ShowYearBox.IsChecked = SettingsStore.ShowYear;
-            RunningFirstBox.IsChecked = SettingsStore.RunningFirst;
-            FloatingBox.IsChecked = SettingsStore.Floating;
             MagnifyBox.IsChecked = SettingsStore.Magnify;
             IndicatorBox.IsChecked = SettingsStore.IndicatorColor;
             TaskbarGlassBox.IsChecked = SettingsStore.TaskbarStyle == 1;
             TaskbarGlassSlider.Value = Math.Clamp(SettingsStore.TaskbarOpacity, 0, 90);
             TaskbarGlassText.Text = $"{(int)TaskbarGlassSlider.Value}%";
-            int pref = SettingsStore.SmallButtons;
-            foreach (ComboBoxItem item in SmallButtonsBox.Items)
-            {
-                if ((string)item.Tag == pref.ToString()) SmallButtonsBox.SelectedItem = item;
-            }
-            UpdateAlignWarning();
             AutoHideBox.IsChecked = TaskbarPlacement.AutoHideEnabled;
+            CustomTaskbarHost.Content = new CustomTaskbarPage();
 
             VersionText.Text = "Wibn " + UpdateChecker.CurrentText;
             BuildFeatureList();
@@ -55,6 +41,29 @@ namespace WinPlus
         }
 
         public void SetStatus(string text) => StatusText.Text = text;
+
+        /// <summary>Shows a page, selecting its side-menu item (found by its key).</summary>
+        public void OpenPage(string key)
+        {
+            static System.Windows.Controls.RadioButton? FindNav(DependencyObject root, string key)
+            {
+                foreach (var child in System.Linq.Enumerable.OfType<DependencyObject>(LogicalTreeHelper.GetChildren(root)))
+                {
+                    if (child is System.Windows.Controls.RadioButton { CommandParameter: string k } r && k == key) return r;
+                    if (FindNav(child, key) is { } found) return found;
+                }
+                return null;
+            }
+            if (FindNav(this, key) is { } item) item.IsChecked = true;
+            ShowPage(key);
+        }
+
+        /// <summary>Shows the Taskbar page (Wibn's taskbar → its settings).</summary>
+        public void OpenTaskbarPage()
+        {
+            NavScroll.IsChecked = true;
+            ShowPage("taskbar");
+        }
 
         // ---- Features (Settings → المزايا) ----------------------------------------
 
@@ -195,12 +204,6 @@ namespace WinPlus
             Close();
         }
 
-        protected override void OnActivated(EventArgs e)
-        {
-            base.OnActivated(e);
-            UpdateAlignWarning();
-        }
-
         // ---- Navigation (PowerToys-style sidebar) ------------------------------
 
         private BigFilesView? _bigView;
@@ -222,10 +225,12 @@ namespace WinPlus
         private WidgetsPage? _widgetsPage;
         private PhonePage? _phonePage;
         private SpecsPage? _specsPage;
+        private GameModePage? _gamePage;
+        private AnimationsPage? _animPage;
 
         private FrameworkElement[] AllPages => new FrameworkElement[]
         {
-            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PagePhone, PageWidgets, PageGlass, PageGeneral,
+            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PageGame, PagePhone, PageWidgets, PageGlass, PageAnim, PageGeneral,
         };
 
         private void OnNavChanged(object sender, RoutedEventArgs e)
@@ -260,7 +265,9 @@ namespace WinPlus
                 "widgets" => Build(PageWidgets, () => WidgetsHost.Content = _widgetsPage ??= new WidgetsPage()),
                 "phone" => Build(PagePhone, () => PhoneHost.Content = _phonePage ??= new PhonePage()),
                 "specs" => Build(PageSpecs, () => SpecsHost.Content = _specsPage ??= new SpecsPage()),
+                "game" => Build(PageGame, () => GameHost.Content = _gamePage ??= new GameModePage()),
                 "glass" => Build(PageGlass, () => GlassHost.Content ??= GlassSettings.Page()),
+                "anim" => Build(PageAnim, () => AnimHost.Content ??= _animPage ??= new AnimationsPage()),
                 "general" => PageGeneral,
                 _ => PageTaskbar,
             };
@@ -274,29 +281,6 @@ namespace WinPlus
         {
             create();
             return page;
-        }
-
-        // ---- Icon size / small buttons ------------------------------------------
-
-        private void OnIconSizeChanged(object sender, RoutedEventArgs e)
-        {
-            if (_loading) return;
-            SettingsStore.IconSize = IconSizeBox.IsChecked == true ? (int)IconSlider.Value : 0;
-        }
-
-        private void OnIconSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (IconSizeText == null) return;
-            IconSizeText.Text = $"{(int)IconSlider.Value} px";
-            if (_loading) return;
-            if (IconSizeBox.IsChecked != true)
-            {
-                IconSizeBox.IsChecked = true;  // moving the slider turns it on
-            }
-            else
-            {
-                SettingsStore.IconSize = (int)IconSlider.Value;
-            }
         }
 
         // ---- Taskbar look ---------------------------------------------------------
@@ -334,25 +318,10 @@ namespace WinPlus
 
         private void OnLookChanged(object sender, RoutedEventArgs e)
         {
-            if (_loading || FloatingBox == null) return;
-            SettingsStore.Floating = FloatingBox.IsChecked == true;
+            if (_loading || MagnifyBox == null) return;
             SettingsStore.Magnify = MagnifyBox.IsChecked == true;
             SettingsStore.IndicatorColor = IndicatorBox.IsChecked == true;
-            if (SettingsStore.Magnify && EnabledBox.IsChecked != true)
-            {
-                EnabledBox.IsChecked = true;  // magnify works through the scroll feature
-            }
-            TaskbarInjector.SignalRefresh();
-        }
-
-        private void OnRunningFirstChanged(object sender, RoutedEventArgs e)
-        {
-            if (_loading) return;
-            SettingsStore.RunningFirst = RunningFirstBox.IsChecked == true;
-            if (SettingsStore.RunningFirst && EnabledBox.IsChecked != true)
-            {
-                EnabledBox.IsChecked = true;  // it works through the scroll feature
-            }
+            SettingsStore.Enabled = SettingsStore.Magnify;  // magnify runs inside the taskbar-list engine
             TaskbarInjector.SignalRefresh();
         }
 
@@ -368,15 +337,6 @@ namespace WinPlus
         {
             if (_loading) return;
             TaskbarPlacement.AutoHideEnabled = AutoHideBox.IsChecked == true;
-        }
-
-        private void OnSmallButtonsChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_loading) return;
-            if (SmallButtonsBox.SelectedItem is ComboBoxItem { Tag: string tag })
-            {
-                SettingsStore.SmallButtons = int.Parse(tag);
-            }
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -421,22 +381,6 @@ namespace WinPlus
                 Hidden?.Invoke(this, EventArgs.Empty);
             }
             base.OnClosing(e);
-        }
-
-        private void UpdateAlignWarning()
-        {
-            // Scrolling now works with a centered taskbar too.
-            AlignWarning.Visibility = Visibility.Collapsed;
-        }
-
-        private void OnSettingChanged(object sender, RoutedEventArgs e)
-        {
-            if (_loading) return;
-            SettingsStore.Enabled = EnabledBox.IsChecked == true;
-            SettingsStore.ScrollStep = StepBox.SelectedIndex + 1;
-            SettingsStore.Reverse = ReverseBox.IsChecked == true;
-            SettingsStore.Smooth = SmoothBox.IsChecked == true;
-            TaskbarInjector.SignalRefresh();
         }
 
         // ---- Taskbar color -------------------------------------------------
@@ -501,14 +445,6 @@ namespace WinPlus
         {
             if (_loading) return;
             SettingsStore.StartWithWindows = StartupBox.IsChecked == true;
-        }
-
-        private void OnAlignLeft(object sender, RoutedEventArgs e)
-        {
-            SettingsStore.AlignTaskbarLeft();
-            // Explorer watches this key and re-aligns the taskbar by itself.
-            UpdateAlignWarning();
-            TaskbarInjector.SignalRefresh();
         }
 
         private async void OnReconnect(object sender, RoutedEventArgs e)

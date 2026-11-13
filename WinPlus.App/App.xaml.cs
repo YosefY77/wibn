@@ -41,10 +41,24 @@ namespace WinPlus
                 return;
             }
 
+            // Guard of Wibn's taskbar: brings Windows' taskbar back if Wibn dies or freezes.
+            if (e.Args.Length == 2 && e.Args[0] == "--taskbar-guard")
+            {
+                Shutdown(CustomTaskbar.RunGuard(e.Args));
+                return;
+            }
+
             // Elevated helper: turn an all-users startup program on/off, then exit.
             if (e.Args.Length == 4 && e.Args[0] == "--startup-approve")
             {
                 Shutdown(StartupApps.RunElevatedHelper(e.Args));
+                return;
+            }
+
+            // Elevated helper of game booster mode: WinPlus.exe --game-boost install|uninstall|on|off <folder>
+            if (e.Args.Length == 3 && e.Args[0] == "--game-boost")
+            {
+                Shutdown(GameBoost.RunElevatedHelper(e.Args));
                 return;
             }
 
@@ -189,6 +203,7 @@ namespace WinPlus
                 if (taskbar) _ = ConnectAsync();
             }
             TaskbarPlacement.ApplyAutoHideMode();
+            CustomTaskbar.Apply();   // Wibn's own taskbar, if chosen
             VideoDownloader.Refresh();
             ScreenCapture.Refresh();  // its shortcuts, and the "last minute" recording if on
             // Glass taskbar (TaskbarStyle 1) is drawn by the DLL inside the taskbar now.
@@ -209,7 +224,9 @@ namespace WinPlus
             }
 
             if (Features.IsOn("widgets")) Widgets.Start(); else Widgets.Stop();
+            Appointments.StartReminders();   // the calendar's notifications (once)
             if (Features.IsOn("phone")) PhoneClipboard.Start(); else PhoneClipboard.Stop();
+            if (starting) GameBoost.RecoverAtStart(); else GameBoost.Refresh();   // game booster: watches for games
 
             DragSpaceHook.Refresh();  // Space / R / C while dragging a file → convert / resize / compress
         }
@@ -221,6 +238,7 @@ namespace WinPlus
         public async Task ConnectAsync()
         {
             _window?.SetStatus(Lang.T("جاري الاتصال بالتاسك بار…"));
+            SettingsStore.RetireRemovedTaskbarOptions();
             string status = await TaskbarInjector.EnsureLoadedAsync();
             _window?.SetStatus(status);
             _window?.ShowRestartButton(TaskbarInjector.NeedsExplorerRestart);
@@ -266,6 +284,10 @@ namespace WinPlus
             _messageWindow = new HwndSource(p);
             _messageWindow.AddHook((IntPtr hwnd, int msg, IntPtr w, IntPtr l, ref bool handled) =>
             {
+                if (msg == _taskbarCreatedMsg && (DateTime.Now - TrayHost.LastBroadcast).TotalSeconds < 5)
+                {
+                    return IntPtr.Zero;   // Wibn's taskbar asked apps for their icons; explorer didn't restart
+                }
                 if (msg == _taskbarCreatedMsg)
                 {
                     // Crash-loop guard: if the taskbar keeps restarting, stop
@@ -297,6 +319,20 @@ namespace WinPlus
             ScreenCapture.Init(_messageWindow);    // the screen capture shortcuts
         }
 
+        /// <summary>Opens Wibn on a page (by its side-menu key, e.g. "glass").</summary>
+        internal void ShowPage(string key)
+        {
+            ShowWindow();
+            _window?.OpenPage(key);
+        }
+
+        /// <summary>Opens Wibn on the Taskbar page (from the taskbar's right-click menu).</summary>
+        internal void ShowTaskbarSettings()
+        {
+            ShowWindow();
+            _window?.OpenTaskbarPage();
+        }
+
         private void ShowWindow()
         {
             if (_window == null) return;
@@ -323,12 +359,14 @@ namespace WinPlus
             // The DLL stays inside explorer but switches itself off.
             SettingsStore.AppActive = false;
             TaskbarInjector.SignalRefresh();
+            CustomTaskbar.Stop();   // Windows' taskbar back
             TaskbarPlacement.RestoreTaskbar();
             Relocker.LockAllNow();
             DragSpaceHook.Stop();
             FileUndo.FinishAll();
             P2PTransfer.StopAll();
             ScreenCapture.StopAll();
+            GameBoost.Shutdown();   // services and apps back as they were
 
             if (_tray != null)
             {

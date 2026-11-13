@@ -93,6 +93,71 @@ namespace WinPlus
             catch { return null; }
         }
 
+        /// <summary>The desktop's shell view itself (for other interfaces on it, like IFolderView2), or null.</summary>
+        internal static object? ViewObject()
+        {
+            try { return DesktopView(); } catch { return null; }
+        }
+
+        /// <summary>
+        /// A file just made on the desktop: put it where the mouse was (screen pixels) once the
+        /// desktop shows it, and start typing its name like Windows does. Tries for a few seconds.
+        /// </summary>
+        internal static void PlaceNew(string path, int screenX, int screenY)
+        {
+            int tries = 0;
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            timer.Tick += (_, _) =>
+            {
+                if (++tries > 25) { timer.Stop(); return; }
+                try
+                {
+                    var view = DesktopView();
+                    if (view == null) return;
+                    IntPtr pidl = ChildPidl(view, Path.GetFileName(path));
+                    if (pidl == IntPtr.Zero) return;
+                    try
+                    {
+                        if (view.GetItemPosition(pidl, out _) != 0) return;   // not shown yet
+                        timer.Stop();
+                        // Desktop list coordinates: from the list window's corner.
+                        var list = FindDesktopList();
+                        int ox = 0, oy = 0;
+                        if (list != IntPtr.Zero && GetWindowRect(list, out var r)) { ox = r.Left; oy = r.Top; }
+                        var pt = new POINT { X = screenX - ox, Y = screenY - oy };
+                        uint flags = 0x3 /* SVSI_EDIT */ | 0x4 /* DESELECTOTHERS */ | 0x8 /* ENSUREVISIBLE */;
+                        if (view.GetAutoArrange() != 0) flags |= 0x80;   // SVSI_POSITIONITEM (not when auto-arranged)
+                        if (list != IntPtr.Zero) SetForegroundWindow(list);
+                        view.SelectAndPositionItems(1, new[] { pidl }, new[] { pt }, flags);
+                    }
+                    finally { Marshal.FreeCoTaskMem(pidl); }
+                }
+                catch { timer.Stop(); }
+            };
+            timer.Start();
+        }
+
+        /// <summary>The window that shows the desktop icons (SysListView32 inside Progman / WorkerW).</summary>
+        internal static IntPtr FindDesktopList()
+        {
+            IntPtr found = IntPtr.Zero;
+            foreach (var top in new[] { "Progman", "WorkerW" })
+            {
+                IntPtr h = IntPtr.Zero;
+                while (found == IntPtr.Zero && (h = FindWindowEx(IntPtr.Zero, h, top, null)) != IntPtr.Zero)
+                {
+                    IntPtr def = FindWindowEx(h, IntPtr.Zero, "SHELLDLL_DefView", null);
+                    if (def != IntPtr.Zero) found = FindWindowEx(def, IntPtr.Zero, "SysListView32", null);
+                }
+            }
+            return found;
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string? name);
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr h, out RECT r);
+        [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr h);
+        [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
+
         private static IFolderView? DesktopView()
         {
             var windows = (IShellWindows)Activator.CreateInstance(

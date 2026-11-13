@@ -127,7 +127,7 @@ namespace WinPlus
 
         public static bool IsTaskbarHorizontal()
         {
-            IntPtr hwnd = FindWindow("Shell_TrayWnd", null);
+            IntPtr hwnd = TrayHost.ExplorerTray();   // explorer's, not Wibn's window of that name
             if (hwnd != IntPtr.Zero && GetWindowRect(hwnd, out var r))
             {
                 return (r.Right - r.Left) >= (r.Bottom - r.Top);
@@ -148,7 +148,7 @@ namespace WinPlus
 
         private static uint ExplorerPid()
         {
-            IntPtr hwnd = FindWindow("Shell_TrayWnd", null);
+            IntPtr hwnd = TrayHost.ExplorerTray();   // explorer's, not Wibn's window of that name
             return hwnd != IntPtr.Zero && GetWindowThreadProcessId(hwnd, out uint pid) != 0 ? pid : 0;
         }
 

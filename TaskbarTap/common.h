@@ -52,6 +52,7 @@ struct Settings {
     int taskbarStyle = 0;      // 0 = solid color, 1 = glass (blur), 2 = see-through
     int taskbarOpacity = 60;   // 0-100: how much color over the glass / see-through
     bool floating = false;     // gap around the taskbar + rounded corners
+    bool fitApps = false;      // background only as wide as the apps (+ its own piece for the tray)
     bool magnify = false;      // icons grow under the mouse (like a dock)
     bool indicatorColor = false; // running line takes the app icon's color
     int extraSpace = 20000;    // DIPs added to the task list so it never overflows

@@ -55,7 +55,7 @@ namespace WinPlus
         /// <summary>Hide the taskbar while a fullscreen or maximized window is in front.</summary>
         public static bool AutoHideEnabled
         {
-            get => SettingsStoreGet("AutoHideFullscreen", 0) != 0 && Features.IsOn("taskbar");
+            get => SettingsStoreGet("AutoHideFullscreen", 0) != 0 && Features.IsOn("taskbar") && !CustomTaskbar.Enabled;
             set
             {
                 SettingsStoreSet("AutoHideFullscreen", value ? 1 : 0);
@@ -334,7 +334,7 @@ namespace WinPlus
             }
         }
 
-        private static bool InMoveSize(uint tid)
+        internal static bool InMoveSize(uint tid)
         {
             var gi = new GUITHREADINFO { cbSize = Marshal.SizeOf<GUITHREADINFO>() };
             return GetGUIThreadInfo(tid, ref gi) && (gi.flags & 0x2 /* GUI_INMOVESIZE */) != 0;
@@ -442,7 +442,7 @@ namespace WinPlus
 
         private static IntPtr TaskbarOnMonitor(IntPtr monitor)
         {
-            IntPtr primary = FindWindow("Shell_TrayWnd", null);
+            IntPtr primary = TrayHost.ExplorerTray();
             if (primary != IntPtr.Zero && MonitorFromWindow(primary, 2) == monitor) return primary;
             IntPtr hwnd = IntPtr.Zero;
             while ((hwnd = FindWindowEx(IntPtr.Zero, hwnd, "Shell_SecondaryTrayWnd", null)) != IntPtr.Zero)
@@ -454,7 +454,7 @@ namespace WinPlus
 
         private static void ShowAllTaskbars()
         {
-            IntPtr primary = FindWindow("Shell_TrayWnd", null);
+            IntPtr primary = TrayHost.ExplorerTray();
             if (primary != IntPtr.Zero) ShowWindow(primary, SW_SHOWNA);
             IntPtr hwnd = IntPtr.Zero;
             while ((hwnd = FindWindowEx(IntPtr.Zero, hwnd, "Shell_SecondaryTrayWnd", null)) != IntPtr.Zero)

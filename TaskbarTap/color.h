@@ -32,3 +32,10 @@ void TrackColorTarget(winrt::Windows::UI::Xaml::FrameworkElement const& element,
 
 // Any thread: posts to each element's UI thread.
 void ApplyColorToAll(const Settings& settings);
+
+// "Fit to the apps" (UI thread of that taskbar): where the apps (Start + task buttons) and
+// the tray are, in XamlRoot coordinates, so its background can wrap just them.
+void ReportTaskbarFit(const winrt::Windows::UI::Xaml::FrameworkElement& inRoot,
+                      double appsStart, double appsEnd, double trayStart, const Settings& settings);
+// The task list stopped reporting (scroll turned off): back to the normal background.
+void ClearTaskbarFit(const winrt::Windows::UI::Xaml::FrameworkElement& inRoot, const Settings& settings);

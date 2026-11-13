@@ -126,6 +126,16 @@ class ScrollController : public std::enable_shared_from_this<ScrollController> {
     double m_centerOffset = 0;        // extra margin that puts the group where Windows would
     double m_prevCenterOffset = 0, m_prevGroupStart = 0, m_centerGain = 1;
     bool m_haveCenterSample = false;
+    // Centering that pushed the list past the tray (so it needed scrolling, which moved it
+    // back to the edge, where it fit again, so it was centered again...): XAML calls that a
+    // layout cycle and takes Explorer down. Once it happens, the group stays at the edge
+    // until it's clearly narrower than when it happened.
+    bool m_centerHold = false;
+    double m_centerHoldWidth = 0;
+    // Last line of defence against any other back-and-forth: too many corrections in a
+    // second and centering pauses for a few seconds.
+    ULONGLONG m_fixWindowStart = 0, m_centerPausedUntil = 0;
+    int m_fixCount = 0;
     double m_lastLoggedStart = -1, m_lastLoggedEnd = -1, m_lastLoggedLast = -1;
     winrt::Windows::Foundation::IInspectable m_wheelHandler{nullptr};
     winrt::event_token m_layoutToken{};

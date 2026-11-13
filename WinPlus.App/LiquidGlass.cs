@@ -59,6 +59,7 @@ namespace WinPlus
         private int _recapture = 1;                    // desktop mode: a new picture of the desktop is wanted
         private IntPtr _deskDc, _deskBmp, _deskOld;    // desktop mode: the last picture of the whole desktop
         private RECT _deskRect;
+        private bool _sharedRef;                       // desktop mode: uses the shared picture of the desktop
 
         /// <summary>
         /// What's behind turned light (true) or dark (false): the text on the glass
@@ -253,6 +254,7 @@ namespace WinPlus
             }
             finally { SetWindowDisplayAffinity(_hwnd, 0 /* WDA_NONE */); }
             Marshal.Copy(_bits, _src, 0, _src.Length);
+            FillPastEdges(_x, _y, null);
             return true;
         }
 
@@ -263,7 +265,25 @@ namespace WinPlus
         private bool CopyDesktop()
         {
             using var _ = new ScreenCapture.DpiScope();
-            if (_deskDc == IntPtr.Zero || Interlocked.Exchange(ref _recapture, 0) == 1)
+            bool fresh = Interlocked.Exchange(ref _recapture, 0) == 1;
+            int x = _ox - _margin, y = _oy - _margin;
+
+            // A still wallpaper: one picture of the desktop for every glass (widgets, taskbars, menus).
+            if (!DesktopPicture.Animated)
+            {
+                FreeDesktop();   // its own picture (from an animated wallpaper before) isn't needed now
+                if (!_sharedRef) { DesktopPicture.AddRef(); _sharedRef = true; }
+                PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
+                if (!DesktopPicture.CopyTo(_memDc, x, y, _cw, _ch, fresh, out var rect)) return false;
+                Marshal.Copy(_bits, _src, 0, _src.Length);
+                FillPastEdges(x, y, rect);
+                return true;
+            }
+
+            // An animated wallpaper (Wallpaper Engine, Lively…): each glass takes its own picture, when it
+            // needs one, so it matches the wallpaper at that moment.
+            if (_sharedRef) { DesktopPicture.Release(); _sharedRef = false; }
+            if (_deskDc == IntPtr.Zero || fresh)
             {
                 FreeDesktop();
                 IntPtr desk = FindWindow("Progman", null);
@@ -277,12 +297,48 @@ namespace WinPlus
                 _deskRect = r;
                 if (!PrintWindow(desk, _deskDc, 2 /* PW_RENDERFULLCONTENT */)) { FreeDesktop(); return false; }
             }
-            int x = _ox - _margin, y = _oy - _margin;
             // Outside the desktop (the edge of the screen): black, the bend barely reaches there.
             PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
             if (!BitBlt(_memDc, 0, 0, _cw, _ch, _deskDc, x - _deskRect.Left, y - _deskRect.Top, 0x00CC0020 /* SRCCOPY */)) return false;
             Marshal.Copy(_bits, _src, 0, _src.Length);
+            FillPastEdges(x, y, _deskRect);
             return true;
+        }
+
+        /// <summary>
+        /// Near the edge of the screen, part of the copy lies past it and comes back black, and the
+        /// bend at the glass's edges pulls that black in. Instead, everything past the screen (the
+        /// one the glass is on) takes the color of the screen's last pixel there, so the edge just
+        /// carries on.
+        /// </summary>
+        private void FillPastEdges(int copyX, int copyY, RECT? within)
+        {
+            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            IntPtr mon = MonitorFromPoint(new POINT { X = copyX + _cw / 2, Y = copyY + _ch / 2 }, 2 /* NEAREST */);
+            if (mon == IntPtr.Zero || !GetMonitorInfo(mon, ref mi)) return;
+            var m = mi.rcMonitor;
+            if (within is { } w)
+            {
+                m.Left = Math.Max(m.Left, w.Left); m.Top = Math.Max(m.Top, w.Top);
+                m.Right = Math.Min(m.Right, w.Right); m.Bottom = Math.Min(m.Bottom, w.Bottom);
+            }
+            // The part of the copy that's on the screen.
+            int x0 = Math.Clamp(m.Left - copyX, 0, _cw), y0 = Math.Clamp(m.Top - copyY, 0, _ch);
+            int x1 = Math.Clamp(m.Right - copyX, 0, _cw), y1 = Math.Clamp(m.Bottom - copyY, 0, _ch);
+            if (x1 <= x0 || y1 <= y0) return;                                   // nothing on screen: leave it
+            if (x0 == 0 && y0 == 0 && x1 == _cw && y1 == _ch) return;          // all on screen: the usual case
+            int cw = _cw;
+            // Across: rows on the screen carry their first / last pixel outward.
+            for (int y = y0; y < y1; y++)
+            {
+                int row = y * cw;
+                int left = _src[row + x0], right = _src[row + x1 - 1];
+                for (int x = 0; x < x0; x++) _src[row + x] = left;
+                for (int x = x1; x < cw; x++) _src[row + x] = right;
+            }
+            // Up and down: rows past the screen copy the nearest row on it.
+            for (int y = 0; y < y0; y++) Array.Copy(_src, y0 * cw, _src, y * cw, cw);
+            for (int y = y1; y < _ch; y++) Array.Copy(_src, (y1 - 1) * cw, _src, y * cw, cw);
         }
 
         private void FreeDesktop()
@@ -452,6 +508,7 @@ namespace WinPlus
         private void FreeGdi()
         {
             FreeDesktop();
+            if (_sharedRef) { DesktopPicture.Release(); _sharedRef = false; }
             if (_memDc != IntPtr.Zero)
             {
                 if (_oldObj != IntPtr.Zero) SelectObject(_memDc, _oldObj);
@@ -474,6 +531,10 @@ namespace WinPlus
         }
 
         [DllImport("user32.dll")] private static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
+        [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X, Y; }
+        [StructLayout(LayoutKind.Sequential)] private struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
+        [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT p, uint flags);
+        [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
         [DllImport("dwmapi.dll")] private static extern int DwmFlush();
         [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hwnd, IntPtr dc, uint flags);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindow(string cls, string? title);
@@ -489,5 +550,147 @@ namespace WinPlus
         [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr obj);
         [DllImport("gdi32.dll")] private static extern IntPtr CreateDIBSection(IntPtr dc, ref BITMAPINFO bmi, uint usage, out IntPtr bits, IntPtr section, uint offset);
         [DllImport("gdi32.dll")] private static extern bool BitBlt(IntPtr dst, int x, int y, int w, int h, IntPtr src, int sx, int sy, uint rop);
+
+        // ---- One picture of the desktop for every glass ----------------------------------------------
+
+        /// <summary>
+        /// The desktop (wallpaper) as one picture shared by every glass in desktop mode, instead of a
+        /// copy of the whole desktop each (about 12 MB per glass on two screens). A glass asking for a
+        /// new one (the wallpaper may have changed) gets it only if the last is over 3 seconds old, so
+        /// the widgets' refreshes together take one picture. Freed when no glass uses it.
+        /// Not used with an animated wallpaper (each glass then takes its own, at its moment).
+        /// </summary>
+        private static class DesktopPicture
+        {
+            private static readonly object Gate = new();
+            private static IntPtr _dc, _bmp, _old;
+            private static RECT _rect;
+            private static DateTime _at;
+            private static int _refs;
+
+            public static void AddRef() { lock (Gate) _refs++; }
+
+            public static void Release()
+            {
+                lock (Gate)
+                {
+                    if (--_refs > 0) return;
+                    _refs = 0;
+                    Free();
+                }
+            }
+
+            /// <summary>Copies a part of it (screen pixels) into dst; takes it first if needed.</summary>
+            public static bool CopyTo(IntPtr dst, int x, int y, int w, int h, bool fresh, out RECT rect)
+            {
+                lock (Gate)
+                {
+                    rect = default;
+                    IntPtr desk = FindWindow("Progman", null);
+                    if (desk == IntPtr.Zero || !GetWindowRect(desk, out var now)) return false;
+                    bool moved = now.Left != _rect.Left || now.Top != _rect.Top || now.Right != _rect.Right || now.Bottom != _rect.Bottom;
+                    if (_dc == IntPtr.Zero || moved || (fresh && (DateTime.UtcNow - _at).TotalSeconds > 3))
+                        if (!Take(desk, now)) return false;
+                    rect = _rect;
+                    return BitBlt(dst, 0, 0, w, h, _dc, x - _rect.Left, y - _rect.Top, 0x00CC0020 /* SRCCOPY */);
+                }
+            }
+
+            private static bool Take(IntPtr desk, RECT r)
+            {
+                Free();
+                int dw = r.Right - r.Left, dh = r.Bottom - r.Top;
+                if (dw <= 0 || dh <= 0) return false;
+                IntPtr screen = GetDC(IntPtr.Zero);
+                try
+                {
+                    _dc = CreateCompatibleDC(screen);
+                    _bmp = CreateCompatibleBitmap(screen, dw, dh);
+                }
+                finally { ReleaseDC(IntPtr.Zero, screen); }
+                if (_dc == IntPtr.Zero || _bmp == IntPtr.Zero) { Free(); return false; }
+                _old = SelectObject(_dc, _bmp);
+                _rect = r;
+                if (!PrintWindow(desk, _dc, 2 /* PW_RENDERFULLCONTENT */)) { Free(); return false; }
+                _at = DateTime.UtcNow;
+                return true;
+            }
+
+            private static void Free()
+            {
+                if (_dc != IntPtr.Zero)
+                {
+                    if (_old != IntPtr.Zero) SelectObject(_dc, _old);
+                    DeleteDC(_dc);
+                }
+                if (_bmp != IntPtr.Zero) DeleteObject(_bmp);
+                _dc = _bmp = _old = IntPtr.Zero;
+                _rect = default;
+            }
+
+            // ---- Is the wallpaper animated? (checked at most every 30 seconds) ----
+
+            private static bool _animated;
+            private static DateTime _checkedAt = DateTime.MinValue;
+
+            private static readonly string[] AnimatedApps =
+            {
+                "wallpaper32", "wallpaper64", "lively", "livelywpf", "lively.playerwebview2", "lively.playermpv", "lively.playercefsharp",
+                "rainwallpaper", "pushvideowallpaper", "desktophut", "videowallpaper", "deskscapes",
+            };
+
+            /// <summary>A live wallpaper is running: an app known for it, or a window of another app
+            /// put inside the desktop window (that's how they draw under the icons).</summary>
+            public static bool Animated
+            {
+                get
+                {
+                    lock (Gate)
+                    {
+                        if ((DateTime.UtcNow - _checkedAt).TotalSeconds < 30) return _animated;
+                        _checkedAt = DateTime.UtcNow;
+                        _animated = Check();
+                        return _animated;
+                    }
+                }
+            }
+
+            private static bool Check()
+            {
+                try
+                {
+                    foreach (var name in AnimatedApps)
+                    {
+                        var found = System.Diagnostics.Process.GetProcessesByName(name);
+                        bool any = found.Length > 0;
+                        foreach (var p in found) p.Dispose();
+                        if (any) return true;
+                    }
+                    IntPtr progman = FindWindow("Progman", null);
+                    if (progman == IntPtr.Zero) return false;
+                    GetWindowThreadProcessId(progman, out uint shell);
+                    bool foreign = false;
+                    bool Look(IntPtr parent)
+                    {
+                        IntPtr c = IntPtr.Zero;
+                        while ((c = FindWindowEx(parent, c, null, null)) != IntPtr.Zero)
+                        {
+                            GetWindowThreadProcessId(c, out uint pid);
+                            if (pid != shell && pid != (uint)Environment.ProcessId) return true;
+                        }
+                        return false;
+                    }
+                    if (Look(progman)) return true;
+                    IntPtr w = IntPtr.Zero;
+                    while ((w = FindWindowEx(IntPtr.Zero, w, "WorkerW", null)) != IntPtr.Zero)
+                        if (Look(w)) { foreign = true; break; }
+                    return foreign;
+                }
+                catch { return false; }
+            }
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string? cls, string? title);
+        [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
     }
 }

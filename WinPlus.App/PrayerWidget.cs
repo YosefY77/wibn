@@ -149,12 +149,12 @@ namespace WinPlus
         public static readonly City[] Cities = Regions.SelectMany(r => r.Cities).ToArray();
 
         private static readonly string[] Names = { "الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء" };
-        private static readonly string[] HijriMonths =
+        internal static readonly string[] HijriMonths =
         {
             "محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة",
             "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة",
         };
-        private static readonly string[] HijriMonthsEn =
+        internal static readonly string[] HijriMonthsEn =
         {
             "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Ula", "Jumada al-Akhirah",
             "Rajab", "Shaban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah",

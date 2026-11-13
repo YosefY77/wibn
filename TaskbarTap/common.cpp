@@ -52,6 +52,7 @@ Settings LoadSettings() {
         s.taskbarStyle = (int)ReadDword(key, L"TaskbarStyle", 0);
         s.taskbarOpacity = (int)ReadDword(key, L"TaskbarOpacity", 60);
         s.floating = ReadDword(key, L"Floating", 0) != 0;
+        s.fitApps = ReadDword(key, L"FitApps", 0) != 0;
         s.magnify = ReadDword(key, L"Magnify", 0) != 0;
         s.indicatorColor = ReadDword(key, L"IndicatorColor", 0) != 0;
         s.extraSpace = (int)ReadDword(key, L"ExtraSpace", 20000);

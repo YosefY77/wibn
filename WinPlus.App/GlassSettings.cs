@@ -26,6 +26,9 @@ namespace WinPlus
         /// <summary>The box of "capture an area" (its bar of buttons is glass whenever the main switch is on).</summary>
         public static readonly GlassSettings Capture = new(@"Software\WinPlus\Capture", "Glass");
 
+        /// <summary>Wibn's taskbar (it has its own switch: its "Glass" background).</summary>
+        public static readonly GlassSettings Taskbar = new(@"Software\WinPlus\CustomTaskbar", "Glass");
+
         /// <summary>The desktop widgets.</summary>
         public static readonly GlassSettings Widgets = new(@"Software\WinPlus\Widgets", "Glass");
 
@@ -150,6 +153,7 @@ namespace WinPlus
             string disc = Lang.T("الدائرة تعرض اللي تحتها منحني عند حافتها مثل زجاج أبل");
             Where(Video, "", Lang.T("شريط تحميل المقاطع"), Lang.T("الشريط يعرض اللي وراه منحني عند الأطراف مثل زجاج أبل"));
             Where(Capture, "", Lang.T("أزرار تصوير الشاشة"), Lang.T("أزرار الحفظ والنسخ زجاجية. مربع التحديد يبقى عادي بخط أبيض"));
+            Where(Taskbar, "\uE90E", Lang.T("تاسك بار Wibn"), Lang.T("لما تختار له خلفية زجاج من صفحة التاسك بار، يصير بنفس الزجاج والإعدادات اللي هنا"));
             Where(Widgets, "\uE8A9", "Widgets", Lang.T("الويدجتات اللي على سطح المكتب تصير زجاج يبين خلفيتك منحنية عند الأطراف"));
             Where(Menu(MediaTools.Mode.Convert), "", Lang.T("قائمة تحويل الصيغ"), disc);
             Where(Menu(MediaTools.Mode.Resize), "", Lang.T("قائمة تغيير الأبعاد"), disc);

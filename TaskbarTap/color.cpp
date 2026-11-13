@@ -42,6 +42,11 @@ struct Target {
     void* iconSource = nullptr;
     // Taskbar background: our own layer just above Windows' (see EnsureLayer).
     winrt::weak_ref<Shapes::Rectangle> layer;
+    // "Fit to the apps": where the apps and the tray are (root coordinates), and the tray's
+    // own piece of background (a copy of Windows' fill, and of our color layer).
+    bool haveFit = false;
+    double fitStart = 0, fitEnd = 0, fitTray = 0;
+    winrt::weak_ref<Shapes::Rectangle> trayFill, trayLayer;
 };
 
 std::mutex g_targetsMutex;
@@ -218,6 +223,57 @@ Media::Brush TaskbarBrush(const Settings& s) {
 }
 
 constexpr const wchar_t* kLayerName = L"WibnFill";
+constexpr const wchar_t* kTrayFillName = L"WibnTrayFill";
+constexpr const wchar_t* kTrayLayerName = L"WibnTrayLayer";
+
+bool IsOurs(const FrameworkElement& el) {
+    auto n = el.Name();
+    return n == kLayerName || n == kTrayFillName || n == kTrayLayerName;
+}
+
+// A rectangle of ours in the same panel and grid cell as `like`, right above `after`.
+Shapes::Rectangle AddRectAbove(const FrameworkElement& like, const FrameworkElement& after, const wchar_t* name) {
+    auto panel = Media::VisualTreeHelper::GetParent(like).try_as<Controls::Panel>();
+    if (!panel) return nullptr;
+    Shapes::Rectangle r;
+    r.Name(name);
+    r.IsHitTestVisible(false);
+    r.HorizontalAlignment(like.HorizontalAlignment());
+    r.VerticalAlignment(like.VerticalAlignment());
+    r.Height(like.Height());
+    Controls::Grid::SetRow(r, Controls::Grid::GetRow(like));
+    Controls::Grid::SetColumn(r, Controls::Grid::GetColumn(like));
+    Controls::Grid::SetRowSpan(r, Controls::Grid::GetRowSpan(like));
+    Controls::Grid::SetColumnSpan(r, Controls::Grid::GetColumnSpan(like));
+    uint32_t index = 0;
+    if (panel.Children().IndexOf(after, index)) panel.Children().InsertAt(index + 1, r);
+    else panel.Children().Append(r);
+    return r;
+}
+
+void RemoveRect(winrt::weak_ref<Shapes::Rectangle>& weak) {
+    if (auto r = weak.get()) {
+        if (auto panel = Media::VisualTreeHelper::GetParent(r).try_as<Controls::Panel>()) {
+            uint32_t index = 0;
+            if (panel.Children().IndexOf(r, index)) panel.Children().RemoveAt(index);
+        }
+    }
+    weak = nullptr;
+}
+
+// From root coordinates (x) to margins inside `el`'s parent: the part between x0 and x1.
+// Converted into the parent's own space, so a mirrored (right-to-left) taskbar works too.
+bool SpanToMargin(const FrameworkElement& el, double x0, double x1, double y, Thickness& out) {
+    auto parent = Media::VisualTreeHelper::GetParent(el).try_as<FrameworkElement>();
+    if (!parent || parent.ActualWidth() <= 0) return false;
+    auto inverse = parent.TransformToVisual(nullptr).Inverse();
+    if (!inverse) return false;
+    double a = inverse.TransformPoint({(float)x0, 0}).X, b = inverse.TransformPoint({(float)x1, 0}).X;
+    double left = std::min(a, b), right = std::max(a, b);
+    out = Thickness{std::max(0.0, std::round(left)), y,
+                    std::max(0.0, std::round(parent.ActualWidth() - right)), y};
+    return true;
+}
 
 // Newer Windows builds keep putting their own brush on BackgroundFill (our color
 // never showed), so the color goes on a rectangle of our own, right above it, in
@@ -268,7 +324,7 @@ void ApplyToTarget(Target& t, const Settings& s) {
 
     bool want = t.kind == ColorTargetKind::IconSize   ? (s.appActive && s.iconSize > 0)
               : t.kind == ColorTargetKind::DateYear ? (s.appActive && s.showYear)
-              : t.kind == ColorTargetKind::RectFill ? (s.appActive && (s.colorEnabled || s.floating || s.taskbarStyle == 1))
+              : t.kind == ColorTargetKind::RectFill ? (s.appActive && (s.colorEnabled || s.floating || s.fitApps || s.taskbarStyle == 1))
               : t.kind == ColorTargetKind::Indicator ? (s.appActive && s.indicatorColor && t.hasColor)
                                                     : (s.appActive && s.colorEnabled);
     if (t.kind == ColorTargetKind::Indicator && s.appActive && s.indicatorColor) {
@@ -296,7 +352,15 @@ void ApplyToTarget(Target& t, const Settings& s) {
                 // Floating: a gap all around and round corners. The taskbar window is
                 // see-through outside the rectangle, so the desktop shows there.
                 auto rect = el.try_as<Shapes::Rectangle>();
-                if (s.floating && rect) {
+                bool vertical = false;
+                if (auto root = el.XamlRoot()) vertical = root.Size().Height > root.Size().Width;
+                // Fit to the apps: the background wraps Start + the apps, and the tray gets its own piece.
+                constexpr double kPad = 6;
+                Thickness appsMargin{}, trayMargin{};
+                bool fit = s.fitApps && !vertical && t.haveFit && rect &&
+                           SpanToMargin(el, t.fitStart - kPad, t.fitEnd + kPad, 2, appsMargin) &&
+                           SpanToMargin(el, t.fitTray - kPad, el.XamlRoot().Size().Width - 8, 2, trayMargin);
+                if ((s.floating || fit) && rect) {
                     if (!t.floatApplied) {
                         t.originalMargin = el.Margin();
                         t.originalRadiusX = rect.RadiusX();
@@ -308,7 +372,7 @@ void ApplyToTarget(Target& t, const Settings& s) {
                             int n = Media::VisualTreeHelper::GetChildrenCount(parent);
                             for (int i = 0; i < n; i++) {
                                 auto sib = Media::VisualTreeHelper::GetChild(parent, i).try_as<FrameworkElement>();
-                                if (!sib || sib == el || sib.Name() == kLayerName) continue;
+                                if (!sib || sib == el || IsOurs(sib)) continue;
                                 Log(L"Floating: hiding %s #%s", winrt::get_class_name(sib).c_str(), sib.Name().c_str());
                                 t.hiddenSiblings.emplace_back(winrt::make_weak<UIElement>(sib), sib.Opacity());
                                 sib.Opacity(0);
@@ -317,9 +381,7 @@ void ApplyToTarget(Target& t, const Settings& s) {
                     }
                     // Only a small gap along the thin side, so the running-app
                     // lines stay on the background; more at both ends.
-                    bool vertical = false;
-                    if (auto root = el.XamlRoot()) vertical = root.Size().Height > root.Size().Width;
-                    el.Margin(vertical ? Thickness{2, 8, 2, 8} : Thickness{8, 2, 8, 2});
+                    el.Margin(fit ? appsMargin : vertical ? Thickness{2, 8, 2, 8} : Thickness{8, 2, 8, 2});
                     rect.RadiusX(8);
                     rect.RadiusY(8);
                 } else if (t.floatApplied && rect) {
@@ -344,11 +406,53 @@ void ApplyToTarget(Target& t, const Settings& s) {
                 } else {
                     RemoveLayer(t);
                 }
+                // The tray's piece: Windows' fill (the blur) and our color over it, like the apps' piece.
+                if (fit) {
+                    auto fill = t.trayFill.get();
+                    if (!fill && (fill = AddRectAbove(el, el, kTrayFillName))) {
+                        t.trayFill = winrt::make_weak(fill);
+                        Log(L"Fit to apps: tray background added");
+                    }
+                    if (fill) {
+                        fill.Fill(rect.Fill());
+                        fill.Margin(trayMargin);
+                        fill.RadiusX(8);
+                        fill.RadiusY(8);
+                    }
+                    auto layer = t.layer.get();
+                    if (layer && fill) {
+                        auto trayLayer = t.trayLayer.get();
+                        if (!trayLayer && (trayLayer = AddRectAbove(el, fill, kTrayLayerName)))
+                            t.trayLayer = winrt::make_weak(trayLayer);
+                        if (trayLayer) {
+                            trayLayer.Fill(layer.Fill());
+                            trayLayer.Margin(trayMargin);
+                            trayLayer.RadiusX(8);
+                            trayLayer.RadiusY(8);
+                        }
+                    } else {
+                        RemoveRect(t.trayLayer);
+                    }
+                } else {
+                    RemoveRect(t.trayLayer);
+                    RemoveRect(t.trayFill);
+                }
             } else {
                 SetValue(el, t.kind, Media::SolidColorBrush(ToColor(s.color)));
             }
         } else if (t.applied) {
-            if (t.kind == ColorTargetKind::RectFill) RemoveLayer(t);   // its brush was never changed
+            if (t.kind == ColorTargetKind::RectFill) {   // its brush was never changed
+                RemoveLayer(t);
+                RemoveRect(t.trayLayer);
+                RemoveRect(t.trayFill);
+            }
+            else if (t.kind == ColorTargetKind::IconSize) {
+                // Give the size back to Windows' template, not a fixed copy of what it was:
+                // the button's own states change it (small buttons, when full), and a fixed
+                // value left some icons big and some small.
+                el.ClearValue(FrameworkElement::WidthProperty());
+                el.ClearValue(FrameworkElement::HeightProperty());
+            }
             else SetValue(el, t.kind, t.original);
             el.Opacity(t.originalOpacity);
             t.applied = false;
@@ -413,6 +517,60 @@ void TrackColorTarget(FrameworkElement const& element, ColorTargetKind kind,
     });
 
     ApplyToTarget(*target, LoadSettings());
+}
+
+namespace {
+
+// The taskbar background targets on this thread in the same XamlRoot as `inRoot`.
+template <typename F>
+void ForFitTargets(const FrameworkElement& inRoot, F&& f) {
+    auto root = inRoot.XamlRoot();
+    if (!root) return;
+    void* rootAbi = winrt::get_abi(root);
+    void* queueAbi = winrt::get_abi(winrt::Windows::System::DispatcherQueue::GetForCurrentThread());
+    std::vector<std::shared_ptr<Target>> mine;
+    {
+        std::lock_guard lock(g_targetsMutex);
+        for (auto& t : g_targets) {
+            if (t->kind != ColorTargetKind::RectFill || winrt::get_abi(t->queue) != queueAbi) continue;
+            auto el = t->element.get();
+            if (!el || !el.XamlRoot() || winrt::get_abi(el.XamlRoot()) != rootAbi) continue;
+            mine.push_back(t);
+        }
+    }
+    for (auto& t : mine) f(*t);
+}
+
+}  // namespace
+
+void ReportTaskbarFit(const FrameworkElement& inRoot, double appsStart, double appsEnd, double trayStart,
+                      const Settings& settings) {
+    try {
+        ForFitTargets(inRoot, [&](Target& t) {
+            // Only when something really moved: each change is a layout pass of the taskbar.
+            if (t.haveFit && std::abs(t.fitStart - appsStart) < 0.5 && std::abs(t.fitEnd - appsEnd) < 0.5 &&
+                std::abs(t.fitTray - trayStart) < 0.5)
+                return;
+            t.haveFit = true;
+            t.fitStart = appsStart;
+            t.fitEnd = appsEnd;
+            t.fitTray = trayStart;
+            if (!t.applying) ApplyToTarget(t, settings);
+        });
+    } catch (...) {
+        Log(L"Fit to apps failed: 0x%08X", winrt::to_hresult());
+    }
+}
+
+void ClearTaskbarFit(const FrameworkElement& inRoot, const Settings& settings) {
+    try {
+        ForFitTargets(inRoot, [&](Target& t) {
+            if (!t.haveFit) return;
+            t.haveFit = false;
+            if (!t.applying) ApplyToTarget(t, settings);
+        });
+    } catch (...) {
+    }
 }
 
 void ApplyColorToAll(const Settings& settings) {

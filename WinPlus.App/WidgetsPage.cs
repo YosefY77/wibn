@@ -22,6 +22,18 @@ namespace WinPlus
                 Children.Add(Row(add, kind.Icon, kind.Name, kind.Description));
             }
 
+            // The desktop's files from the bottom-left corner (not a widget: it comes out of the corner).
+            var corner = new CheckBox { Style = St("Switch"), IsChecked = DesktopCorner.Enabled, VerticalAlignment = VerticalAlignment.Center };
+            corner.Click += (_, _) => DesktopCorner.Enabled = corner.IsChecked == true;
+            Children.Add(Row(corner, "\uE8B7", Lang.T("ملفات سطح المكتب من الزاوية"),
+                Lang.T("ودّ الماوس للزاوية اللي يسار تحت ويطلع لك مربع صغير، اضغطه وتطلع قائمة فيها كل اللي على سطح المكتب")));
+
+            // Wibn's right-click menu on the desktop, in the widgets' look.
+            var deskMenu = new CheckBox { Style = St("Switch"), IsChecked = DesktopMenu.Enabled, VerticalAlignment = VerticalAlignment.Center };
+            deskMenu.Click += (_, _) => DesktopMenu.Enabled = deskMenu.IsChecked == true;
+            Children.Add(Row(deskMenu, "", Lang.T("قائمة كليك يمين لسطح المكتب"),
+                Lang.T("بنفس شكل ولون الويدجتات. «عرض المزيد من الخيارات» يفتح قائمة ويندوز، وكليك يمين على أيقونة أو مع Shift يبقى مثل ويندوز")));
+
             Children.Add(new TextBlock { Style = St("Section"), FontSize = 18, Margin = new Thickness(2, 24, 0, 8), Text = Lang.T("شكل الويدجت") });
             AddBackColor();
             AddFont();

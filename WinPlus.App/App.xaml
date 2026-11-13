@@ -482,6 +482,33 @@
         <SolidColorBrush x:Key="MenuEdge" Color="#3A3C42"/>
         <SolidColorBrush x:Key="MenuHover" Color="#2E3036"/>
 
+        <!-- Every tooltip in the app: dark and rounded, like the widgets' right-click menu
+             (instead of Windows' white box). -->
+        <Style TargetType="ToolTip">
+            <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HasDropShadow" Value="False"/>
+            <Setter Property="Placement" Value="Mouse"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{StaticResource MenuBg}" BorderBrush="{StaticResource MenuEdge}" BorderThickness="1"
+                                CornerRadius="8" Padding="10,6" MaxWidth="420">
+                            <ContentPresenter>
+                                <ContentPresenter.Resources>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                    </Style>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="DarkContextMenu" TargetType="ContextMenu">
             <Setter Property="Foreground" Value="{StaticResource Fg}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
