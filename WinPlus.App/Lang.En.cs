@@ -392,6 +392,8 @@ namespace WinPlus
             ["بالألعاب يطلع بزر ويندوز بس"] = "In games, only the Windows key shows it",
             ["يختفي لما تكون نافذة تحته"] = "Hide when a window is under it",
             ["الأزرار"] = "Buttons",
+            ["ما اشتغل في ديسكورد؟"] = "Didn't work in Discord?",
+            ["أضف الاختصار في ديسكورد ← الإعدادات ← Keybinds: Toggle Mute = {0}، وToggle Deafen = {1}. مرة وحدة على كل جهاز."] = "Add the shortcut in Discord → Settings → Keybinds: Toggle Mute = {0}, and Toggle Deafen = {1}. Once on each PC.",
             ["احفظ في ملف"] = "Save to a file",
             ["جيب من ملف"] = "Load from a file",
             ["إعدادات البرنامج"] = "App settings",

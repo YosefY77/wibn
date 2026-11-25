@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -387,6 +387,7 @@ namespace WinPlus
                 case "discord_mute" or "discord_deafen":
                     var (m, k) = DiscordKeys(id);
                     SendKeys(m, k);
+                    DiscordTipOnce();
                     break;
                 case "show_desktop": SendKeys(HotkeyManager.MOD_WIN, 0x44 /* D */); break;
                 case "sleep": SetSuspendState(false, false, false); break;
@@ -395,6 +396,26 @@ namespace WinPlus
                 case "calculator": Start("calc.exe"); break;
                 case "empty_bin": SHEmptyRecycleBin(IntPtr.Zero, null, 0); break;   // Windows asks first
             }
+        }
+
+        /// <summary>
+        /// The Discord buttons press a shortcut that Discord answers only once it's added in Discord's own settings
+        /// (Keybinds), and that setting stays in Discord on each PC. The first press on a PC says so, once.
+        /// </summary>
+        private void DiscordTipOnce()
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\WinPlus\Widgets");
+                if (key.GetValue("DiscordTipShown") is int shown && shown == 1) return;
+                key.SetValue("DiscordTipShown", 1);
+                var (mm, mk) = DiscordKeys("discord_mute");
+                var (dm, dk) = DiscordKeys("discord_deafen");
+                CaptureToast.Show(Lang.T("ما اشتغل في ديسكورد؟"),
+                    Lang.F("أضف الاختصار في ديسكورد ← الإعدادات ← Keybinds: Toggle Mute = {0}، وToggle Deafen = {1}. مرة وحدة على كل جهاز.",
+                           HotkeyManager.KeyText(mm, mk), HotkeyManager.KeyText(dm, dk)));
+            }
+            catch { }
         }
 
         private (uint Mods, uint Vk) DiscordKeys(string id)

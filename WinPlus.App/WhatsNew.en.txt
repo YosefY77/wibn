@@ -1,3 +1,4 @@
 # What's new, one line per change (English). Lines starting with # are skipped.
 - The settings file keeps only settings, not your programs (apps pinned to the taskbar, shortcut widgets' programs), so nothing missing shows up on another PC
 - The taskbar leaves out pinned apps that aren't on the PC any more
+- The first press on a Discord button in the quick bar explains how to add its shortcut in Discord's settings so it works

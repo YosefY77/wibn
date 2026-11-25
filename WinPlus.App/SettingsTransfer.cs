@@ -42,7 +42,7 @@ namespace WinPlus
             @"TaskbarScroll\WhatsNewSeen", @"TaskbarScroll\LockedFiles", @"TaskbarScroll\AppActive",
             // This PC's programs, not settings: on another PC they aren't there (pinned apps showed up empty).
             @"CustomTaskbar\Pins", @"CustomTaskbar\PinsPackaged", @"CustomTaskbar\TrayHidden", @"CustomTaskbar\TrayShown",
-            @"GameMode\TaskExe",
+            @"GameMode\TaskExe", @"Widgets\DiscordTipShown",
         };
         private static readonly string[] SkipNames = { "AppBar", "WasShared" };
 
