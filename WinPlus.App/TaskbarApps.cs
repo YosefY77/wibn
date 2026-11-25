@@ -80,14 +80,31 @@ namespace WinPlus
                     saved = withPackaged.ToArray();
                     try { using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(Key); k.SetValue("PinsPackaged", 1); } catch { }
                 }
-                // A pin whose file isn't on this PC (e.g. settings brought in from another PC) is dropped: it only
-                // showed up as an empty button. Store apps and network paths (maybe just offline now) stay.
-                _pins = saved.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase)
-                             .Where(p => p.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || p.StartsWith(@"\\") || System.IO.File.Exists(p) || System.IO.Directory.Exists(p))
-                             .Select(MakePin).ToList();
+                // A pin that isn't on this PC (e.g. settings brought in from another PC) is dropped: it only showed
+                // up as an empty button. Network paths (maybe just offline now) stay.
+                var all = saved.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var here = all.Where(OnThisPc).ToList();
+                // Most of them aren't here: the list came from another PC (settings brought in before they left the
+                // pins out) and replaced this PC's own. This PC's pins come back from Windows' own taskbar.
+                if (all.Count - here.Count >= Math.Max(1, here.Count))
+                {
+                    var mine = ImportWindowsPins().ToList();
+                    AddPackagedPins(mine);
+                    here = here.Concat(mine.Where(OnThisPc)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    CrashLog.Note($"taskbar pins: {all.Count - here.Count} from another PC left out, this PC's taken from Windows");
+                }
+                _pins = here.Select(MakePin).ToList();
                 if (saved.Length > 0) SavePins();
                 return _pins;
             }
+        }
+
+        /// <summary>Is this pin on this PC: its file or folder there, its Store app installed (network paths: yes).</summary>
+        private static bool OnThisPc(string p)
+        {
+            if (p.StartsWith(@"shell:AppsFolder\", StringComparison.OrdinalIgnoreCase)) return DisplayName(p) != null;
+            if (p.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || p.StartsWith(@"\\")) return true;
+            return System.IO.File.Exists(p) || System.IO.Directory.Exists(p);
         }
 
         // ---- Following Windows' pins --------------------------------------------------------------
