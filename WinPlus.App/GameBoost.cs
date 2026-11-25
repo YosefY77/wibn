@@ -326,6 +326,51 @@ namespace WinPlus
             return null;
         }
 
+        private static readonly Dictionary<uint, (bool Game, DateTime At)> _gameWindowCache = new();
+        private static HashSet<string>? _windowsGames;
+        private static DateTime _windowsGamesAt;
+
+        /// <summary>
+        /// This window is a game: in exclusive full screen, one of "my games", in a game library's
+        /// folder, or one Windows itself knows as a game (Game Bar's list). Cached a few seconds per process.
+        /// </summary>
+        public static bool IsGameWindow(IntPtr hwnd, bool exclusiveFullscreen = false)
+        {
+            if (hwnd == IntPtr.Zero) return false;
+            GetWindowThreadProcessId(hwnd, out uint pid);
+            if (pid == 0 || pid == (uint)Environment.ProcessId) return false;
+            var now = DateTime.Now;
+            if (_gameWindowCache.TryGetValue(pid, out var c) && (now - c.At).TotalSeconds < 5) return c.Game || exclusiveFullscreen;
+            bool game = false;
+            if (ImagePath((int)pid) is { } path && !IsNotGame(path))
+                game = MyGames.Any(g => string.Equals(g, path, StringComparison.OrdinalIgnoreCase))
+                       || LooksLikeGame(path)
+                       || WindowsGames().Contains(path);
+            if (_gameWindowCache.Count > 64) _gameWindowCache.Clear();
+            _gameWindowCache[pid] = (game, now);
+            return game || exclusiveFullscreen;
+        }
+
+        /// <summary>The games Windows has seen (HKCU\System\GameConfigStore\Children), read once a minute.</summary>
+        private static HashSet<string> WindowsGames()
+        {
+            if (_windowsGames != null && (DateTime.Now - _windowsGamesAt).TotalSeconds < 60) return _windowsGames;
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var root = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"System\GameConfigStore\Children");
+                foreach (var name in root?.GetSubKeyNames() ?? Array.Empty<string>())
+                {
+                    using var k = root!.OpenSubKey(name);
+                    if (k?.GetValue("MatchedExeFullPath") is string p && p.Length > 0) set.Add(p);
+                }
+            }
+            catch { }
+            _windowsGames = set;
+            _windowsGamesAt = DateTime.Now;
+            return set;
+        }
+
         private static bool LooksLikeGame(string path) =>
             path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
             && LibraryParts.Any(l => path.Contains(l, StringComparison.OrdinalIgnoreCase))

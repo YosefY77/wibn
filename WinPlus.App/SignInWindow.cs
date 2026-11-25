@@ -80,6 +80,12 @@ namespace WinPlus
             Content = layout;
 
             Loaded += async (_, _) => await StartAsync();
+            Closed += (_, _) =>
+            {
+                // Let the browser go here, on the UI thread: left to the garbage collector it's
+                // closed from the finalizer thread, and WebView2 crashes the whole app there.
+                try { _web.Dispose(); } catch { }
+            };
             Closing += async (_, e) =>
             {
                 if (_saved) return;

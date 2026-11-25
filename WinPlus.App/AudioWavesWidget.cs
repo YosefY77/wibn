@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -36,6 +36,11 @@ namespace WinPlus
         private readonly TextBlock _problem;
         private readonly SolidColorBrush _ink = new(Color.FromRgb(0xA0, 0xA3, 0xAA));
         private readonly DispatcherTimer _watch = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(3) };
+        // Its frames: 30 a second while there's sound, a look 5 times a second while it's silent. Not every
+        // screen frame (CompositionTarget.Rendering): that kept Wibn drawing 60-144 times a second for good,
+        // over a see-through bar with glass, and the whole PC stuttered.
+        private const int FrameMs = 33, QuietMs = 200;
+        private readonly DispatcherTimer _frame = new(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(FrameMs) };
 
         // Filled by the capture thread, read by the UI.
         private readonly object _lock = new();
@@ -62,6 +67,7 @@ namespace WinPlus
             grid.Children.Add(_problem);
             Child = grid;
             _watch.Tick += (_, _) => Watch();
+            _frame.Tick += OnFrame;
         }
 
         public override (int MinW, int MinH, int MaxW, int MaxH) Limits => (2, 1, Widgets.AnyMax, Widgets.MaxCells);
@@ -75,12 +81,26 @@ namespace WinPlus
 
         public override Thickness? CardPadding => new Thickness(6);
 
+        /// <summary>On a bar: its moving waves, small.</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            double t = Math.Max(20, (l.Vertical ? 44 : l.Thick) - 12);
+            return new System.Windows.Shapes.Rectangle
+            {
+                Width = l.Vertical ? t : t * 3, Height = l.Vertical ? t * 2 : t,
+                Fill = new VisualBrush(_canvas) { Stretch = Stretch.Fill },
+                VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(3),
+            };
+        }
+
         public override void Start()
         {
             _running = true;
             Open();
             _watch.Start();
-            CompositionTarget.Rendering += OnFrame;
+            _frame.Interval = TimeSpan.FromMilliseconds(FrameMs);
+            _frame.Start();
         }
 
         private bool _paused;
@@ -96,7 +116,7 @@ namespace WinPlus
         {
             _running = false;
             _watch.Stop();
-            CompositionTarget.Rendering -= OnFrame;
+            _frame.Stop();
             Close();
         }
 
@@ -300,6 +320,8 @@ namespace WinPlus
         {
             if (!_running || !IsVisible) return;
             _canvas.Tick();
+            var every = TimeSpan.FromMilliseconds(_canvas.Quiet ? QuietMs : FrameMs);
+            if (_frame.Interval != every) _frame.Interval = every;
         }
 
         // ---- Drawing --------------------------------------------------------------------------
@@ -317,6 +339,7 @@ namespace WinPlus
             private double[] _peaks = Array.Empty<double>();
             private double _level, _phase, _gain = 1;
             private bool _quiet;
+            public bool Quiet => _quiet;
             private Color _color = Color.FromRgb(0x4C, 0x8D, 0xFF);
             private Brush _fill = null!, _soft = null!;
             private Pen _pen = null!, _thin = null!;

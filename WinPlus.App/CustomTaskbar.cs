@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -70,21 +70,140 @@ namespace WinPlus
         /// <summary>0 = small, 1 = medium, 2 = large.</summary>
         public static int IconSize { get => Get("IconSize", 1); set { Set("IconSize", value); Restyle(); } }
         public static bool Labels { get => Get("Labels", 0) != 0; set { Set("Labels", value ? 1 : 0); Restyle(); } }
+        /// <summary>Every icon on the bar in white and a little see-through.</summary>
+        public static bool WhiteIcons { get => Get("WhiteIcons", 0) != 0; set { Set("WhiteIcons", value ? 1 : 0); Restyle(); } }
         /// <summary>0 = like Windows (48), 1 = thicker (56), 2 = thickest (64).</summary>
         public static int Thickness { get => Get("Thickness", 1); set { Set("Thickness", value); Restyle(); } }
+        /// <summary>Where Wibn's bar is: 0 = where Windows' taskbar is (the bottom), 1 = top, 2 = left, 3 = right. Set by dragging the bar.</summary>
+        public static int Edge
+        {
+            get => Math.Clamp(Get("Edge", 0), 0, 3);
+            set
+            {
+                if (value == Edge) return;
+                Set("Edge", Math.Clamp(value, 0, 3));
+                _workAreaSetAt.Clear();   // the work area changes right away
+                Restyle();
+                WidgetsFollowSoon();
+            }
+        }
+
+        /// <summary>The bar's strip on the chosen edge of a screen (as thick as chosen; a side bar a little wider, for the clock).</summary>
+        internal static RECT EdgeStrip(RECT m, IntPtr window, int edge)
+        {
+            uint dpi = GetDpiForWindow(window);
+            double scale = (dpi == 0 ? 96 : dpi) / 96.0;
+            int thick = (int)Math.Round((edge >= 2 ? ThicknessDip + 16 : ThicknessDip) * scale);
+            return edge switch
+            {
+                1 => new RECT { Left = m.Left, Top = m.Top, Right = m.Right, Bottom = m.Top + thick },
+                2 => new RECT { Left = m.Left, Top = m.Top, Right = m.Left + thick, Bottom = m.Bottom },
+                3 => new RECT { Left = m.Right - thick, Top = m.Top, Right = m.Right, Bottom = m.Bottom },
+                _ => new RECT { Left = m.Left, Top = m.Bottom - thick, Right = m.Right, Bottom = m.Bottom },
+            };
+        }
+
+        /// <summary>The screen without the bar's strip.</summary>
+        private static RECT WithoutStrip(RECT m, RECT strip, int edge)
+        {
+            var r = m;
+            if (edge == 1) r.Top = strip.Bottom;
+            else if (edge == 2) r.Left = strip.Right;
+            else if (edge == 3) r.Right = strip.Left;
+            else r.Bottom = strip.Top;
+            return r;
+        }
+
+        /// <summary>With the split taskbar: the clock's own edge (0 = bottom, 1 = top), or -1 = beside the apps. Set by dragging the clock's piece.</summary>
+        public static int ClockEdge
+        {
+            get => Math.Clamp(Get("ClockEdge", -1), -1, 1);
+            set
+            {
+                if (value == ClockEdge) return;
+                Set("ClockEdge", Math.Clamp(value, -1, 1));
+                _workAreaSetAt.Clear();
+                Restyle();
+                WidgetsFollowSoon();
+            }
+        }
+
+        /// <summary>
+        /// Split taskbar, the clock on its own edge: at which end of it, 0 = right, 1 = left. The info bar on the
+        /// same edge then sits in the rest of it (beside the clock when it's on the same side).
+        /// </summary>
+        public static int ClockSide
+        {
+            get => Math.Clamp(Get("ClockSide", 0), 0, 1);
+            set
+            {
+                if (value == ClockSide) return;
+                Set("ClockSide", Math.Clamp(value, 0, 1));
+                foreach (var b in _bars.Values) b.ApplyPieceLengths();
+                WidgetsFollowSoon();
+                Changed?.Invoke();   // the info bar beside it moves over too
+            }
+        }
+
+        /// <summary>Split taskbar: how long the apps' piece is at least (DIPs; 0 = as long as what's on it). Set by dragging its ends.</summary>
+        public static int AppsLength { get => Math.Max(0, Get("AppsLength", 0)); set { Set("AppsLength", Math.Max(0, value)); foreach (var b in _bars.Values) b.ApplyPieceLengths(); } }
+        /// <summary>Split taskbar: where the clock and what's around it sit in their piece when it's longer: 0 = right, 1 = left, 2 = middle.</summary>
+        public static int ClockAlign { get => Math.Clamp(Get("ClockAlign", 0), 0, 2); set { Set("ClockAlign", Math.Clamp(value, 0, 2)); foreach (var b in _bars.Values) b.ApplyPieceLengths(); } }
+        /// <summary>Split taskbar: how long the clock's piece is at least (DIPs; 0 = as long as what's on it). Set by dragging its end.</summary>
+        public static int ClockLength { get => Math.Max(0, Get("ClockLength", 0)); set { Set("ClockLength", Math.Max(0, value)); foreach (var b in _bars.Values) b.ApplyPieceLengths(); } }
+
+        /// <summary>The clock's edge when it's apart from the apps (split, the apps at the bottom or top, the clock on the other), else -1.</summary>
+        internal static int ClockApartEdge(int appsEdge)
+        {
+            int c = ClockEdge;
+            return Split && appsEdge is 0 or 1 && c >= 0 && c != appsEdge ? c : -1;
+        }
+
+        /// <summary>Where the clock's own bar is on the screen that has this point (null if it isn't apart there).</summary>
+        public static RECT? ClockOn(int x, int y)
+        {
+            if (!_running) return null;
+            foreach (var b in _bars.Values)
+            {
+                var m = b.Monitor;
+                var p = b.ClockPlaced;
+                if (p.Width == 0 || x < m.Left || x >= m.Right || y < m.Top || y >= m.Bottom) continue;
+                return p;
+            }
+            return null;
+        }
+
+        /// <summary>The apps on one bar, and the clock with what's around it on a bar of its own.</summary>
+        public static bool Split { get => Get("Split", 0) != 0; set { Set("Split", value ? 1 : 0); Restyle(); } }
         /// <summary>How much shorter the bar is at each end (DIPs; 0 = as long as the screen allows). Set by dragging its ends.</summary>
         public static int Inset { get => Math.Max(0, Get("Inset", 0)); set { Set("Inset", Math.Max(0, value)); Relayout(); } }
         public static double ThicknessDip => Thickness switch { 0 => 48, 2 => 64, _ => 56 };
         public static bool StartButton { get => Get("Start", 1) != 0; set { Set("Start", value ? 1 : 0); Restyle(); } }
+        /// <summary>The Start button's icon: 0 = Windows logo, 1 = Wibn's logo, 2+ = StartLogo.Glyphs, -1 = the user's picture.</summary>
+        public static int StartIcon { get => Get("StartIcon", 0); set { Set("StartIcon", value); Restyle(); } }
+        /// <summary>The Start button's color (0xRRGGBB); -1 = Windows' blue.</summary>
+        public static int StartColor { get => Get("StartColor", -1); set { Set("StartColor", value); Restyle(); } }
         /// <summary>A full-screen app (game, video) hides the bar; the mouse at the screen's edge shows it.</summary>
         public static bool HideInFullscreen
         {
             get => Get("Fullscreen", 1) != 0;
             set { Set("Fullscreen", value ? 1 : 0); if (!value) RestoreWorkAreas(); }
         }
+        /// <summary>
+        /// The window in front is under a bar (a window raised up under the bars along the top…): only that bar
+        /// slides away so the window shows; the mouse at the edge over it brings it back. On by default.
+        /// </summary>
+        public static bool HideOverWindow
+        {
+            get => Get("HideOverWindow", 1) != 0;
+            set { Set("HideOverWindow", value ? 1 : 0); Poke(); InfoBar.CoverSettingChanged(); Changed?.Invoke(); }
+        }
+
+        /// <summary>Over a game the mouse at the edge doesn't bring the bar: only the Windows key (Start) does.</summary>
+        public static bool GamesKeyOnly { get => Get("GamesKeyOnly", 1) != 0; set => Set("GamesKeyOnly", value ? 1 : 0); }
         public static bool SearchButton { get => Get("Search", 1) != 0; set { Set("Search", value ? 1 : 0); Restyle(); } }
         public static bool TaskViewButton { get => Get("TaskView", 0) != 0; set { Set("TaskView", value ? 1 : 0); Restyle(); } }
-        public static bool Seconds { get => Get("Seconds", 0) != 0; set { Set("Seconds", value ? 1 : 0); Restyle(); } }
+        public static bool Seconds { get => Get("Seconds", 0) != 0; set { Set("Seconds", value ? 1 : 0); Restyle(); InfoBar.RebuildAll(); } }   // the info bars' clocks too
         public static bool ShowDate { get => Get("Date", 1) != 0; set { Set("Date", value ? 1 : 0); Restyle(); } }
         public static bool DesktopCorner { get => Get("DesktopCorner", 1) != 0; set { Set("DesktopCorner", value ? 1 : 0); Restyle(); } }
 
@@ -109,11 +228,40 @@ namespace WinPlus
             foreach (var b in _bars.Values)
             {
                 var m = b.Monitor;
-                var p = b.Placed;
+                var p = b.FullPlaced;   // its full length: shortening the bar doesn't move the widgets
                 if (b.Vertical || p.Width == 0 || x < m.Left || x >= m.Right || y < m.Top || y >= m.Bottom) continue;
                 return (p.Left, p.Right);
             }
             return null;
+        }
+
+        /// <summary>Where Wibn's side (vertical) bar is on the screen that has this point (null if none there).</summary>
+        public static RECT? SideBarOn(int x, int y)
+        {
+            if (!_running) return null;
+            foreach (var b in _bars.Values)
+            {
+                var m = b.Monitor;
+                var p = b.FullPlaced;
+                if (!b.Vertical || p.Width == 0 || x < m.Left || x >= m.Right || y < m.Top || y >= m.Bottom) continue;
+                return p;
+            }
+            return null;
+        }
+
+        /// <summary>Every piece of Wibn's taskbar on the screen that has this point (the bar, or a split bar's pieces and
+        /// the clock's own bar), and whether each is showing.</summary>
+        public static List<(RECT Rect, bool Shown)> PiecesOn(int x, int y)
+        {
+            var list = new List<(RECT, bool)>();
+            if (!_running) return list;
+            foreach (var b in _bars.Values)
+            {
+                var m = b.Monitor;
+                if (x < m.Left || x >= m.Right || y < m.Top || y >= m.Bottom) continue;
+                list.AddRange(b.ScreenPieces());
+            }
+            return list;
         }
 
         /// <summary>Where Wibn's horizontal taskbar is on the screen that has this point (null if none there).</summary>
@@ -123,7 +271,7 @@ namespace WinPlus
             foreach (var b in _bars.Values)
             {
                 var m = b.Monitor;
-                var p = b.Placed;
+                var p = b.FullPlaced;
                 if (b.Vertical || p.Width == 0 || x < m.Left || x >= m.Right || y < m.Top || y >= m.Bottom) continue;
                 return p;
             }
@@ -164,6 +312,9 @@ namespace WinPlus
         // ---- Running ------------------------------------------------------------------------------
 
         private static readonly Dictionary<IntPtr, TaskbarBar> _bars = new();   // Windows' taskbar window → our bar
+
+        /// <summary>The color of the taskbar's clock right now (it changes with what's behind); null = Wibn's taskbar isn't up.</summary>
+        internal static System.Windows.Media.Color? ClockInk => _bars.Values.FirstOrDefault()?.Ink.Color;
         private static DispatcherTimer? _timer;
         private static Process? _guard;
         private static bool _running;
@@ -190,6 +341,28 @@ namespace WinPlus
             else if (!want && _running) Stop();
             else if (!want && Get("Active", 0) == 1) { ShowWindowsTaskbars(); RemoveLeftAppBars(); RestoreWorkAreas(); Set("Active", 0); }   // killed last time
             Changed?.Invoke();
+        }
+
+        private static int _poked;
+
+        /// <summary>
+        /// A window was just maximized, restored, minimized or came to the front (any thread): look now, not at the
+        /// next tick, so the taskbar slides away (or back) together with the info bars (they hear it from Windows
+        /// at once; a tick could be a quarter of a second away).
+        /// </summary>
+        public static void Poke()
+        {
+            if (!_running || Interlocked.Exchange(ref _poked, 1) == 1) return;
+            try
+            {
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() =>
+                {
+                    Interlocked.Exchange(ref _poked, 0);
+                    if (!_running) return;
+                    try { Tick(); } catch (Exception ex) { CrashLog.Write("taskbar tick", ex); }
+                }));
+            }
+            catch { Interlocked.Exchange(ref _poked, 0); }
         }
 
         private static void Start()
@@ -285,7 +458,8 @@ namespace WinPlus
             // they are until it's let go, so nothing slides or redraws under the drag.
             bool dragging = fg != IntPtr.Zero && TaskbarPlacement.InMoveSize(GetWindowThreadProcessId(fg, out _));
 
-            bool anyFullscreen = false;
+            bool anyFullscreen = false, anyCovered = false;
+            var front = dragging ? (Rect: (RECT?)null, Dragging: true) : FrontWindow();
             foreach (var tray in trays)
             {
                 if (!GetWindowRect(tray, out RECT rect) || rect.Width < 8 || rect.Height < 8) continue;
@@ -306,30 +480,77 @@ namespace WinPlus
                 }
                 // "Hide in full screen": the whole screen is for the windows, so a maximized window
                 // really takes all of it (and is full screen for the bar, which slides down for it).
-                if (!HideInFullscreen) RestoreWorkArea(monitor);
+                int edge = Edge, clockEdge = ClockApartEdge(edge);
+                if (edge != 0 || clockEdge >= 0)
+                {
+                    // Moved to the top or a side (or the clock on a bar of its own): the windows get the
+                    // screen without the bars' strips (or the whole screen with "hide in full screen"),
+                    // and explorer's strip at the bottom is freed.
+                    if (!_peeking)
+                    {
+                        var target = mi.rcMonitor;
+                        if (!HideInFullscreen)
+                        {
+                            target = WithoutStrip(target, EdgeStrip(mi.rcMonitor, tray, edge), edge);
+                            if (clockEdge >= 0) target = WithoutStrip(target, EdgeStrip(mi.rcMonitor, tray, clockEdge), clockEdge);
+                        }
+                        SetWorkArea(monitor, ref mi, InfoBar.TrimWorkArea(mi.rcMonitor, target));   // the info bar keeps its room
+                    }
+                }
+                else if (!HideInFullscreen) RestoreWorkArea(monitor);
                 else if (!_peeking) FullWorkArea(monitor, ref mi);
 
-                bool fullscreen = IsFullscreenOn(fg, mi.rcMonitor) || CoveredOn(mi.rcMonitor) ||
+                // "Full screen" is all the room the windows can have (the info bar keeps its strip).
+                var whole = InfoBar.TrimWorkArea(mi.rcMonitor, mi.rcMonitor);
+                bool fullscreen = IsFullscreenOn(fg, whole) || CoveredOn(whole) ||
                                   (windowsSaysFullscreen && fg != IntPtr.Zero && !IsOursOrNothing(fg) && MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) == monitor);
                 if (fullscreen) _fullscreenApp[tray] = fg;
                 else if (_fullscreenApp.TryGetValue(tray, out var app))
                 {
                     // The focus is on Wibn (or nowhere) now: the full-screen app under it still counts.
-                    if (IsOursOrNothing(fg) && IsFullscreenOn(app, mi.rcMonitor)) fullscreen = true;
+                    if (IsOursOrNothing(fg) && IsFullscreenOn(app, whole)) fullscreen = true;
                     else _fullscreenApp.Remove(tray);
                 }
                 anyFullscreen |= fullscreen;
-                var strip = Strip(rect, mi.rcMonitor, mi.rcWork, tray);
-                bool hidden = fullscreen && HideInFullscreen && !Revealed(tray, strip, mi.rcMonitor, cursor);
-                if (!fullscreen) _revealUntil.Remove(tray);
+                var strip = edge != 0 ? EdgeStrip(mi.rcMonitor, tray, edge) : Strip(rect, mi.rcMonitor, mi.rcWork, tray);
+                // Start (or search) open on this screen: the bar comes up with it, even over a full-screen app.
+                bool startOpen = fullscreen && IsStartOrSearch(fg) && MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) == monitor;
+                // A game: the mouse at the edge (aiming, turning the camera) doesn't bring the bar, only the Windows key.
+                bool game = fullscreen && HideInFullscreen && GamesKeyOnly && !startOpen &&
+                            GameBoost.IsGameWindow(IsOursOrNothing(fg) && _fullscreenApp.TryGetValue(tray, out var fsApp) ? fsApp : fg,
+                                                   windowsSaysFullscreen && quns == 3 /* exclusive full screen */);
+                // The window in front is under the bar (not full screen): only this bar goes; the mouse at the edge
+                // over it (not anywhere along the edge) brings it back.
+                bool appsCovered = !fullscreen && !startOpen && front.Rect is { } fr && Covers(fr, bar.AppsSpot);
+                bool hidden = (fullscreen && HideInFullscreen && !startOpen && (game || !Revealed(_revealUntil, tray, strip, mi.rcMonitor, cursor)))
+                              || (appsCovered && !Revealed(_revealUntil, tray, strip, mi.rcMonitor, cursor, Along(bar.AppsSpot)));
+                if ((!fullscreen && !appsCovered) || game) _revealUntil.Remove(tray);
                 bool visible = dragging && !_peeking ? bar.Showing : !hidden && !_peeking;
-                bar.Place(strip, mi.rcMonitor, visible, rect, slide: HideInFullscreen && !_peeking, overFullscreen: fullscreen && !dragging);
+                if (!dragging) bar.CoverHidden = appsCovered;
+                // The clock's own bar on the other edge (e.g. at the top): the mouse at that edge brings only it.
+                var clockSpot = bar.ClockSpot;
+                bool clockCovered = clockEdge >= 0 && !fullscreen && !startOpen && front.Rect is { } fc && Covers(fc, clockSpot);
+                bool clockVisible = visible;
+                if (clockEdge >= 0 && !_peeking && !dragging)
+                {
+                    if (fullscreen && HideInFullscreen && !game && !visible)
+                        clockVisible = Revealed(_clockRevealUntil, tray, EdgeStrip(mi.rcMonitor, tray, clockEdge), mi.rcMonitor, cursor, ClockSpan(bar));
+                    else if (clockCovered)
+                        clockVisible = Revealed(_clockRevealUntil, tray, EdgeStrip(mi.rcMonitor, tray, clockEdge), mi.rcMonitor, cursor, Along(clockSpot));
+                    else if (!fullscreen) clockVisible = true;   // the apps' piece may be away under a window: the clock isn't
+                }
+                else if (dragging && !_peeking) clockVisible = bar.ClockShowing;
+                if (!fullscreen && !clockCovered) _clockRevealUntil.Remove(tray);
+                if (!dragging) bar.ClockCoverHidden = clockCovered;
+                anyCovered |= appsCovered || clockCovered;
+                bar.Place(strip, mi.rcMonitor, visible, rect, slide: (HideInFullscreen || appsCovered || clockCovered) && !_peeking, overFullscreen: fullscreen && !dragging, clockVisible: clockVisible);
                 if (tray == trays[0]) TrayHost.SetRect(strip);   // where the taskbar is, for anything that asks
             }
             // Over a full-screen app it checks the mouse more often, so the bar comes up right away.
             if (_timer != null)
             {
-                var want = TimeSpan.FromMilliseconds(anyFullscreen && HideInFullscreen ? 40 : 250);
+                // (Not while a window is being dragged: the bars stay as they are then anyway.)
+                var want = TimeSpan.FromMilliseconds(((anyFullscreen && HideInFullscreen) || anyCovered) && !WindowDrag.Active ? 40 : 250);
                 if (_timer.Interval != want) _timer.Interval = want;
             }
         }
@@ -344,11 +565,16 @@ namespace WinPlus
         private static readonly Dictionary<IntPtr, DateTime> _workAreaSetAt = new();   // when it may be set again
         private static readonly Dictionary<IntPtr, int> _workAreaFights = new();
 
-        private static void FullWorkArea(IntPtr monitor, ref MONITORINFO mi)
+        private static void FullWorkArea(IntPtr monitor, ref MONITORINFO mi) => SetWorkArea(monitor, ref mi, InfoBar.TrimWorkArea(mi.rcMonitor, mi.rcMonitor));
+
+        /// <summary>
+        /// The work area of this screen becomes target (the whole screen, or the screen without the
+        /// strip of a bar moved to the top or a side). Explorer's own is written down first.
+        /// </summary>
+        private static void SetWorkArea(IntPtr monitor, ref MONITORINFO mi, RECT target)
         {
-            var full = mi.rcMonitor;
             var work = mi.rcWork;
-            if (work.Left == full.Left && work.Top == full.Top && work.Right == full.Right && work.Bottom == full.Bottom) return;
+            if (Same(work, target)) return;
             // Explorer took it back right away: set it again at most once a second. Only the first
             // time is every window on the system told (WM_SETTINGCHANGE); telling them again and
             // again lags everything (and can make explorer take it back once more).
@@ -365,22 +591,16 @@ namespace WinPlus
             {
                 try
                 {
-                    var f2 = full;
-                    SystemParametersInfo(SPI_SETWORKAREA, 0, ref f2, flags);
-                    // Windows already maximized here grow into the freed strip (new ones do by themselves).
-                    EnumWindows((h, _) =>
-                    {
-                        if (IsWindowVisible(h) && IsZoomed(h) && MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST) == monitor && GetWindowRect(h, out RECT r))
-                            SetWindowPos(h, IntPtr.Zero, r.Left, r.Top - (work.Top - full.Top), r.Width,
-                                         r.Height + (work.Top - full.Top) + (full.Bottom - work.Bottom),
-                                         0x0004 /* NOZORDER */ | SWP_NOACTIVATE | 0x0200 /* NOOWNERZORDER */ | SWP_ASYNCWINDOWPOS);
-                        return true;
-                    }, IntPtr.Zero);
+                    var t = target;
+                    SystemParametersInfo(SPI_SETWORKAREA, 0, ref t, flags);
+                    FitMaximized(monitor, work, target);   // windows already maximized here follow (new ones do by themselves)
                 }
                 catch (Exception ex) { CrashLog.Write("work area", ex); }
             });
-            mi.rcWork = full;
+            mi.rcWork = target;
         }
+
+        private static bool Same(RECT a, RECT b) => a.Left == b.Left && a.Top == b.Top && a.Right == b.Right && a.Bottom == b.Bottom;
 
         private static void SaveWorkArea(RECT work)
         {
@@ -424,12 +644,13 @@ namespace WinPlus
             int i = list.FindIndex(w => Overlaps(w, mi.rcMonitor));
             if (i < 0) return;
             var w = list[i];
+            var was = mi.rcWork;
             SystemParametersInfo(SPI_SETWORKAREA, 0, ref w, SPIF_SENDCHANGE);
             list.RemoveAt(i);
             Set("WorkAreas", list.Select(x => $"{x.Left},{x.Top},{x.Right},{x.Bottom}").ToArray());
             _workAreaSetAt.Remove(monitor);
             _workAreaFights.Remove(monitor);
-            ShrinkMaximized(monitor, mi.rcMonitor, w);
+            FitMaximized(monitor, was, w);
         }
 
         /// <summary>Every screen gets its taskbar strip back (option off, taskbar off, or after a crash).</summary>
@@ -439,24 +660,26 @@ namespace WinPlus
             foreach (var w0 in list)
             {
                 var w = w0;
-                SystemParametersInfo(SPI_SETWORKAREA, 0, ref w, SPIF_SENDCHANGE);
                 IntPtr monitor = MonitorFromRect(ref w, MONITOR_DEFAULTTONEAREST);
                 var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-                if (GetMonitorInfo(monitor, ref mi)) ShrinkMaximized(monitor, mi.rcMonitor, w);
+                bool known = GetMonitorInfo(monitor, ref mi);
+                SystemParametersInfo(SPI_SETWORKAREA, 0, ref w, SPIF_SENDCHANGE);
+                if (known) FitMaximized(monitor, mi.rcWork, w);
             }
             if (list.Count > 0) Set("WorkAreas", Array.Empty<string>());
             _workAreaSetAt.Clear();
             _workAreaFights.Clear();
         }
 
-        /// <summary>Maximized windows stop above the taskbar's strip again.</summary>
-        private static void ShrinkMaximized(IntPtr monitor, RECT full, RECT work)
+        /// <summary>Maximized windows on this screen move their edges from the old work area to the new one.</summary>
+        private static void FitMaximized(IntPtr monitor, RECT from, RECT to)
         {
+            int dl = to.Left - from.Left, dt = to.Top - from.Top, dr = to.Right - from.Right, db = to.Bottom - from.Bottom;
+            if (dl == 0 && dt == 0 && dr == 0 && db == 0) return;
             EnumWindows((h, _) =>
             {
                 if (IsWindowVisible(h) && IsZoomed(h) && MonitorFromWindow(h, MONITOR_DEFAULTTONEAREST) == monitor && GetWindowRect(h, out RECT r))
-                    SetWindowPos(h, IntPtr.Zero, r.Left, r.Top + (work.Top - full.Top), r.Width,
-                                 r.Height - (work.Top - full.Top) - (full.Bottom - work.Bottom),
+                    SetWindowPos(h, IntPtr.Zero, r.Left + dl, r.Top + dt, r.Width - dl + dr, r.Height - dt + db,
                                  0x0004 /* NOZORDER */ | SWP_NOACTIVATE | 0x0200 /* NOOWNERZORDER */ | SWP_ASYNCWINDOWPOS);
                 return true;
             }, IntPtr.Zero);
@@ -469,7 +692,33 @@ namespace WinPlus
         // ---- Full screen: the mouse at the edge brings the bar up ----------------------------------------
 
         private static readonly Dictionary<IntPtr, DateTime> _revealUntil = new();
+        private static readonly Dictionary<IntPtr, DateTime> _clockRevealUntil = new();   // the clock's own bar
         private static readonly Dictionary<IntPtr, IntPtr> _fullscreenApp = new();
+
+        /// <summary>
+        /// The window in front, where it's really drawn (screen pixels), when it can push a bar away (HideOverWindow):
+        /// not Wibn's, not the desktop or Windows' own popups, not minimized or maximized (that's the full-screen
+        /// rule). Dragging = it's being moved or resized right now (the bars are decided once it's let go).
+        /// </summary>
+        internal static (RECT? Rect, bool Dragging) FrontWindow()
+        {
+            if (!HideOverWindow) return (null, false);
+            IntPtr fg = GetForegroundWindow();
+            if (IsOursOrNothing(fg) || !IsWindowVisible(fg) || IsIconic(fg) || IsZoomed(fg) || LiquidGlass.IsOverlay(fg)) return (null, false);
+            var sb = new StringBuilder(64);
+            GetClassName(fg, sb, sb.Capacity);
+            if (sb.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd" or "Windows.UI.Core.CoreWindow") return (null, false);
+            if (DwmGetWindowAttribute(fg, 14 /* DWMWA_CLOAKED */, out int cloaked, 4) == 0 && cloaked != 0) return (null, false);
+            if (TaskbarPlacement.InMoveSize(GetWindowThreadProcessId(fg, out _))) return (null, true);
+            if (DwmGetWindowAttribute(fg, 9 /* DWMWA_EXTENDED_FRAME_BOUNDS */, out RECT r, Marshal.SizeOf<RECT>()) != 0 && !GetWindowRect(fg, out r)) return (null, false);
+            return r.Width > 0 && r.Height > 0 ? (r, false) : (null, false);
+        }
+
+        internal static bool Covers(RECT a, RECT b) =>
+            a.Width > 0 && b.Width > 0 && a.Left < b.Right && b.Left < a.Right && a.Top < b.Bottom && b.Top < a.Bottom;
+
+        /// <summary>A bar's stretch along its edge (across for a bar along the top or bottom, down for a side one).</summary>
+        private static List<(int A, int B)> Along(RECT r) => new() { r.Width >= r.Height ? (r.Left, r.Right) : (r.Top, r.Bottom) };
 
         private static bool IsOursOrNothing(IntPtr h)
         {
@@ -479,17 +728,38 @@ namespace WinPlus
         }
 
         /// <summary>
-        /// Over a full-screen app: the bar shows while the mouse is at the screen's edge on the bar's
-        /// side, and stays while the mouse is on it (or on its menus and previews), then goes a moment later.
+        /// The clock's own bar along its edge (screen pixels), with the info bar when it sits beside it: the mouse
+        /// at the edge brings them down only over there. Null = not placed yet (anywhere along the edge then).
         /// </summary>
-        private static bool Revealed(IntPtr tray, RECT strip, RECT monitor, POINT c)
+        private static List<(int A, int B)>? ClockSpan(TaskbarBar bar)
+        {
+            var spot = bar.ClockSpot;
+            if (spot.Width <= 0) return null;
+            // Each bar on its own (not from the first to the last): the gaps between them are empty, the mouse
+            // there brings nothing.
+            var spans = new List<(int A, int B)> { (spot.Left, spot.Right) };
+            foreach (var s in InfoBar.SharedRects)
+                if (s.Width > 0 && s.Top < spot.Bottom && spot.Top < s.Bottom)
+                    spans.Add((s.Left, s.Right));
+            return spans;
+        }
+
+        /// <summary>
+        /// Over a full-screen app: the bar shows while the mouse is at the screen's edge on the bar's
+        /// side (only over <paramref name="span"/> along it, when given), and stays while the mouse is on it
+        /// (or on its menus and previews), then goes a moment later.
+        /// </summary>
+        private static bool Revealed(Dictionary<IntPtr, DateTime> _revealUntil, IntPtr tray, RECT strip, RECT monitor, POINT c, List<(int A, int B)>? span = null)
         {
             bool inside = c.X >= monitor.Left && c.X < monitor.Right && c.Y >= monitor.Top && c.Y < monitor.Bottom;
+            bool across = strip.Width >= strip.Height;
+            if (span != null) inside &= span.Exists(sp => (across ? c.X : c.Y) >= sp.A - 8 && (across ? c.X : c.Y) <= sp.B + 8);
             bool atEdge = inside && (
-                strip.Bottom >= monitor.Bottom - 1 && strip.Width >= strip.Height ? c.Y >= monitor.Bottom - 2 :
-                strip.Top <= monitor.Top + 1 && strip.Width >= strip.Height ? c.Y <= monitor.Top + 1 :
-                strip.Left <= monitor.Left + 1 ? c.X <= monitor.Left + 1 :
-                c.X >= monitor.Right - 2);
+                // The mouse pushed right against the edge (its very last pixel), not just near it.
+                strip.Bottom >= monitor.Bottom - 1 && strip.Width >= strip.Height ? c.Y >= monitor.Bottom - 1 :
+                strip.Top <= monitor.Top + 1 && strip.Width >= strip.Height ? c.Y <= monitor.Top :
+                strip.Left <= monitor.Left + 1 ? c.X <= monitor.Left :
+                c.X >= monitor.Right - 1);
             var now = DateTime.Now;
             bool shown = _revealUntil.TryGetValue(tray, out var until) && until > now;
             if (atEdge || (shown && (strip.Contains(c) || OverWibn(c, monitor))))
@@ -580,9 +850,9 @@ namespace WinPlus
 
         /// <summary>
         /// A full-screen app on this screen even when it isn't the active window (a video full screen
-        /// on one screen while you work on the other): going down the windows from the top, the
-        /// first real window on this screen covers all of it. Floating things above it (overlays,
-        /// picture-in-picture, Wibn's own windows) don't count.
+        /// on one screen while you work on the other, or a smaller window opened over it): going down
+        /// the windows from the top to the desktop, any real window on this screen covers all of it.
+        /// The bar shows only when there's none (just normal windows over the desktop).
         /// </summary>
         private static bool CoveredOn(RECT monitor)
         {
@@ -606,9 +876,9 @@ namespace WinPlus
                 if (IsShellPopup(h)) return true;
                 bool full = r.Left <= monitor.Left && r.Top <= monitor.Top && r.Right >= monitor.Right && r.Bottom >= monitor.Bottom;
                 if (full) { covered = true; return false; }
-                // Something small always on top (picture-in-picture, a sticky note) floats over it: look under it.
-                if ((ex & 0x8 /* WS_EX_TOPMOST */) != 0) return true;
-                return false;   // a normal window on top: not full screen
+                // A smaller window on top (a normal app window, picture-in-picture, a sticky note): a
+                // full-screen or maximized app under it still counts, so look under it too.
+                return true;
             }, IntPtr.Zero);
             return covered;
         }
@@ -627,6 +897,27 @@ namespace WinPlus
             return c is "Windows.UI.Core.CoreWindow" or "XamlExplorerHostIslandWindow" or "NotifyIconOverflowWindow"
                      or "TopLevelWindowForOverflowXamlIsland" or "Xaml_WindowedPopupClass" or "#32768"
                      or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
+        }
+
+        private static IntPtr _startCheckedFor;
+        private static bool _startChecked;
+
+        /// <summary>The Start menu or Windows search (by its program; remembered per window, since this runs often).</summary>
+        internal static bool IsStartOrSearch(IntPtr h)
+        {
+            if (h == IntPtr.Zero || ClassOf(h) != "Windows.UI.Core.CoreWindow") return false;
+            if (h == _startCheckedFor) return _startChecked;
+            bool yes = false;
+            try
+            {
+                GetWindowThreadProcessId(h, out uint pid);
+                using var p = System.Diagnostics.Process.GetProcessById((int)pid);
+                yes = p.ProcessName is "StartMenuExperienceHost" or "SearchHost" or "SearchApp";
+            }
+            catch { }
+            _startCheckedFor = h;
+            _startChecked = yes;
+            return yes;
         }
 
         private static string ClassOf(IntPtr h)

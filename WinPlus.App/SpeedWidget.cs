@@ -153,6 +153,27 @@ namespace WinPlus
 
         // ---- The widget's life ------------------------------------------------------------------
 
+        /// <summary>On a bar: the last download speed, upload and ping (a click measures again).</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            row.FlowDirection = FlowDirection.LeftToRight;
+            row.Children.Add(BarGlyph(l, "\uE896", l.Font));
+            var big = BarRow(l);
+            big.Orientation = Orientation.Horizontal;
+            var down = BarText(l, _big); down.Margin = new Thickness(0);
+            var unit = BarText(l, _unit, small: true); unit.Margin = new Thickness(2, 0, 0, 0);
+            big.Children.Add(down);
+            big.Children.Add(unit);
+            row.Children.Add(big);
+            if (!l.Vertical)
+            {
+                row.Children.Add(BarText(l, _up, small: true));
+                row.Children.Add(BarText(l, _ping, small: true));
+            }
+            return BarButton(l, row, () => { if (!Testing) Run(); }, Lang.T("اضغط عشان يقيس"));
+        }
+
         public override void Start()
         {
             ShowResult();

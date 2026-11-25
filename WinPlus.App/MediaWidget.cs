@@ -167,6 +167,36 @@ namespace WinPlus
             catch (Exception ex) { CrashLog.Write("media widget", ex); }
         }
 
+        /// <summary>On a bar: its cover, what's playing, and previous / play / next.</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            double side = l.Vertical ? Math.Min(40, l.Thick - 20) : Math.Max(20, l.Thick - 16);
+            var cover = new Border { Width = side, Height = side, CornerRadius = new CornerRadius(4), Margin = l.Vertical ? new Thickness(0, 2, 0, 2) : new Thickness(2, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            cover.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding("Background") { Source = _cover });
+            row.Children.Add(cover);
+            if (!l.Vertical)
+            {
+                var title = BarText(l, _title);
+                title.MaxWidth = 170;
+                title.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _artist });
+                row.Children.Add(title);
+                row.Children.Add(BarButton(l, BarGlyph(l, GPrev, l.Font), () => Do(s => s.TrySkipPreviousAsync().AsTask()), Lang.T("السابق")));
+            }
+            var play = BarGlyph(l, GPlay, l.Font + 2);
+            play.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Text") { Source = _playGlyph });
+            row.Children.Add(BarButton(l, play, () => Do(s => s.TryTogglePlayPauseAsync().AsTask())));
+            if (!l.Vertical) row.Children.Add(BarButton(l, BarGlyph(l, GNext, l.Font), () => Do(s => s.TrySkipNextAsync().AsTask()), Lang.T("التالي")));
+            return row;
+        }
+
+        /// <summary>Out of sight (a full-screen app, a maximized window over it): it stops updating until it shows again.</summary>
+        public override void Covered(bool covered)
+        {
+            if (covered) _timer.Stop();
+            else if (_running) _timer.Start();
+        }
+
         public override void Stop()
         {
             _running = false;

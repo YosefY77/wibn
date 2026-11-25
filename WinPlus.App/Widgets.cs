@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -26,6 +26,40 @@ namespace WinPlus
         public virtual void Covered(bool covered) { }
         /// <summary>Glass with something light behind it: dark text (true), or light text (false).</summary>
         public virtual void SetLightBehind(bool light) { }
+
+        private bool _lastLight;
+
+        /// <summary>
+        /// What the window calls (not <see cref="SetLightBehind"/>): the widget picks dark or light
+        /// text, then, if a text color is chosen on the Widgets page, all its text (the main
+        /// "_ink" and the gray "_inkMuted" / "_muted") takes that color instead.
+        /// </summary>
+        public void ApplyLight(bool light)
+        {
+            _lastLight = light;
+            SetLightBehind(light);
+            if (Widgets.TextColor != 0) TintText(Widgets.FromArgb(Widgets.TextColor));
+        }
+
+        /// <summary>The text color setting changed: show it again.</summary>
+        public void Retint() => ApplyLight(_lastLight);
+
+        private static readonly string[] InkFields = { "_ink", "_inkMuted", "_muted" };
+
+        private void TintText(Color c)
+        {
+            var d = new Duration(TimeSpan.FromMilliseconds(200));
+            for (var t = GetType(); t != null && t != typeof(WidgetContent); t = t.BaseType)
+                foreach (var name in InkFields)
+                {
+                    var f = t.GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly);
+                    if (f?.GetValue(this) is not SolidColorBrush b || b.IsFrozen) continue;
+                    // The gray text stays a touch softer than the main text, in the same color.
+                    var to = name == "_ink" ? c : Color.FromArgb(0xC8, c.R, c.G, c.B);
+                    b.BeginAnimation(SolidColorBrush.ColorProperty, new System.Windows.Media.Animation.ColorAnimation(to, d));
+                }
+        }
+
         /// <summary>The color its sliders and such use.</summary>
         public virtual void SetAccent(Color color) { }
         /// <summary>Its saved spot, size and options (set by its window before it starts).</summary>
@@ -42,6 +76,78 @@ namespace WinPlus
         public virtual Thickness? CardPadding => null;
         /// <summary>Set by its window: asks for a new size in cells (e.g. a bar turned from across to down).</summary>
         public Action<int, int>? RequestCells { get; set; }
+
+        // ---- On an extra taskbar ---------------------------------------------------------------------
+
+        /// <summary>How an extra taskbar looks where a widget sits on it: across or down, how thick (DIPs), its text color.</summary>
+        public sealed record BarLook(bool Vertical, double Thick, Brush Ink, Brush Hover, double Font, double Small);
+
+        /// <summary>
+        /// The widget made small for an extra taskbar, fitting its thickness (the widget itself keeps running out of
+        /// sight and this follows it). Null = the widget itself goes on the bar (see <see cref="BarSelf"/>).
+        /// </summary>
+        public virtual FrameworkElement? BarView(BarLook look) => null;
+
+        /// <summary>On a bar, the widget itself is shown (sized to the bar), not a small form of it.</summary>
+        public virtual bool BarSelf => false;
+
+        /// <summary>Set by the bar: what's on the widget changed (e.g. a shortcut added), its small form is built again.</summary>
+        public Action? BarChanged { get; set; }
+
+        protected static TextBlock BarText(BarLook l, TextBlock? follow = null, bool small = false)
+        {
+            var t = new TextBlock
+            {
+                FontSize = small ? l.Small : l.Font, Foreground = l.Ink, VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = l.Vertical ? new Thickness(0, 1, 0, 1) : new Thickness(3, 0, 3, 0),
+            };
+            if (l.Vertical) { t.TextAlignment = TextAlignment.Center; t.MaxWidth = l.Thick - 8; }
+            if (follow != null)
+            {
+                t.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Text") { Source = follow });
+                t.FlowDirection = follow.FlowDirection;
+            }
+            return t;
+        }
+
+        protected static TextBlock BarGlyph(BarLook l, string glyph, double? size = null) => new()
+        {
+            Text = glyph, FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = size ?? l.Font + 3,
+            Foreground = l.Ink, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = l.Vertical ? new Thickness(0, 2, 0, 2) : new Thickness(3, 0, 3, 0),
+        };
+
+        protected static StackPanel BarRow(BarLook l) => new()
+        {
+            Orientation = l.Vertical ? Orientation.Vertical : Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+        /// <summary>Something on the bar that does a thing when clicked (lights up under the mouse like the bar's buttons).</summary>
+        protected static Border BarButton(BarLook l, FrameworkElement child, Action click, object? tip = null)
+        {
+            var b = new Border
+            {
+                Child = child, Background = Brushes.Transparent, CornerRadius = new CornerRadius(5), Cursor = Cursors.Hand,
+                Padding = l.Vertical ? new Thickness(2, 3, 2, 3) : new Thickness(4, 2, 4, 2), ToolTip = tip,
+                VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            Point? down = null;
+            b.MouseEnter += (_, _) => b.Background = l.Hover;
+            b.MouseLeave += (_, _) => b.Background = Brushes.Transparent;
+            b.PreviewMouseLeftButtonDown += (_, e) => down = e.GetPosition(b);
+            b.MouseLeftButtonUp += (_, e) =>
+            {
+                if (down is not { } d) return;
+                down = null;
+                var at = e.GetPosition(b);
+                if (Math.Abs(at.X - d.X) > 6 || Math.Abs(at.Y - d.Y) > 6) return;   // a drag of the bar, not a click
+                e.Handled = true;
+                try { click(); } catch (Exception ex) { CrashLog.Write("bar widget click", ex); }
+            };
+            return b;
+        }
     }
 
     /// <summary>
@@ -149,14 +255,17 @@ namespace WinPlus
             }
             _coverTimer.Start();
             HookWindowEvents();
-            // At sign-in the desktop, its icons and the taskbars come up over several seconds, and
-            // the grid and work area change meanwhile: put every widget on its spot again a few times.
-            foreach (int s in new[] { 3, 10, 25 })
+            // At sign-in the desktop, its icons and the taskbars come up over a while (longer on a slow
+            // start), and the grid and work area change meanwhile: every widget goes back on its spot
+            // every 2 seconds for the first 2 minutes (one already there doesn't move or redraw).
+            var settleUntil = DateTime.UtcNow.AddMinutes(2);
+            var again = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(2) };
+            again.Tick += (_, _) =>
             {
-                var again = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(s) };
-                again.Tick += (_, _) => { again.Stop(); if (_running) { try { PlaceAll(); } catch (Exception ex) { CrashLog.Write("widgets place", ex); } } };
-                again.Start();
-            }
+                if (!_running || DateTime.UtcNow > settleUntil) { again.Stop(); return; }
+                try { PlaceAll(); } catch (Exception ex) { CrashLog.Write("widgets place", ex); }
+            };
+            again.Start();
             DesktopCorner.Start();
             DesktopMenu.Start();
         }
@@ -220,6 +329,8 @@ namespace WinPlus
         private static void HookWindowEvents()
         {
             if (_hooks.Count > 0) return;
+            if (_eventProc == null)   // once: checked when a dragged window is let go
+                WindowDrag.Ended += () => { if (_running) try { CheckCovered(); } catch (Exception ex) { CrashLog.Write("widgets covered", ex); } };
             _eventProc ??= OnWindowEvent;
             void Hook(uint min, uint max)
             {
@@ -242,6 +353,8 @@ namespace WinPlus
         private static void OnWindowEvent(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
         {
             if (hwnd == IntPtr.Zero || idObject != 0 /* OBJID_WINDOW */ || idChild != 0) return;
+            // Every step of a window being dragged: nothing to check (it's checked once when it's let go).
+            if (ev == 0x800B /* LOCATIONCHANGE */ && WindowDrag.Active) return;
             if (GetAncestor(hwnd, 2 /* GA_ROOT */) != hwnd) return;   // only top-level windows
             if (_checkPending) return;   // many events at once: one check
             _checkPending = true;
@@ -309,7 +422,8 @@ namespace WinPlus
         /// <summary>Every widget on its spot again (e.g. Wibn's taskbar moved its ends).</summary>
         public static void PlaceAll()
         {
-            foreach (var w in _windows.Values) w.Place();
+            foreach (var w in _windows.Values)
+                if (!w.Busy) w.Place();   // not while it's being dragged or resized
         }
 
         /// <summary>The glass settings changed: redo the glass of every widget.</summary>
@@ -317,6 +431,7 @@ namespace WinPlus
         {
             foreach (var w in _windows.Values) w.RestartGlass();
             CustomTaskbar.RefreshGlass();   // Wibn's taskbar uses the same glass
+            InfoBar.RefreshGlass();         // and the info bar
         }
 
         // ---- The widgets' background color (all of them) -------------------------------------------
@@ -352,6 +467,23 @@ namespace WinPlus
             {
                 using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(BackKey);
                 k.SetValue("BackColor", unchecked((int)value), Microsoft.Win32.RegistryValueKind.DWord);
+            }
+        }
+
+        /// <summary>The color of all the widgets' text (white and gray alike), 0xFFRRGGBB; 0 = automatic
+        /// (dark or light with what's behind).</summary>
+        public static uint TextColor
+        {
+            get
+            {
+                try { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(BackKey); return k?.GetValue("TextColor") is int v ? unchecked((uint)v) : 0; }
+                catch { return 0; }
+            }
+            set
+            {
+                using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(BackKey);
+                k.SetValue("TextColor", unchecked((int)value), Microsoft.Win32.RegistryValueKind.DWord);
+                foreach (var w in _windows.Values) w.RetintText();
             }
         }
 
@@ -426,7 +558,7 @@ namespace WinPlus
             return new FontFamily(there ? name : DefaultFont);
         }
 
-        private static Color FromArgb(uint c) => Color.FromRgb((byte)(c >> 16), (byte)(c >> 8), (byte)c);
+        internal static Color FromArgb(uint c) => Color.FromRgb((byte)(c >> 16), (byte)(c >> 8), (byte)c);
 
         /// <summary>How light a color is (0–1), to pick dark or light text on it.</summary>
         public static double Lightness(Color c) => (c.R * 3 + c.G * 6 + c.B) / 10.0 / 255;
@@ -519,7 +651,8 @@ namespace WinPlus
         /// from the bar's left end to its right end: every gap stays the same, and the far widgets
         /// line up with the bar's ends.
         /// </remarks>
-        public readonly record struct Grid(int Sx, int Sy, int Ox, int Oy, double Fx = 0, double Fy = 0, int RowsTop = 0, int RowsBottom = 0, int MainBottom = int.MinValue)
+        public readonly record struct Grid(int Sx, int Sy, int Ox, int Oy, double Fx = 0, double Fy = 0, int RowsTop = 0, int RowsBottom = 0, int MainBottom = int.MinValue,
+                                           int ColsLeft = 0, int ColsRight = 0)
         {
             public double StepX => Fx > 0 ? Fx : Sx;
             public double StepY => Fy > 0 ? Fy : Sy;
@@ -583,12 +716,18 @@ namespace WinPlus
 
             // Wibn's taskbar on the main screen: the rows stop as far from it as the widgets are from
             // each other (two card insets), stretched a hair so they still fill the screen evenly.
-            if (CustomTaskbar.BarOn(cx, cy) is { } bar)
+            var barNow = CustomTaskbar.BarOn(cx, cy);
+            var clockNow = CustomTaskbar.ClockOn(cx, cy);   // the clock's own bar (split, on the other edge)
+            if (barNow != null || clockNow != null)
             {
-                bool barAtTop = bar.Top + bar.Bottom < wa.Top + wa.Bottom;
                 int first = oy + (int)Math.Ceiling((wa.Top - oy) / (double)cell) * cell;   // the first icon row
-                int top = barAtTop ? bar.Bottom + inset : first;
-                int bottom = barAtTop ? wa.Bottom : bar.Top - inset;
+                int top = first, bottom = wa.Bottom;
+                foreach (var b in new[] { barNow, clockNow })
+                {
+                    if (b is not { } r) continue;
+                    if (r.Top + r.Bottom < wa.Top + wa.Bottom) top = r.Bottom + inset;   // at the top
+                    else bottom = r.Top - inset;                                          // at the bottom
+                }
                 int span = bottom - top;
                 if (span > cell)
                 {
@@ -598,7 +737,25 @@ namespace WinPlus
                     rowsTop = top; rowsBottom = bottom;
                 }
             }
-            return new Grid(cell, cell, ox, oy, fx, fy, rowsTop, rowsBottom, rowsBottom != 0 ? wa.Bottom : int.MinValue);
+            // Wibn's bar on a side of the main screen: the columns stop as far from it as the widgets are
+            // from each other, stretched a hair so they fill the rest of the screen evenly.
+            int colsLeft = 0, colsRight = 0;
+            if (CustomTaskbar.SideBarOn(cx, cy) is { } side)
+            {
+                bool atLeft = side.Left + side.Right < wa.Left + wa.Right;
+                int left = atLeft ? side.Right + inset : wa.Left;
+                int right = atLeft ? wa.Right : side.Left - inset;
+                int span = right - left;
+                if (span > cell)
+                {
+                    int n = Math.Max(1, (int)Math.Round(span / (double)cell));
+                    ox = left;
+                    fx = span / (double)n;
+                    colsLeft = left; colsRight = right;
+                }
+            }
+            bool main = rowsBottom != 0 || colsRight != 0;
+            return new Grid(cell, cell, ox, oy, fx, fy, rowsTop, rowsBottom, main ? wa.Bottom : int.MinValue, colsLeft, colsRight);
         }
 
         private static int Mod(int a, int m) => ((a % m) + m) % m;
@@ -609,13 +766,23 @@ namespace WinPlus
             var wa = WorkArea(x + w / 2, y + h / 2);
             int kx = (int)Math.Round((x - g.Ox) / g.StepX);
             int ky = (int)Math.Round((y - g.Oy) / g.StepY);
-            int minX = (int)Math.Ceiling((wa.Left - g.Ox) / g.StepX - 0.01), maxX = (int)Math.Floor((wa.Right - w - g.Ox) / g.StepX + 0.01);
+            int waLeft = wa.Left, waRight = wa.Right;
+            if (g.ColsRight != 0 && wa.Bottom == g.MainBottom) { waLeft = g.ColsLeft; waRight = g.ColsRight; }   // the screen with Wibn's side bar
+            int minX = (int)Math.Ceiling((waLeft - g.Ox) / g.StepX - 0.01), maxX = (int)Math.Floor((waRight - w - g.Ox) / g.StepX + 0.01);
             int waTop = wa.Top, waBottom = wa.Bottom;
             if (g.RowsBottom != 0 && wa.Bottom == g.MainBottom) { waTop = g.RowsTop; waBottom = g.RowsBottom; }   // the screen with Wibn's taskbar
             int minY = (int)Math.Ceiling((waTop - g.Oy) / g.StepY - 0.01), maxY = (int)Math.Floor((waBottom - h - g.Oy) / g.StepY + 0.01);
             kx = maxX < minX ? minX : Math.Clamp(kx, minX, maxX);
             ky = maxY < minY ? minY : Math.Clamp(ky, minY, maxY);
             return (g.ColX(kx), g.RowY(ky));
+        }
+
+        /// <summary>The left edges (screen pixels) of the widget cards that show between these x's.</summary>
+        public static List<int> CardLefts(int fromX, int toX)
+        {
+            int inset = (int)Math.Round(4 * GetDpiForSystem() / 96.0);   // the cards sit 4 px inside their windows
+            return _windows.Values.Where(w => w.IsVisible && w.Info.Placed && w.Info.X >= fromX && w.Info.X < toX)
+                .Select(w => w.Info.X + inset).ToList();
         }
 
         /// <summary>A free spot for a new widget: from the top right of the main screen, down then left.</summary>
@@ -696,6 +863,7 @@ namespace WinPlus
         private IntPtr _hwnd;
         private Widgets.Grid _grid;
         private bool _moving, _sizing;
+        public bool Busy => _moving || _sizing;
         private Widgets.POINT _startCursor;
         private Widgets.RECT _startRect;
         public bool ClosedByUs { get; private set; }
@@ -923,8 +1091,11 @@ namespace WinPlus
             var back = Widgets.BackColor();
             _card.Background = back is { } b ? new SolidColorBrush(Color.FromArgb(0xF0, b.Color.R, b.Color.G, b.Color.B)) : PlainBack;
             _card.BorderBrush = PlainEdge;
-            _content.SetLightBehind(back is { } l && Widgets.Lightness(l.Color) > 0.6);
+            _content.ApplyLight(back is { } l && Widgets.Lightness(l.Color) > 0.6);
         }
+
+        /// <summary>The widgets' text color changed.</summary>
+        internal void RetintText() => _content.Retint();
 
         private void StartGlass()
         {
@@ -943,8 +1114,9 @@ namespace WinPlus
                 if (!glass.Available) { ShowPlain(); return; }
                 _glass = glass;
                 _card.BorderBrush = GlassEdge;
-                glass.LightBehindChanged += light => _content.SetLightBehind(light);
+                glass.LightBehindChanged += light => _content.ApplyLight(light);
                 glass.Start();
+                if (Widgets.TextColor != 0) _content.Retint();
             }
             catch (Exception ex) { ShowPlain(); CrashLog.Write("widget glass", ex); }
         }
@@ -1127,20 +1299,7 @@ namespace WinPlus
         /// <summary>Any color, from Windows' color picker.</summary>
         private void PickColor()
         {
-            var now = AccentOf(Info);
-            using var dialog = new System.Windows.Forms.ColorDialog
-            {
-                FullOpen = true, AnyColor = true,
-                Color = System.Drawing.Color.FromArgb(now.R, now.G, now.B),
-            };
-            var owner = new System.Windows.Forms.NativeWindow();
-            owner.AssignHandle(_hwnd);
-            try
-            {
-                if (dialog.ShowDialog(owner) == System.Windows.Forms.DialogResult.OK)
-                    SetColor(Color.FromRgb(dialog.Color.R, dialog.Color.G, dialog.Color.B));
-            }
-            finally { owner.ReleaseHandle(); }
+            if (ColorPickerWindow.Ask(AccentOf(Info), _hwnd) is { } picked) SetColor(picked);
         }
 
         // ---- Stay under every window ------------------------------------------------------------

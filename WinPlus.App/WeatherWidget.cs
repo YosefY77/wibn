@@ -89,6 +89,21 @@ namespace WinPlus
             ShowStatus(Lang.T("أجيب الطقس…"));
         }
 
+        /// <summary>On a bar: the weather's picture and the temperature.</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            double side = Math.Max(18, Math.Min(28, (l.Vertical ? 40 : l.Thick) - 18));
+            row.Children.Add(new System.Windows.Shapes.Rectangle
+            {
+                Width = side, Height = side, Fill = new VisualBrush(_icon) { Stretch = Stretch.Uniform },
+                VerticalAlignment = VerticalAlignment.Center, Margin = l.Vertical ? new Thickness(0, 2, 0, 2) : new Thickness(2, 0, 2, 0),
+            });
+            row.Children.Add(BarText(l, _temp));
+            row.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _desc });
+            return row;
+        }
+
         public override void Start()
         {
             _ = Refresh();

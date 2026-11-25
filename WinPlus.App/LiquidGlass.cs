@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -51,6 +51,7 @@ namespace WinPlus
         private volatile bool _running;
         private Thread? _thread;
         private readonly IntPtr _hwnd;
+        private readonly string _who;                  // which window (for the log)
         private readonly AutoResetEvent _wake = new(false);
         private int _wanted;                           // a new picture of what's behind is wanted
         private int _x, _y;                            // where the copy is taken (screen pixels)
@@ -60,6 +61,28 @@ namespace WinPlus
         private IntPtr _deskDc, _deskBmp, _deskOld;    // desktop mode: the last picture of the whole desktop
         private RECT _deskRect;
         private bool _sharedRef;                       // desktop mode: uses the shared picture of the desktop
+        private readonly bool _live;                   // live mode: the screen behind, again and again (the taskbar)
+        private int[] _last = Array.Empty<int>();      // live mode: the last copy, to skip drawing when nothing changed
+        private const int LiveFrameMs = 33;            // live mode: about 30 copies a second
+        /// <summary>
+        /// Live mode: what's behind as it is right now, about 30 times a second (videos, windows changing…).
+        /// false = one picture only when something changes near the bar (see GlassCalm), the calm way.
+        /// Click-through overlays (NVIDIA's…) never count as behind, so with nothing behind it's the wallpaper,
+        /// taken from the desktop's picture, not copied from the screen.
+        /// </summary>
+        internal static readonly bool LiveStream = true;
+        private int _wx0, _wy0;                        // live mode: the window's top left when it started (pixels)
+        private int _still;                            // live mode: copies in a row with nothing new behind
+        private volatile bool _retry;                  // live mode: the last copy didn't work, try again soon
+        private bool _useMag, _magTried;               // live mode: the screen copied without our windows (they stay in screen shares)
+        private int _magMisses;
+        private static long _blackNoted;
+        private long _blackSince;                      // live mode: when the copies started coming back all black (0 = they aren't)
+
+        /// <summary>The windows with a live glass: left out of every live glass's copy of the screen.</summary>
+        private static readonly System.Collections.Generic.Dictionary<IntPtr, int> LiveWindows = new();   // window → how many
+        private static int _liveVersion;
+        private static IntPtr[] _liveList = Array.Empty<IntPtr>();
 
         /// <summary>
         /// What's behind turned light (true) or dark (false): the text on the glass
@@ -73,9 +96,13 @@ namespace WinPlus
         public bool Available { get; }
 
         /// <param name="tint">A color for the tint instead of the dark gray, and how strong (0–1) it is.</param>
+        /// <param name="live">Show what's behind as it is right now, all the time (windows, lights, videos…), not
+        /// one picture. The screen is copied through the magnifier without our windows, so they still show in
+        /// screenshots and screen shares.</param>
         public LiquidGlass(Window window, FrameworkElement host, FrameworkElement target, Thickness offset, double radius, GlassSettings settings,
-                           bool desktop = false, (Color Color, double Alpha)? tint = null)
+                           bool desktop = false, (Color Color, double Alpha)? tint = null, bool live = false)
         {
+            _live = live && !desktop;
             _desktop = desktop;
             Bend = Math.Clamp(settings.Bend, 0, 100) / 100.0;
             Dispersion = Math.Clamp(settings.Dispersion, 0, 100) / 100.0;
@@ -94,8 +121,15 @@ namespace WinPlus
             _offset = offset;
             _radius = radius;
             _hwnd = new WindowInteropHelper(window).EnsureHandle();
+            _who = window.GetType().Name;
             // Shown normally in screen copies (older versions kept it out all the time).
-            Available = Environment.OSVersion.Version.Build >= 19041 && SetWindowDisplayAffinity(_hwnd, 0 /* WDA_NONE */);
+            // Live mode copies the screen through the magnifier, which leaves our windows out of its copy only,
+            // so the window stays in screenshots and screen shares (Discord…). Only if that fails is the window
+            // left out of every screen copy instead (see Loop).
+            // A live glass leaves it alone: the window is (or will be) out of screen copies for another live glass
+            // on it, and putting it back in made that glass copy itself (it looked frozen).
+            Available = Environment.OSVersion.Version.Build >= 19041
+                        && ((live && !desktop && LiveStream) || SetWindowDisplayAffinity(_hwnd, 0u /* WDA_NONE */));
         }
 
         /// <summary>
@@ -119,7 +153,7 @@ namespace WinPlus
             _running = true;
             _wanted = 1;
             int ox = (int)Math.Round(origin.X), oy = (int)Math.Round(origin.Y);
-            if (_desktop)
+            if (_desktop || _live)
             {
                 // In real pixels, like the desktop picture.
                 RECT r;
@@ -127,13 +161,54 @@ namespace WinPlus
                 ox = r.Left + (int)Math.Round(_offset.Left * dpi.DpiScaleX);
                 oy = r.Top + (int)Math.Round(_offset.Top * dpi.DpiScaleY);
                 _ox = ox; _oy = oy;
+                _wx0 = r.Left; _wy0 = r.Top;
             }
             double scale = dpi.DpiScaleX;
             _thread = new Thread(() => Loop(ox, oy, w, h, scale))
             {
                 IsBackground = true, Name = "Wibn glass", Priority = ThreadPriority.BelowNormal,
             };
+            // Left out of the screen copies before the first copy is taken (or that copy has the bar itself in it).
+            if (_desktop) lock (DesktopGlasses) DesktopGlasses.Add(this);
+            // Desktop mode: the window moved (a bar put in another place, the same size): the glass follows by itself.
+            if ((_desktop || _live) && _onMoved == null) { _onMoved = (_, _) => Follow(); _window.LocationChanged += _onMoved; }
+            if (_live) lock (LiveWindows) { LiveWindows[_hwnd] = (LiveWindows.TryGetValue(_hwnd, out int had) ? had : 0) + 1; LiveChanged(); }
+            if (_live) { lock (LiveGlasses) LiveGlasses.Add(this); GlassCalm.Start(); if (LiveStream) StartClock(); }
             _thread.Start();
+        }
+
+        private static readonly System.Collections.Generic.HashSet<LiquidGlass> DesktopGlasses = new();
+
+        /// <summary>The wallpaper changed: every glass over the desktop takes a new picture of it (any thread).</summary>
+        public static void RefreshDesktop()
+        {
+            LiquidGlass[] all;
+            lock (DesktopGlasses) all = System.Linq.Enumerable.ToArray(DesktopGlasses);
+            foreach (var g in all) g.Refresh();
+        }
+
+        private static long _videoFrameAt;
+
+        /// <summary>
+        /// The video wallpaper showed a new frame (its own thread): every glass over the desktop (the widgets)
+        /// draws again from it, at most 10 times a second, so the video moves behind them too.
+        /// </summary>
+        public static void VideoFrameShown()
+        {
+            long now = Environment.TickCount64;
+            if (now - Interlocked.Read(ref _videoFrameAt) < 100) return;
+            Interlocked.Exchange(ref _videoFrameAt, now);
+            LiquidGlass[] all;
+            lock (DesktopGlasses)
+            {
+                if (DesktopGlasses.Count == 0) return;
+                all = System.Linq.Enumerable.ToArray(DesktopGlasses);
+            }
+            foreach (var g in all)
+            {
+                Interlocked.Exchange(ref g._wanted, 1);
+                g._wake.Set();
+            }
         }
 
         /// <summary>Take a new picture of what's behind (e.g. the wallpaper changed).</summary>
@@ -150,6 +225,7 @@ namespace WinPlus
         /// </summary>
         public void Follow()
         {
+            if (_live && _running) { Interlocked.Exchange(ref _wanted, 1); _wake.Set(); return; }   // a new picture where it is now
             if (!_desktop || !_running) return;
             RECT r;
             using (new ScreenCapture.DpiScope()) if (!GetWindowRect(_hwnd, out r)) return;
@@ -160,10 +236,250 @@ namespace WinPlus
             _wake.Set();
         }
 
+        private EventHandler? _onMoved;
+
+        // ---- Live glass: the wallpaper for a moment (a window shrinking or growing over the bars) ----------
+
+        private static readonly System.Collections.Generic.HashSet<LiquidGlass> LiveGlasses = new();
+        private static long _wallpaperUntil;
+
+        /// <summary>For the next ms, the live glasses show the wallpaper behind them, not the windows (see <see cref="GlassCalm"/>).</summary>
+        public static void WallpaperForAMoment(int ms)
+        {
+            long until = Environment.TickCount64 + ms;
+            if (until <= Interlocked.Read(ref _wallpaperUntil)) return;
+            Interlocked.Exchange(ref _wallpaperUntil, until);
+            RecaptureLive();   // the wallpaper right now
+            _afterMoment.Change(ms + 150, Timeout.Infinite);   // and what's really behind once it's over
+        }
+
+        private static readonly Timer _afterMoment = new(_ => RecaptureLive(), null, Timeout.Infinite, Timeout.Infinite);
+
+        /// <summary>Every live glass takes one new picture of what's behind it now.</summary>
+        public static void RecaptureLive()
+        {
+            lock (LiveGlasses) foreach (var g in LiveGlasses) { Interlocked.Exchange(ref g._wanted, 1); g._wake.Set(); }
+        }
+
+        /// <summary>
+        /// Does this screen area (real pixels) reach any live glass (with a little room for the bend)?
+        /// A window changing far from the bars changes nothing on them, so no new picture is taken.
+        /// </summary>
+        public static bool TouchesLive(int left, int top, int right, int bottom)
+        {
+            lock (LiveGlasses)
+                foreach (var g in LiveGlasses)
+                    if (g.Touches(left, top, right, bottom)) return true;
+            return false;
+        }
+
+        /// <summary>Only the live glasses this screen area (real pixels) reaches take a new picture.</summary>
+        public static void RecaptureLive(int left, int top, int right, int bottom)
+        {
+            lock (LiveGlasses)
+                foreach (var g in LiveGlasses)
+                    if (g.Touches(left, top, right, bottom)) { Interlocked.Exchange(ref g._wanted, 1); g._wake.Set(); }
+        }
+
+        private bool Touches(int left, int top, int right, int bottom)
+        {
+            if (!_running) return false;
+            RECT r;
+            using (new ScreenCapture.DpiScope()) if (!GetWindowRect(_hwnd, out r)) return false;
+            int m = _margin + 8;
+            return left < r.Right + m && right > r.Left - m && top < r.Bottom + m && bottom > r.Top - m;
+        }
+
+        /// <summary>
+        /// How much the live glasses copy (a line in the log once a minute, only when they did): to see
+        /// what they cost while the PC is in use.
+        /// </summary>
+        private static class Stats
+        {
+            public static int Copies, Drawn, Screen;
+            private static double _ms, _worst;
+            private static long _since = Environment.TickCount64;
+            private static readonly object Gate = new();
+
+            private static string _worstWho = "";
+
+            public static void Add(double ms, bool drawn, string who = "")
+            {
+                lock (Gate)
+                {
+                    Copies++; if (drawn) Drawn++;
+                    _ms += ms; if (ms > _worst) { _worst = ms; _worstWho = who; }
+                    long now = Environment.TickCount64;
+                    if (now - _since < 60_000) return;
+                    CrashLog.Note($"glass: {Copies} copies in {(now - _since) / 1000}s ({Volatile.Read(ref Screen)} of the screen, {Drawn} drawn), {_ms:0} ms in all, worst {_worst:0} ms ({_worstWho}), last behind: {BehindWhat}");
+                    Copies = Drawn = 0; Volatile.Write(ref Screen, 0); _ms = _worst = 0; _since = now;
+                }
+            }
+        }
+
+        // ---- A window maximizing: its color for the animation -------------------------------------------------
+
+        private static RECT _standIn;            // where the window will be (real pixels)
+        private static int _standInColor;
+        private static long _standInUntil;
+        private const int StandInMs = 320;       // a little longer than Windows' animation
+
+        /// <summary>
+        /// A window started maximizing (from old to now, real pixels). Windows' animation isn't in screen copies,
+        /// so until it's done, where the window will be is filled with the color of its top (its title bar, taken
+        /// from where it still is) — under the frost it looks just like the window.
+        /// </summary>
+        public static void Maximizing(int ol, int ot, int or, int ob, int l, int t, int r, int b)
+        {
+            int w = or - ol, h = Math.Min(32, ob - ot);
+            if (w <= 0 || h <= 0) return;
+            using var _ = new ScreenCapture.DpiScope();
+            IntPtr screen = GetDC(IntPtr.Zero), dc = CreateCompatibleDC(screen);
+            try
+            {
+                var bmi = new BITMAPINFO { biSize = Marshal.SizeOf<BITMAPINFO>(), biWidth = w, biHeight = -h, biPlanes = 1, biBitCount = 32 };
+                IntPtr dib = CreateDIBSection(dc, ref bmi, 0, out IntPtr bits, IntPtr.Zero, 0);
+                if (dib == IntPtr.Zero) return;
+                IntPtr old = SelectObject(dc, dib);
+                try
+                {
+                    if (!BitBlt(dc, 0, 0, w, h, screen, ol, ot, 0x00CC0020 /* SRCCOPY */)) return;
+                    GdiFlush();
+                    var px = new int[w * h];
+                    Marshal.Copy(bits, px, 0, px.Length);
+                    long sr = 0, sg = 0, sb = 0; int n = 0;
+                    for (int i = 0; i < px.Length; i += 3) { int c = px[i]; sr += (c >> 16) & 0xFF; sg += (c >> 8) & 0xFF; sb += c & 0xFF; n++; }
+                    if (n == 0) return;
+                    _standInColor = (int)((sr / n) << 16 | (sg / n) << 8 | (sb / n));
+                    _standIn = new RECT { Left = l, Top = t, Right = r, Bottom = b };
+                    Interlocked.Exchange(ref _standInUntil, Environment.TickCount64 + StandInMs);
+                }
+                finally { SelectObject(dc, old); DeleteObject(dib); }
+            }
+            finally { DeleteDC(dc); ReleaseDC(IntPtr.Zero, screen); }
+        }
+
+        /// <summary>While a window is maximizing: its color over the part of the copy (at x, y) it will cover.</summary>
+        private void ApplyStandIn(int x, int y)
+        {
+            if (Environment.TickCount64 >= Interlocked.Read(ref _standInUntil)) return;
+            var s = _standIn;
+            int x0 = Math.Max(0, s.Left - x), x1 = Math.Min(_cw, s.Right - x);
+            int y0 = Math.Max(0, s.Top - y), y1 = Math.Min(_ch, s.Bottom - y);
+            if (x1 <= x0 || y1 <= y0) return;
+            int c = _standInColor;
+            for (int row = y0; row < y1; row++) _src.AsSpan(row * _cw + x0, x1 - x0).Fill(c);
+        }
+
+        private static bool WallpaperNow => Environment.TickCount64 < Interlocked.Read(ref _wallpaperUntil);
+
+        // ---- Is any window behind a bar? ---------------------------------------------------------------
+
+        private static readonly object BehindLock = new();
+        private static readonly EnumProc BehindProc = BehindOne;
+        private static RECT _behindRect;
+        private static bool _behindFound;
+        private static readonly uint OwnPid = (uint)Environment.ProcessId;
+
+        /// <summary>
+        /// No other program's window on screen overlaps this rectangle (screen pixels): only the wallpaper is
+        /// behind it. Windows are measured by what's really drawn (not their invisible resize borders, which
+        /// reach past a maximized window's edge onto the bar).
+        /// </summary>
+        private static bool NothingBehind(RECT bar)
+        {
+            lock (BehindLock)
+            {
+                _behindRect = bar;
+                _behindFound = false;
+                EnumWindows(BehindProc, IntPtr.Zero);
+                return !_behindFound;
+            }
+        }
+
+        private static bool BehindOne(IntPtr h, IntPtr _)
+        {
+            if (!IsWindowVisible(h) || IsIconic(h)) return true;
+            GetWindowThreadProcessId(h, out uint pid);
+            if (pid == OwnPid) return true;   // Wibn's own (left out of the copies anyway)
+            // The glass helper's copying window: it stays over the last bar it copied (unseen). Counted, every
+            // copy after the first went through the magnifier, the slow way that holds up the whole screen.
+            if (pid != 0 && pid == GlassCopy.HelperPid) return true;
+            if (DwmGetWindowAttribute(h, 14 /* DWMWA_CLOAKED */, out int cloaked, 4) == 0 && cloaked != 0) return true;
+            if (DwmGetWindowAttribute(h, 9 /* DWMWA_EXTENDED_FRAME_BOUNDS */, out RECT w, Marshal.SizeOf<RECT>()) != 0 && !GetWindowRect(h, out w)) return true;
+            if (w.Right - w.Left <= 0 || w.Bottom - w.Top <= 0) return true;
+            if (w.Left >= _behindRect.Right || w.Right <= _behindRect.Left || w.Top >= _behindRect.Bottom || w.Bottom <= _behindRect.Top) return true;
+            var sb = new System.Text.StringBuilder(32);
+            GetClassName(h, sb, sb.Capacity);
+            string cls = sb.ToString();
+            if (cls is "Progman" or "WorkerW") return true;   // the desktop itself
+            if (IsOverlay(h, cls)) return true;
+            _behindFound = true;
+            BehindWhat = cls;
+            return false;   // found one: stop looking
+        }
+
+        /// <summary>
+        /// An overlay over the whole screen that clicks go through and that's (almost always) empty: NVIDIA's
+        /// (CEF-OSC-WIDGET), Steam's, Discord's, Xbox Game Bar's… Counted as "a window behind the bar", every
+        /// copy went through the magnifier (the slow way that holds up the whole screen), and its own changes
+        /// kept asking for new copies all the time.
+        /// </summary>
+        internal static bool IsOverlay(IntPtr h, string? cls = null)
+        {
+            long ex = GetWindowLongPtr(h, -20 /* GWL_EXSTYLE */).ToInt64();
+            if ((ex & 0x20 /* TRANSPARENT */) != 0 && (ex & 0x80000 /* LAYERED */) != 0) return true;   // click-through
+            if (cls == null)
+            {
+                var sb = new System.Text.StringBuilder(32);
+                GetClassName(h, sb, sb.Capacity);
+                cls = sb.ToString();
+            }
+            return cls is "CEF-OSC-WIDGET" or "NVOpenGLPbuffer" or "SteamOverlayWindow";
+        }
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr h, int index);
+
+        /// <summary>The last window found behind a bar (its class, for the log).</summary>
+        private static volatile string BehindWhat = "";
+
+        private delegate bool EnumProc(IntPtr h, IntPtr l);
+        [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc proc, IntPtr l);
+        [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr h);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr h, System.Text.StringBuilder sb, int max);
+        [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr h, int attr, out int value, int size);
+        [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr h, int attr, out RECT value, int size);
+
         public void Dispose()   // the thread stops and cleans up by itself
         {
+            if (_onMoved != null)
+            {
+                var moved = _onMoved;
+                _onMoved = null;
+                try { if (_window.Dispatcher.CheckAccess()) _window.LocationChanged -= moved; else _window.Dispatcher.BeginInvoke(() => _window.LocationChanged -= moved); } catch { }
+            }
+            lock (DesktopGlasses) DesktopGlasses.Remove(this);
+            lock (LiveGlasses) LiveGlasses.Remove(this);
+            bool lastOnWindow = true;
+            if (_live && _thread != null) lock (LiveWindows)
+            {
+                if (LiveWindows.TryGetValue(_hwnd, out int n) && n > 1) { LiveWindows[_hwnd] = n - 1; lastOnWindow = false; }
+                else LiveWindows.Remove(_hwnd);
+                LiveChanged();
+            }
             _running = false;
             _wake.Set();
+            // Live mode kept the window out of screen copies: back in them (a new glass sets it again), unless
+            // another live glass is still on it.
+            if (_live && lastOnWindow)
+            {
+                try
+                {
+                    if (_window.Dispatcher.CheckAccess()) SetWindowDisplayAffinity(_hwnd, 0 /* WDA_NONE */);
+                    else _window.Dispatcher.BeginInvoke(new Action(() => SetWindowDisplayAffinity(_hwnd, 0)));
+                }
+                catch { }
+            }
         }
 
         private void Loop(int ox, int oy, int w, int h, double scale)
@@ -175,6 +491,50 @@ namespace WinPlus
                 int frost = (int)Math.Round(Frost * scale);
                 while (_running)
                 {
+                    // Streaming: the shared clock does the copying and drawing for every bar together (see Clock).
+                    if (_live && LiveStream)
+                    {
+                        _frost = frost;
+                        _ready = true;
+                        _wake.WaitOne(1000);
+                        continue;
+                    }
+                    if (_live)
+                    {
+                        if (!_magTried)
+                        {
+                            _magTried = true;
+                            _useMag = !GlassCopy.Failed;
+                            if (!_useMag) ExcludeFromCapture();
+                        }
+                        // A picture of what's behind: all the time (LiveStream), or only when asked: at the start, and a
+                        // moment after a window moved, was resized, minimized, restored, shown, hidden or came to the
+                        // front (see GlassCalm).
+                        double took = 0;
+                        if (Interlocked.Exchange(ref _wanted, 0) == 1)
+                        {
+                            _retry = false;
+                            long t0 = Stopwatch.GetTimestamp();
+                            bool drew = IsWindowVisible(_hwnd) && CopyLive() && _running;
+                            took = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
+                            Stats.Add(took, drew);
+                            if (drew)
+                            {
+                                DrawFrame(frost);
+                                lock (_front) Array.Copy(_out, _front, _out.Length);
+                                if (Interlocked.Exchange(ref _pending, 1) == 0)
+                                    _window.Dispatcher.BeginInvoke(new Action(Present));
+                            }
+                        }
+                        // A copy that didn't work (or came back black): once more soon. Otherwise a fresh one
+                        // every minute anyway (something changing behind without a window moving: a video, the wallpaper).
+                        int wait = _retry ? 400 : 60_000;
+                        // Streaming: the next one a frame later, or longer when a copy is slow (it never takes more
+                        // than about half the time, so a slow screen copy can't hold everything up).
+                        if (LiveStream) wait = Math.Max(_retry ? 400 : LiveFrameMs, (int)(took * 2));
+                        if (!_wake.WaitOne(wait)) Interlocked.Exchange(ref _wanted, 1);
+                        continue;
+                    }
                     if (Interlocked.Exchange(ref _wanted, 0) == 1)
                     {
                         // The copy itself on the window's thread (it hides the window from it for a moment).
@@ -203,8 +563,182 @@ namespace WinPlus
             }
             finally
             {
-                _running = false;
-                FreeGdi();
+                lock (_stepLock)   // not while the clock is drawing it
+                {
+                    _running = false;
+                    _ready = false;
+                    FreeGdi();
+                }
+                // Its big buffers go (the card keeps only its last picture), and the memory goes back
+                // to Windows a moment later, once nothing else is restarting.
+                _src = _tmp = _out = _mapR = _mapG = _mapB = _last = Array.Empty<int>();
+                _rim = Array.Empty<byte>();
+                MemoryTrim.Soon();
+            }
+        }
+
+        // ---- One clock for every live glass -----------------------------------------------------------------
+        //
+        // Every bar copies what's behind it in the same round and they're all shown in the same screen frame, so
+        // they change together (each with its own thread, one changed before the other). Only each bar's own strip
+        // is copied, not the whole screen: that would be about ten times the work.
+
+        private static Thread? _clock;
+        private readonly object _stepLock = new();
+        private volatile bool _ready;                  // streaming: prepared, the clock may draw it
+        private int _frost;
+
+        private static void StartClock()
+        {
+            lock (LiveGlasses)
+            {
+                if (_clock != null) return;
+                _clock = new Thread(Clock) { IsBackground = true, Name = "Wibn glass clock", Priority = ThreadPriority.BelowNormal };
+                _clock.Start();
+            }
+        }
+
+        private static void Clock()
+        {
+            var drawn = new System.Collections.Generic.List<LiquidGlass>();
+            long lastChange = 0;
+            while (true)
+            {
+                LiquidGlass[] all;
+                lock (LiveGlasses) all = System.Linq.Enumerable.ToArray(LiveGlasses);
+                long t0 = Stopwatch.GetTimestamp();
+                drawn.Clear();
+                // First every bar's copy, one right after the other (the same moment on the screen), then the
+                // drawing: drawing between the copies let a change land on some bars a round before the others.
+                var screen = new System.Collections.Generic.List<LiquidGlass>();
+                foreach (var g in all)
+                {
+                    try
+                    {
+                        if (g.Capture()) drawn.Add(g);
+                        else if (g._needScreen) screen.Add(g);
+                    }
+                    catch (Exception ex) { CrashLog.Write("liquid glass", ex); }
+                }
+                try { CopyRows(screen, drawn); }
+                catch (Exception ex) { CrashLog.Write("liquid glass", ex); }
+                for (int i = drawn.Count - 1; i >= 0; i--)
+                {
+                    try { if (!drawn[i].Draw()) drawn.RemoveAt(i); }
+                    catch (Exception ex) { CrashLog.Write("liquid glass", ex); drawn.RemoveAt(i); }
+                }
+                // All of them in one go on the window thread: the same screen frame.
+                foreach (var group in System.Linq.Enumerable.GroupBy(drawn, g => g._window.Dispatcher))
+                {
+                    var list = System.Linq.Enumerable.ToArray(group);
+                    try { group.Key.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, new Action(() => { foreach (var g in list) g.Present(); })); } catch { }
+                }
+                double took = Stopwatch.GetElapsedTime(t0).TotalMilliseconds;
+                long now = Environment.TickCount64;
+                if (drawn.Count > 0) lastChange = now;
+                // Something just changed behind (a window maximizing, moving…): for half a second, a round every
+                // screen frame, so the glass keeps up with it. Otherwise one a frame later, or longer when copying
+                // was slow (never more than about half the time, so slow screen copies can't hold everything up).
+                // Nothing live: a slow look now and then.
+                int wait = all.Length == 0 ? 1000
+                         : now - lastChange < 500 ? Math.Max(16, (int)took)
+                         : Math.Max(LiveFrameMs, (int)(took * 2));
+                Thread.Sleep(wait);
+            }
+        }
+
+        // The clock's one copy of a row of the screen (reused while big enough).
+        private static IntPtr _rowScreenDc, _rowDc, _rowDib, _rowBits, _rowOld;
+        private static int _rowW, _rowH;
+
+        /// <summary>
+        /// The bars that need the screen, in rows (bars side by side, e.g. all along the top): one copy of the
+        /// screen for each row, each bar takes its part of it. So the bars in a row show the very same moment.
+        /// </summary>
+        private static void CopyRows(System.Collections.Generic.List<LiquidGlass> screen, System.Collections.Generic.List<LiquidGlass> drawn)
+        {
+            if (screen.Count == 0) return;
+            // Rows: bars at the same height (top and bottom within a few pixels), e.g. all the bars along the top.
+            // A bar of another height (a side bar) gets its own copy, not one as big as the screen.
+            var rows = new System.Collections.Generic.List<System.Collections.Generic.List<LiquidGlass>>();
+            foreach (var g in screen)
+            {
+                System.Collections.Generic.List<LiquidGlass>? row = null;
+                foreach (var r in rows)
+                    if (Math.Abs(r[0]._cy - g._cy) <= 8 && Math.Abs(r[0]._ch - g._ch) <= 8) { row = r; break; }
+                if (row == null) rows.Add(row = new());
+                row.Add(g);
+            }
+            using var _ = new ScreenCapture.DpiScope();
+            if (_rowScreenDc == IntPtr.Zero) { _rowScreenDc = GetDC(IntPtr.Zero); _rowDc = CreateCompatibleDC(_rowScreenDc); }
+            foreach (var row in rows)
+            {
+                var u = new RECT { Left = int.MaxValue, Top = int.MaxValue, Right = int.MinValue, Bottom = int.MinValue };
+                foreach (var g in row)
+                {
+                    u.Left = Math.Min(u.Left, g._cx); u.Top = Math.Min(u.Top, g._cy);
+                    u.Right = Math.Max(u.Right, g._cx + g._cw); u.Bottom = Math.Max(u.Bottom, g._cy + g._ch);
+                }
+                int w = u.Right - u.Left, h = u.Bottom - u.Top;
+                if (w <= 0 || h <= 0) continue;
+                if (w > _rowW || h > _rowH)
+                {
+                    if (_rowDib != IntPtr.Zero) { SelectObject(_rowDc, _rowOld); DeleteObject(_rowDib); }
+                    _rowW = Math.Max(w, _rowW); _rowH = Math.Max(h, _rowH);
+                    var bmi = new BITMAPINFO { biSize = Marshal.SizeOf<BITMAPINFO>(), biWidth = _rowW, biHeight = -_rowH, biPlanes = 1, biBitCount = 32 };
+                    _rowDib = CreateDIBSection(_rowDc, ref bmi, 0, out _rowBits, IntPtr.Zero, 0);
+                    _rowOld = SelectObject(_rowDc, _rowDib);
+                }
+                // Past the screens it stays black (each bar carries its screen's edge out over it).
+                PatBlt(_rowDc, 0, 0, w, h, 0x00000042 /* BLACKNESS */);
+                if (!BitBlt(_rowDc, 0, 0, w, h, _rowScreenDc, u.Left, u.Top, 0x00CC0020 /* SRCCOPY */)) continue;
+                GdiFlush();
+                foreach (var g in row)
+                    if (g.TakeFrom(_rowBits, _rowW, u)) drawn.Add(g);
+            }
+        }
+
+        [DllImport("gdi32.dll")] private static extern bool GdiFlush();
+
+        /// <summary>On the clock's thread: the glass from the last copy, into _front.</summary>
+        private bool Draw()
+        {
+            lock (_stepLock)
+            {
+                if (!_running || !_ready) return false;
+                DrawFrame(_frost);
+                lock (_front) Array.Copy(_out, _front, _out.Length);
+                return true;
+            }
+        }
+
+        /// <summary>On the clock's thread: a new copy of what's behind. True when it changed.</summary>
+        private bool Capture()
+        {
+            lock (_stepLock)
+            {
+                if (!_running || !_ready) return false;
+                // Still out of screen copies? (Something may have put it back in: it would copy itself.)
+                long now = Environment.TickCount64;
+                if (_magTried && now - _affinityCheckedAt > 1000)
+                {
+                    _affinityCheckedAt = now;
+                    if (GetWindowDisplayAffinity(_hwnd, out uint aff) && aff != 0x11) ExcludeFromCapture();
+                }
+                if (!_magTried)
+                {
+                    // Streaming copies the screen straight (the bar left out of every screen copy, so it isn't in
+                    // its own picture): the magnifier was far too slow for it (up to half a second a copy, the
+                    // glass froze). The price: the bars don't show in screen shares and screenshots.
+                    _magTried = true;
+                    _useMag = false;
+                    ExcludeFromCapture();
+                }
+                _retry = false;
+                long t0 = Stopwatch.GetTimestamp();
+                bool drew = IsWindowVisible(_hwnd) && CopyLive(planOnly: true) && _running;
+                if (!_needScreen) Stats.Add(Stopwatch.GetElapsedTime(t0).TotalMilliseconds, drew, _who);
+                return drew;
             }
         }
 
@@ -259,6 +793,132 @@ namespace WinPlus
         }
 
         /// <summary>
+        /// Live mode, on the glass thread: the screen behind the element right now (the window is kept
+        /// out of screen copies, so it isn't in it). Follows the window if it moved. False when nothing
+        /// changed since the last copy (nothing to draw).
+        /// </summary>
+        private bool CopyLive(bool planOnly = false)
+        {
+            _needScreen = false;
+            using var _ = new ScreenCapture.DpiScope();
+            if (!GetWindowRect(_hwnd, out var r)) return false;
+            int x = r.Left + (_ox - _wx0) - _margin, y = r.Top + (_oy - _wy0) - _margin;
+            // A window is shrinking or growing over it (no window colors then), or no window is behind it at all
+            // (most of the time: maximized windows stop at the bars): the wallpaper straight from the desktop's
+            // picture. The same look, without asking Windows to copy the screen (each copy is work for all of it,
+            // and with several bars at 30 a second the whole PC stuttered).
+            if (WallpaperNow || (!DesktopPicture.Animated && NothingBehind(r)))
+            {
+                _wx0 = r.Left; _wy0 = r.Top; _ox = x + _margin; _oy = y + _margin;
+                if (!CopyDesktop()) return false;
+                ApplyStandIn(x, y);
+                _blackSince = 0;
+                if (_last.Length == _src.Length && _src.AsSpan().SequenceEqual(_last)) return false;
+                if (_last.Length != _src.Length) _last = new int[_src.Length];
+                Array.Copy(_src, _last, _src.Length);
+                return true;
+            }
+            Interlocked.Increment(ref Stats.Screen);
+            // The clock copies the bars in the same row together (see Clock): just where.
+            if (planOnly) { _cx = x; _cy = y; _needScreen = true; return false; }
+            if (_useMag)
+            {
+                IntPtr[] skip; int version;
+                lock (LiveWindows) { skip = _liveList; version = _liveVersion; }
+                bool? copied = GlassCopy.Copy(x, y, _cw, _ch, _src, skip, version);
+                if (copied != true)
+                {
+                    // The magnifier can't work here (or never answers): back to leaving the window out of screen copies.
+                    if (copied == false && ++_magMisses < 30) { _retry = true; return false; }
+                    _useMag = false;
+                    ExcludeFromCapture();
+                    return false;
+                }
+                _magMisses = 0;
+            }
+            else
+            {
+                if (!BitBlt(_memDc, 0, 0, _cw, _ch, _screenDc, x, y, 0x00CC0020 /* SRCCOPY */)) return false;
+                Marshal.Copy(_bits, _src, 0, _src.Length);
+            }
+            return AfterScreenCopy(x, y);
+        }
+
+        /// <summary>The screen copy at (x, y) is in _src: its edges, a black copy skipped, and whether it changed.</summary>
+        private bool AfterScreenCopy(int x, int y)
+        {
+            FillPastEdges(x, y, null);
+            ApplyStandIn(x, y);
+            // A copy that's all black (the screen copy now and then gives an empty frame, e.g. over a video or a game)
+            // is skipped, so the glass keeps its last picture instead of blinking black. If it really stays black
+            // behind for over a second, it's taken.
+            if (AllBlack(_src))
+            {
+                long now = Environment.TickCount64;
+                if (_blackSince == 0)
+                {
+                    _blackSince = now;
+                    // A note in the log (at most once a minute), to know how often it happens.
+                    if (now - Interlocked.Read(ref _blackNoted) > 60_000) { Interlocked.Exchange(ref _blackNoted, now); CrashLog.Note("glass: black screen copy skipped"); }
+                }
+                // Over Wibn's video wallpaper the screen copy can stay black for a while (the video isn't in it):
+                // the video's own frame is shown instead.
+                if (Wallpapers.VideoPlaying)
+                {
+                    PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
+                    if (VideoWallpaper.DrawInto(_memDc, x, y, _cw, _ch))
+                    {
+                        Marshal.Copy(_bits, _src, 0, _src.Length);
+                        FillPastEdges(x, y, null);
+                    }
+                    else if (_last.Length > 0) { _retry = true; return false; }
+                }
+                // Otherwise the last picture stays: black is taken only if it really stays black for 5 seconds
+                // (a flash of black on the taskbar was worse than a picture a moment old).
+                else if (now - _blackSince < 5000 && _last.Length > 0) { _retry = true; return false; }
+            }
+            else _blackSince = 0;
+            if (_last.Length == _src.Length && _src.AsSpan().SequenceEqual(_last)) return false;
+            if (_last.Length != _src.Length) _last = new int[_src.Length];
+            Array.Copy(_src, _last, _src.Length);   // before the frost blurs _src
+            return true;
+        }
+
+        private long _affinityCheckedAt;
+        [DllImport("user32.dll")] private static extern bool GetWindowDisplayAffinity(IntPtr hwnd, out uint affinity);
+
+        private int _cx, _cy;          // streaming: where this bar's screen copy goes (screen pixels)
+        private bool _needScreen;      // streaming: this round it needs a copy of the screen (not the wallpaper)
+
+        /// <summary>On the clock's thread: its part of a copy of the screen (u, w pixels wide at bits) into _src.</summary>
+        private bool TakeFrom(IntPtr bits, int uw, RECT u)
+        {
+            lock (_stepLock)
+            {
+                if (!_running || !_ready || !_needScreen) return false;
+                _needScreen = false;
+                long t0 = Stopwatch.GetTimestamp();
+                for (int row = 0; row < _ch; row++)
+                {
+                    long at = ((long)(_cy - u.Top + row) * uw + (_cx - u.Left)) * 4;
+                    Marshal.Copy(bits + (nint)at, _src, row * _cw, _cw);
+                }
+                bool drew = AfterScreenCopy(_cx, _cy) && _running;
+                Stats.Add(Stopwatch.GetElapsedTime(t0).TotalMilliseconds, drew, _who);
+                return drew;
+            }
+        }
+
+
+        /// <summary>Every pixel (one in 5 looked at) exactly black?</summary>
+        private static bool AllBlack(int[] px)
+        {
+            for (int i = 0; i < px.Length; i += 5)
+                if ((px[i] & 0xFFFFFF) != 0) return false;
+            return px.Length > 0;
+        }
+
+        /// <summary>
         /// On the glass thread: the desktop (wallpaper) behind the element, drawn by the
         /// desktop window itself, so it works even with windows over the element.
         /// </summary>
@@ -267,6 +927,18 @@ namespace WinPlus
             using var _ = new ScreenCapture.DpiScope();
             bool fresh = Interlocked.Exchange(ref _recapture, 0) == 1;
             int x = _ox - _margin, y = _oy - _margin;
+
+            // Wibn's own video wallpaper: its frame right now (straight from the video, not a picture of the desktop).
+            if (Wallpapers.VideoPlaying)
+            {
+                PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
+                if (VideoWallpaper.DrawInto(_memDc, x, y, _cw, _ch))
+                {
+                    Marshal.Copy(_bits, _src, 0, _src.Length);
+                    FillPastEdges(x, y, null);
+                    return true;
+                }
+            }
 
             // A still wallpaper: one picture of the desktop for every glass (widgets, taskbars, menus).
             if (!DesktopPicture.Animated)
@@ -519,6 +1191,19 @@ namespace WinPlus
             _memDc = _dib = _screenDc = _oldObj = _bits = IntPtr.Zero;
         }
 
+        private static void LiveChanged()   // under the lock
+        {
+            _liveVersion++;
+            _liveList = System.Linq.Enumerable.ToArray(LiveWindows.Keys);
+        }
+
+        /// <summary>The old way: the window left out of every screen copy (it isn't in screen shares then).</summary>
+        private void ExcludeFromCapture()
+        {
+            try { _window.Dispatcher.BeginInvoke(new Action(() => { if (_running) SetWindowDisplayAffinity(_hwnd, 0x11 /* WDA_EXCLUDEFROMCAPTURE */); })); }
+            catch { }
+        }
+
         // ---- Win32 ---------------------------------------------------------------------------
 
         [StructLayout(LayoutKind.Sequential)]
@@ -536,6 +1221,7 @@ namespace WinPlus
         [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(POINT p, uint flags);
         [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
         [DllImport("dwmapi.dll")] private static extern int DwmFlush();
+        [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hwnd);
         [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hwnd, IntPtr dc, uint flags);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindow(string cls, string? title);
         [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
@@ -659,6 +1345,7 @@ namespace WinPlus
             {
                 try
                 {
+                    if (Wallpapers.VideoPlaying) return true;   // ours
                     foreach (var name in AnimatedApps)
                     {
                         var found = System.Diagnostics.Process.GetProcessesByName(name);

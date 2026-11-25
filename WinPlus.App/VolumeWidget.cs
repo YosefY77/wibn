@@ -109,6 +109,20 @@ namespace WinPlus
             _timer.Tick += (_, _) => Refresh();
         }
 
+        /// <summary>On a bar: the speaker (a click mutes) and the volume; the mouse wheel over it turns it up or down.</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            var icon = BarGlyph(l, _masterIcon.Content is TextBlock t ? t.Text : "\uE767");
+            if (_masterIcon.Content is TextBlock src) icon.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Text") { Source = src });
+            icon.SetBinding(OpacityProperty, new System.Windows.Data.Binding("Opacity") { Source = _masterIcon });
+            row.Children.Add(icon);
+            row.Children.Add(BarText(l, _masterPercent));
+            var b = BarButton(l, row, () => _masterIcon.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, _masterIcon)), Lang.T("الصوت العام"));
+            b.MouseWheel += (_, e) => { _master.Value = Math.Clamp(_master.Value + (e.Delta > 0 ? 2 : -2), 0, 100); e.Handled = true; };
+            return b;
+        }
+
         public override void Start()
         {
             Refresh();
@@ -116,6 +130,9 @@ namespace WinPlus
         }
 
         public override void Stop() => _timer.Stop();
+
+        /// <summary>Out of sight (a full-screen app, a maximized window over it): it stops updating until it shows again.</summary>
+        public override void Covered(bool covered) { if (covered) Stop(); else Start(); }
 
         /// <summary>Glass over a light wallpaper: dark text so it stays readable.</summary>
         public override void SetLightBehind(bool light)

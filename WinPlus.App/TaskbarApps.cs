@@ -86,6 +86,89 @@ namespace WinPlus
             }
         }
 
+        // ---- Following Windows' pins --------------------------------------------------------------
+
+        private static DateTime _lastSync = DateTime.MinValue;
+        private static string _lastSyncSig = "";
+
+        private static string WindowsPinsDir => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            @"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar");
+
+        /// <summary>
+        /// An app pinned to Windows' taskbar later on ("Pin to taskbar" in Start or a right-click menu)
+        /// shows up here too; one unpinned there goes away here. Pins added or removed only on Wibn's
+        /// bar are left alone. Cheap: only looks again when Windows' list changed.
+        /// </summary>
+        private static void SyncWindowsPins()
+        {
+            if ((DateTime.Now - _lastSync).TotalSeconds < 1.5) return;
+            _lastSync = DateTime.Now;
+            try
+            {
+                string dir = WindowsPinsDir;
+                byte[]? blob = null;
+                try
+                {
+                    using var tb = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband");
+                    blob = tb?.GetValue("Favorites") as byte[];
+                }
+                catch { }
+                var lnks = Directory.Exists(dir) ? Directory.GetFiles(dir, "*.lnk") : Array.Empty<string>();
+                string sig = string.Join("|", lnks.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) + "#" +
+                             (blob == null ? "" : Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(blob)));
+                if (sig == _lastSyncSig) return;
+                _lastSyncSig = sig;
+
+                // What Windows has pinned now.
+                var current = new List<string>(lnks);
+                foreach (var (aumid, _) in WindowsPackagedPins())
+                {
+                    string path = @"shell:AppsFolder\" + aumid;
+                    if (DisplayName(path) != null) current.Add(path);
+                }
+
+                using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(Key);
+                var seen = k.GetValue("SeenWindowsPins") as string[];
+                k.SetValue("SeenWindowsPins", current.ToArray(), Microsoft.Win32.RegistryValueKind.MultiString);
+                if (seen == null) return;   // the first time: what's there was already taken in
+                var seenSet = new HashSet<string>(seen, StringComparer.OrdinalIgnoreCase);
+                var curSet = new HashSet<string>(current, StringComparer.OrdinalIgnoreCase);
+
+                bool changed = false;
+                var pins = Pins;
+                foreach (var path in current)
+                {
+                    if (seenSet.Contains(path)) continue;
+                    if (pins.Any(p => string.Equals(p.Path, path, StringComparison.OrdinalIgnoreCase))) continue;
+                    var pin = MakePin(path);
+                    // The same app may already be pinned another way (its program, or its app id).
+                    if (pins.Any(p => SamePinnedApp(p, pin))) continue;
+                    pins.Add(pin);
+                    changed = true;
+                }
+                // Unpinned from Windows: a shortcut that's gone would be broken anyway. Store apps only
+                // when Windows' list was really read (it's taken out of binary data).
+                bool packagedRead = current.Any(p => p.StartsWith(@"shell:AppsFolder\", StringComparison.OrdinalIgnoreCase));
+                foreach (var gone in seen.Where(p => !curSet.Contains(p)))
+                {
+                    bool isLnk = gone.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase);
+                    if (!isLnk && !packagedRead) continue;
+                    if (isLnk && File.Exists(gone)) continue;
+                    var pin = pins.FirstOrDefault(p => string.Equals(p.Path, gone, StringComparison.OrdinalIgnoreCase));
+                    if (pin != null) { pins.Remove(pin); changed = true; }
+                }
+                if (changed) SavePins();
+            }
+            catch (Exception ex) { CrashLog.Write("taskbar pin sync", ex); }
+        }
+
+        private static bool SamePinnedApp(Pin a, Pin b)
+        {
+            if (a.Aumid != null && b.Aumid != null && string.Equals(a.Aumid, b.Aumid, StringComparison.OrdinalIgnoreCase)) return true;
+            return a.Target != null && b.Target != null && a.Target.EndsWith(".exe") && a.Target == b.Target;
+        }
+
         public static void SavePins()
         {
             try
@@ -268,6 +351,7 @@ namespace WinPlus
         /// <summary>The buttons: pins first (in their order), then the other running apps.</summary>
         public static List<Group> Groups()
         {
+            SyncWindowsPins();
             var groups = new List<Group>();
             var byKey = new Dictionary<string, Group>(StringComparer.OrdinalIgnoreCase);
             foreach (var pin in Pins)
@@ -548,22 +632,133 @@ namespace WinPlus
         /// <summary>Brings a window to the front (restoring it if it's minimized).</summary>
         public static void Activate(IntPtr h)
         {
-            if (IsIconic(h)) ShowWindowAsync(h, SW_RESTORE);
+            // Start (or search) open: it closes first, like a click on Windows' own taskbar, so the
+            // window comes up on its own (and over a full-screen app the bar goes away with Start).
+            if (CustomTaskbar.IsStartOrSearch(GetForegroundWindow()))
+            {
+                keybd_event(VK_ESCAPE, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                // Wait for it to really close, or it hands the front back to the old window after ours.
+                for (int i = 0; i < 25 && CustomTaskbar.IsStartOrSearch(GetForegroundWindow()); i++)
+                    System.Threading.Thread.Sleep(10);
+            }
+            if (IsIconic(h)) { GlassCalm.Now(); ShowWindow(h, SW_RESTORE); }
+            // Above every window right away, even if Windows refuses to give it the keyboard
+            // (a short "always on top" and back; skipped for windows that are on top by themselves).
+            bool topmost = ((long)GetWindowLongPtr(h, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+            if (!topmost)
+            {
+                SetWindowPosApps(h, HWND_TOPMOST, 0, 0, 0, 0, SWP_RAISE);
+                SetWindowPosApps(h, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_RAISE);
+            }
             if (SetForegroundWindow(h) && GetForegroundWindow() == h) return;
-            // Windows only lets the app that got the last input change the front window;
-            // an empty key press (no real key) counts as ours without doing anything.
-            keybd_event(0, 0, 0, UIntPtr.Zero);
-            keybd_event(0, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            // Windows only lets the app that got the last input change the front window, and
+            // Wibn's bar never takes the focus. A tap of Alt counts as Wibn's input (an empty
+            // key isn't always enough); Alt down and up together opens no menu.
+            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
+            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, UIntPtr.Zero);
+            if (SetForegroundWindow(h) && GetForegroundWindow() == h) return;
+            // Borrow the front window's input for a moment.
+            uint me = GetCurrentThreadId(), front = GetWindowThreadProcessId(GetForegroundWindow(), out _);
+            bool attached = front != 0 && front != me && AttachThreadInput(me, front, true);
+            BringWindowToTop(h);
             SetForegroundWindow(h);
+            if (attached) AttachThreadInput(me, front, false);
+            // Last: what Alt+Tab itself uses.
+            if (GetForegroundWindow() != h) SwitchToThisWindow(h, true);
         }
 
-        public static void Minimize(IntPtr h) => PostMessage(h, WM_SYSCOMMAND, (IntPtr)SC_MINIMIZE, IntPtr.Zero);
+        /// <summary>
+        /// After opening an app from the bar: Windows often puts its new window behind the others
+        /// (Wibn's bar never has the focus, so the app isn't allowed to come forward by itself).
+        /// The first new window that shows within a few seconds is brought to the front.
+        /// </summary>
+        private static void FrontWhenItOpens()
+        {
+            var before = new HashSet<IntPtr>();
+            EnumWindows((h, _) => { if (Shows(h)) before.Add(h); return true; }, IntPtr.Zero);
+            var started = DateTime.Now;
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            timer.Tick += (_, _) =>
+            {
+                if ((DateTime.Now - started).TotalSeconds > 10) { timer.Stop(); return; }
+                IntPtr found = IntPtr.Zero;
+                EnumWindows((h, _) =>
+                {
+                    if (!before.Contains(h) && Shows(h)) { found = h; return false; }   // EnumWindows goes top to bottom
+                    return true;
+                }, IntPtr.Zero);
+                if (found == IntPtr.Zero) return;
+                timer.Stop();
+                if (GetForegroundWindow() != found) Activate(found);
+            };
+            timer.Start();
+        }
+
+        /// <summary>
+        /// Unread messages an app shows in its window's name: "(3) …" is 3, "• …" is some (0).
+        /// Discord, browsers, WhatsApp and many others do this. -1: nothing new.
+        /// </summary>
+        public static int Unread(string title)
+        {
+            if (string.IsNullOrEmpty(title)) return -1;
+            var t = title.TrimStart('‎', '‏', ' ');
+            if (t.StartsWith("•") || t.StartsWith("●")) return 0;
+            if (t.Length > 2 && t[0] == '(')
+            {
+                int close = t.IndexOf(')');
+                if (close > 1 && close <= 6 && int.TryParse(t.AsSpan(1, close - 1).ToString().TrimEnd('+'), out int n) && n > 0) return n;
+            }
+            return -1;
+        }
+
+        /// <summary>The icon in white and a little see-through (the "white icons" look); bright parts stay brighter.</summary>
+        public static ImageSource? Whiten(ImageSource? src)
+        {
+            if (src is not BitmapSource b) return src;
+            try
+            {
+                var conv = new FormatConvertedBitmap(b, PixelFormats.Bgra32, null, 0);
+                int w = conv.PixelWidth, hgt = conv.PixelHeight, stride = w * 4;
+                var px = new byte[stride * hgt];
+                conv.CopyPixels(px, stride, 0);
+                for (int i = 0; i < px.Length; i += 4)
+                {
+                    int a = px[i + 3];
+                    if (a == 0) continue;
+                    double lum = (0.114 * px[i] + 0.587 * px[i + 1] + 0.299 * px[i + 2]) / 255.0;
+                    px[i] = px[i + 1] = px[i + 2] = 255;
+                    px[i + 3] = (byte)Math.Round(a * (0.5 + 0.5 * lum) * 0.88);
+                }
+                var o = BitmapSource.Create(w, hgt, b.DpiX > 0 ? b.DpiX : 96, b.DpiY > 0 ? b.DpiY : 96, PixelFormats.Bgra32, null, px, stride);
+                o.Freeze();
+                return o;
+            }
+            catch { return src; }
+        }
+
+        /// <summary>Brings all these windows up (restoring the minimized ones), the first one in front.</summary>
+        public static void ShowAll(List<IntPtr> windows)
+        {
+            if (windows.Count == 0) return;
+            for (int i = windows.Count - 1; i >= 1; i--)
+            {
+                var h = windows[i];
+                if (IsIconic(h)) ShowWindow(h, SW_SHOWNOACTIVATE);
+                SetWindowPosApps(h, IntPtr.Zero /* TOP */, 0, 0, 0, 0, 0x1 | 0x2 | 0x10 /* NOSIZE, NOMOVE, NOACTIVATE */);
+            }
+            Activate(windows[0]);
+        }
+
+        public static void Minimize(IntPtr h) { GlassCalm.Now(); PostMessage(h, WM_SYSCOMMAND, (IntPtr)SC_MINIMIZE, IntPtr.Zero); }
 
         public static void Close(IntPtr h) => PostMessage(h, WM_SYSCOMMAND, (IntPtr)SC_CLOSE, IntPtr.Zero);
 
         public static void Launch(string what)
         {
             if (string.IsNullOrEmpty(what)) return;
+            AllowSetForegroundWindow(ASFW_ANY);
+            FrontWhenItOpens();
             try
             {
                 if (what.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
@@ -755,6 +950,20 @@ namespace WinPlus
         [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr h);
         [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr h, int cmd);
+        [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr h, int cmd);
+        [DllImport("user32.dll", EntryPoint = "SetWindowPos")] private static extern bool SetWindowPosApps(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+        private const int SW_SHOWNOACTIVATE = 4;
+        private const long WS_EX_TOPMOST = 0x8;
+        private static readonly IntPtr HWND_TOPMOST = new(-1), HWND_NOTOPMOST = new(-2);
+        private const uint SWP_RAISE = 0x1 | 0x2 | 0x10 | 0x40;   // NOSIZE, NOMOVE, NOACTIVATE, SHOWWINDOW
+        [DllImport("user32.dll")] private static extern bool BringWindowToTop(IntPtr h);
+        [DllImport("user32.dll")] private static extern void SwitchToThisWindow(IntPtr h, bool altTab);
+        [DllImport("user32.dll")] private static extern bool AllowSetForegroundWindow(int pid);
+        private const int ASFW_ANY = -1;
+        private const byte VK_MENU = 0x12, VK_ESCAPE = 0x1B;
+        private const uint KEYEVENTF_EXTENDEDKEY = 1;
+        [DllImport("user32.dll")] private static extern bool AttachThreadInput(uint a, uint b, bool attach);
+        [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
         [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
         [DllImport("user32.dll")] private static extern IntPtr SendMessageTimeout(IntPtr h, uint msg, IntPtr w, IntPtr l, uint flags, uint timeout, out IntPtr result);
         [DllImport("user32.dll")] private static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);

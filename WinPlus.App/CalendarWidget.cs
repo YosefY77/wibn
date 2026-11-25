@@ -64,6 +64,18 @@ namespace WinPlus
 
         private void OnAppointments() => Fill();
 
+        /// <summary>On a bar: the day and month (a click opens the calendar).</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            row.Children.Add(BarGlyph(l, "\uE787", l.Font + 1));
+            var day = BarText(l, _day); day.FontWeight = FontWeights.SemiBold;
+            row.Children.Add(day);
+            row.Children.Add(BarText(l, _month, small: true));
+            row.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _weekday });
+            return BarButton(l, row, TogglePanel);
+        }
+
         public override void Start()
         {
             Fill();
@@ -90,6 +102,9 @@ namespace WinPlus
         }
 
         public override void Stop() => _tick.Stop();
+
+        /// <summary>Out of sight (a full-screen app, a maximized window over it): it stops updating until it shows again.</summary>
+        public override void Covered(bool covered) { if (covered) _tick.Stop(); else { Fill(); _tick.Start(); } }
 
         // ---- Its options ---------------------------------------------------------------------------
 

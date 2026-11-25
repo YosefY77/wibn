@@ -17,8 +17,10 @@
     <AssemblyTitle>Wibn</AssemblyTitle>
     <Description>Wibn: My Windows is better now</Description>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Release builds get the number from the git tag (v1.2.3 → 1.2.3). -->
-    <Version>1.0.9</Version>
+    <Version>2.0</Version>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -44,6 +46,14 @@
   <ItemGroup>
     <Resource Include="app.ico" />
     <Resource Include="logo.png" />
+  </ItemGroup>
+
+  <!-- "What's new" (shown once after an update, and the GitHub release notes). -->
+  <ItemGroup>
+    <!-- WithCulture="false": the ".en" in the name made MSBuild take it for an English translation and put it in
+         a separate en\WinPlus.resources.dll, so the app never found it and showed the Arabic list in English too. -->
+    <EmbeddedResource Include="WhatsNew.txt" LogicalName="WinPlus.WhatsNew.txt" WithCulture="false" />
+    <EmbeddedResource Include="WhatsNew.en.txt" LogicalName="WinPlus.WhatsNew.en.txt" WithCulture="false" />
   </ItemGroup>
 
   <!-- The taskbar DLL also goes inside WinPlus.exe, so the single-file version

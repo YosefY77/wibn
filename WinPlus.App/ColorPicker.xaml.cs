@@ -21,6 +21,7 @@ namespace WinPlus
         public ColorPicker()
         {
             InitializeComponent();
+            DropperButton.ToolTip = Lang.T("التقط لون من الشاشة");
             UpdateVisuals();
         }
 
@@ -108,6 +109,25 @@ namespace WinPlus
                 }
             }
             UpdateVisuals();  // also puts back a valid value if the text was wrong
+        }
+
+        // ---- Eyedropper ---------------------------------------------------
+
+        private static readonly Brush DropperBack = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x1F, 0x22));
+        private static readonly Brush DropperHover = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2E, 0x30, 0x35));
+
+        private void OnDropperEnter(object sender, MouseEventArgs e) => DropperButton.Background = DropperHover;
+        private void OnDropperLeave(object sender, MouseEventArgs e) => DropperButton.Background = DropperBack;
+
+        private void OnDropperClick(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            EyeDropper.Pick(picked =>
+            {
+                if (picked is not uint argb || argb == Color) return;
+                Color = argb;
+                ColorChanged?.Invoke(Color);
+            });
         }
 
         // ---- Drawing ------------------------------------------------------

@@ -148,7 +148,7 @@ namespace WinPlus
 
         public static readonly City[] Cities = Regions.SelectMany(r => r.Cities).ToArray();
 
-        private static readonly string[] Names = { "الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء" };
+        internal static readonly string[] Names = { "الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء" };
         internal static readonly string[] HijriMonths =
         {
             "محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة",
@@ -258,6 +258,18 @@ namespace WinPlus
             _timer.Tick += (_, _) => Update();
         }
 
+        /// <summary>On a bar: the next prayer and how long until it.</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            row.Children.Add(BarText(l, _label, small: true));
+            var count = BarText(l, _count);
+            count.Typography.NumeralAlignment = FontNumeralAlignment.Tabular;
+            row.Children.Add(count);
+            row.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _city });
+            return row;
+        }
+
         public override void Start()
         {
             Update();
@@ -265,6 +277,9 @@ namespace WinPlus
         }
 
         public override void Stop() => _timer.Stop();
+
+        /// <summary>Out of sight (a full-screen app, a maximized window over it): it stops updating until it shows again.</summary>
+        public override void Covered(bool covered) { if (covered) Stop(); else Start(); }
 
         /// <summary>The list of all the times only when there's room for it under the countdown.</summary>
         public override void SetCells(int w, int h)
@@ -395,14 +410,14 @@ namespace WinPlus
             _count.Text = $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}";
         }
 
-        private static string Clock(DateTime t)
+        internal static string Clock(DateTime t)
         {
             int h = t.Hour % 12 == 0 ? 12 : t.Hour % 12;
             string half = t.Hour < 12 ? Lang.T("ص") : Lang.T("م");
             return $"{h}:{t.Minute:00} {half}";
         }
 
-        private static string Hijri(DateTime date)
+        internal static string Hijri(DateTime date)
         {
             var cal = new UmAlQuraCalendar();
             try

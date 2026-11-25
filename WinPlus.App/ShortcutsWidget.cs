@@ -64,6 +64,22 @@ namespace WinPlus
         private static string[]? Files(DragEventArgs e) =>
             e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 ? f : null;
 
+        /// <summary>On a bar: its shortcuts' icons in a row, a click opens one.</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            double side = Math.Max(16, Math.Min(32, (l.Vertical ? 44 : l.Thick) - 20));
+            foreach (var path in Items)
+            {
+                var icon = IconElement(path);
+                icon.Width = icon.Height = side;
+                var p = path;
+                row.Children.Add(BarButton(l, icon, () => Open(p), NameOf(p)));
+            }
+            if (row.Children.Count == 0) row.Children.Add(BarGlyph(l, "\uE71D"));
+            return row;
+        }
+
         public override void Start() => Rebuild();
 
         public override void SetAccent(Color color) => _accent.Color = color;
@@ -126,6 +142,7 @@ namespace WinPlus
             _tiles.Rows = Math.Max(3, (items.Count + 2) / 3);
             foreach (var path in items) _tiles.Children.Add(Tile(path, items.Count));
             _empty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            BarChanged?.Invoke();
         }
 
         // ---- One shortcut -------------------------------------------------------------------------
@@ -311,9 +328,8 @@ namespace WinPlus
         private void PickFolderColor()
         {
             var now = FolderColor() ?? Color.FromRgb(0xFF, 0xC8, 0x3D);
-            using var dialog = new System.Windows.Forms.ColorDialog { FullOpen = true, AnyColor = true, Color = System.Drawing.Color.FromArgb(now.R, now.G, now.B) };
-            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                SetLook("folderColor", $"#{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}");
+            if (ColorPickerWindow.Ask(now) is { } c)
+                SetLook("folderColor", $"#{c.R:X2}{c.G:X2}{c.B:X2}");
         }
 
         /// <summary>The color of every folder in the widget (one with its own picture keeps it).</summary>

@@ -39,6 +39,7 @@ namespace WinPlus
             new("volume", Lang.T("أصوات البرامج"), Lang.T("علّي أو خفّض صوت كل برنامج مفتوح لحاله، أو اكتمه"), new[] { "volume" }),
             new("game", Lang.T("وضع الألعاب"), Lang.T("Game Booster: يوقف خدمات الخلفية مثل Windows Update و SysMain أثناء اللعب ويرجّعها بعدها"), new[] { "game" }),
             new("widgets", "Widgets", Lang.T("نوافذ صغيرة على سطح المكتب تتحاذى مع الأيقونات، أولها أصوات البرامج"), new[] { "widgets" }),
+            new("wallpapers", Lang.T("الخلفيات"), Lang.T("خلفياتك من صور ومقاطع متحركة، وتبدّل بينها باختصار يفتحها بنص الشاشة مع حركة ناعمة"), new[] { "wallpapers" }),
             new("glass", "Liquid Glass", Lang.T("التأثير الزجاجي لشريط التحميل وقوائم الملفات وتصوير الشاشة والويدجتات، كله من مكان واحد"), new[] { "glass" }),
         };
 

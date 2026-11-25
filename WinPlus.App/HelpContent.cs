@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
@@ -50,6 +50,7 @@ namespace WinPlus
             "widgets" => WidgetsHelp(),
             "glass" => Glass(),
             "anim" => Animations(),
+            "wallpapers" => WallpapersHelp(),
             "general" => General(),
             _ => null,
         };
@@ -62,8 +63,8 @@ namespace WinPlus
             new[]
             {
                 I("تاسك بار Wibn", "Wibn taskbar",
-                  "يخفي تاسك بار ويندوز ويحط بداله تاسك بار من Wibn: ستارت والبحث، برامجك المثبتة والمفتوحة (كليك يفتحها أو يصغّرها، وقف عليها بالماوس وتشوف صورة حية لنوافذها)، ولغة الكيبورد (كليك عليها يغيّرها)، والنت والصوت (حرّك عجلة الماوس عليه عشان ترفع أو تنزّل الصوت) والساعة. تختار شكله: كامل أو عائم (الويدجتات اللي على الأطراف تتحاذى معه، وبينه وبين الويدجتات نفس المسافة اللي بين الويدجتات) أو دوك بالنص، وسماكته، وينزل ويختفي لما تكبّر نافذة أو يكون برنامج أو لعبة بملء الشاشة (النافذة المكبّرة تاخذ الشاشة كلها) (ودّ الماوس لآخر الشاشة تحت ويطلع، وشيل الماوس عنه وينزل، وتقدر تطفي هالشي)، والخلفية زجاج (بإعدادات صفحة Liquid Glass) أو لون أو شفاف، وحجم الأيقونات ومكانها. اسحب أي برنامج عليه عشان تثبّته، واسحب المثبتة عشان ترتبها. ولو تبيه أقصر، اسحبه من طرفه اليمين أو اليسار لجوّا (الطرفين يتحركون مع بعض ويبقى بالنص)، ودبل كليك على الطرف يرجّعه بطوله الكامل. وأيقونات البرامج اللي جنب الساعة (ديسكورد، ستيم…) تطلع فيه نفسه: تختار من صفحة التاسك بار أيها يبان، والباقي تحت السهم. كليك وكليك يمين عليها مثل ويندوز بالضبط.",
-                  "Hides Windows' taskbar and puts Wibn's in its place: Start and search, your pinned and open apps (click to open or minimize; hover to see live pictures of their windows), the keyboard language (click it to switch), network and sound (scroll the mouse wheel on it to change the volume) and the clock. Pick its shape: full, floating (the widgets at the far sides line up with it, and it sits as far from the widgets as they are from each other) or a centered dock, and its thickness; it slides down out of sight when a window is maximized (it then takes the whole screen) or an app or game is full screen (move the mouse to the bottom edge to slide it up, move away and it slides down, and you can turn this off); a glass (with the Liquid Glass page's settings), color or see-through background; and the icons' size and position. Drag any app onto it to pin it, and drag pinned ones to reorder them. To make it shorter, drag its right or left end inward (both ends move together and it stays centered); double-click an end to make it full length again. The icons next to the clock (Discord, Steam…) show on it too: choose on the Taskbar page which ones show, the rest go under the arrow. Click and right-click them just like on Windows.",
+                  "يخفي تاسك بار ويندوز ويحط بداله تاسك بار من Wibn: ستارت والبحث، برامجك المثبتة والمفتوحة (كليك يفتحها أو يصغّرها، وقف عليها بالماوس وتشوف صورة حية لنوافذها واضغط على الصورة عشان تروح لهالنافذة بالذات. ولو البرنامج فيه أكثر من نافذة، كليك عليه يطلّع كل نوافذه وكليك ثاني يخفيها كلها)، ولغة الكيبورد (كليك عليها يغيّرها)، والنت والصوت (حرّك عجلة الماوس عليه عشان ترفع أو تنزّل الصوت) والساعة. تختار شكله: كامل أو عائم (الويدجتات اللي على الأطراف تتحاذى معه، وبينه وبين الويدجتات نفس المسافة اللي بين الويدجتات) أو دوك بالنص، وسماكته، وينزل ويختفي لما تكبّر نافذة أو يكون برنامج أو لعبة بملء الشاشة (النافذة المكبّرة تاخذ الشاشة كلها) (ودّ الماوس لآخر الشاشة تحت ويطلع، وشيل الماوس عنه وينزل، ولما تضغط زر ويندوز وتنفتح قائمة ابدأ أو البحث يطلع معها، وتقدر تطفي هالشي)، والخلفية زجاج (بإعدادات صفحة Liquid Glass، يوريك اللي وراه على طول مثل الفيديو والنوافذ، بس التاسك بار والأشرطة اللي عليها زجاج ما تطلع في البث والسكرين شوت مثل ديسكورد وOBS) أو لون أو شفاف، وحجم الأيقونات ومكانها. اسحب أي برنامج عليه عشان تثبّته، واسحب المثبتة عشان ترتبها. ولو تبيه أقصر، اسحبه من طرفه اليمين أو اليسار لجوّا (الطرفين يتحركون مع بعض ويبقى بالنص)، ودبل كليك على الطرف يرجّعه بطوله الكامل. تصغيره ما يحرّك الويدجتات. وتقدر تنقله لأي طرف: امسكه من مكان فاضي فيه واسحبه لفوق أو يمين أو يسار أو تحت، يطلع لك مكانه الجديد ملوّن، وأول ما تفلته ينتقل (يمين أو يسار يصير عمودي). النوافذ المكبّرة والويدجتات يفسحون له مكان ويتوزعون من جديد، وEsc يلغي السحب. ولو تبي الساعة واللي حولها في تاسك بار لحالها، شغّل \"الساعة في تاسك بار منفصل\" من صفحة التاسك بار: البرامج تصير في قطعة والساعة في قطعة ثانية، وكل وحدة لها زجاجها. ولو تبي الساعة فوق والبرامج تحت (أو العكس)، امسك قطعة الساعة من مكان فاضي واسحبها لفوق (تروح لنفس الجهة اللي كانت فيها آخر مرة، يمين أو يسار، وتغيّرها من كليك يمين عليها ← جهة تاسك بار الساعة)، واسحبها لنفس طرف البرامج عشان ترجع جنبها. النوافذ والويدجتات يفسحون لها مكان. وتقدر تطوّل أي قطعة: اسحب طرف قطعة البرامج (الطرفين لو هي بالنص) أو طرف قطعة الساعة الداخلي (اللي جهة النص) لبرّا عشان تطول، ولجوّا عشان تقصر، ودبل كليك على الطرف يرجّعها على قد اللي فيها. ولو الساعة في تاسك بار لحالها، اضغط Shift وإنت تسحب طرفها، ويتوازن مع أقرب ويدجت فوقه (أو تحته) ويصيرون بنفس العرض. وكليك يمين على مكان فاضي في التاسك بار يطلّع القائمة عند الماوس. ولو طوّلت قطعة الساعة، كليك يمين عليها ← مكان الساعة في التاسك بار عشان تختار يمين أو يسار أو الوسط. وأيقونات البرامج اللي جنب الساعة (ديسكورد، ستيم…) تطلع فيه نفسه: تختار من صفحة التاسك بار أيها يبان، والباقي تحت السهم. كليك وكليك يمين عليها مثل ويندوز بالضبط.",
+                  "Hides Windows' taskbar and puts Wibn's in its place: Start and search, your pinned and open apps (click to open or minimize; hover to see live pictures of their windows and click a picture to go to that window. An app with several windows: a click brings them all up, another click minimizes them all), the keyboard language (click it to switch), network and sound (scroll the mouse wheel on it to change the volume) and the clock. Pick its shape: full, floating (the widgets at the far sides line up with it, and it sits as far from the widgets as they are from each other) or a centered dock, and its thickness; it slides down out of sight when a window is maximized (it then takes the whole screen) or an app or game is full screen (move the mouse to the bottom edge to slide it up, move away and it slides down; it also comes up when you press the Windows key and Start or search opens; and you can turn this off); a glass (with the Liquid Glass page's settings; it shows what's behind it live, videos and windows too, but the taskbar and the bars with glass don't show in streams and screenshots like Discord and OBS), color or see-through background; and the icons' size and position. Drag any app onto it to pin it, and drag pinned ones to reorder them. To make it shorter, drag its right or left end inward (both ends move together and it stays centered); double-click an end to make it full length again. Shortening it doesn't move the widgets. You can also move it to any edge: hold an empty spot on it and drag it up, right, left or down; its new place lights up, and it moves there when you let go (right or left makes it vertical). Maximized windows and the widgets make room for it and spread out again; Esc cancels the drag. To have the clock and what's around it on a taskbar of their own, turn on \"Clock on a separate taskbar\" on the Taskbar page: the apps go on one piece and the clock on another, each with its own glass. To have the clock at the top and the apps at the bottom (or the other way round), hold an empty spot of the clock's piece and drag it up (it goes to the same side, right or left, it was on last time; change it with right-click → Clock bar side); drag it to the apps' edge to put it back beside them. Windows and widgets make room for it. You can make either piece longer: drag the end of the apps' piece (either end when it's in the middle) or the inner end of the clock's piece (the one toward the middle) outward to lengthen it, inward to shorten it; double-click the end to make it just as long as what's on it again. With the clock on a bar of its own, hold Shift while dragging its end and it lines up with the nearest widget over (or under) it, so they're just as wide. Right-clicking an empty spot of the taskbar opens its menu right at the mouse. If you lengthen the clock's piece, right-click it → Clock position in its bar to pick right, left or middle. The icons next to the clock (Discord, Steam…) show on it too: choose on the Taskbar page which ones show, the rest go under the arrow. Click and right-click them just like on Windows.",
                   "تاسك بار على ذوقك بدون ما تلمس ويندوز. لو صار أي خطأ أو تسكّر Wibn، تاسك بار ويندوز يرجع لحاله.",
                   "A taskbar to your taste without touching Windows. If anything goes wrong or Wibn closes, Windows' taskbar comes right back.",
                   a =>
@@ -77,6 +78,73 @@ namespace WinPlus
                       a.Rect(91, H - 15, 5, 2, Muted, 1);
                       a.Rect(109, H - 15, 12, 2, Blue, 1);
                       a.Text(174, H - 32, "10:42", 9, Ink);
+                  }),
+                I("تاسك بار المعلومات (إضافي)", "Info bar (extra)",
+                  "شريط إضافي تشغّله من صفحة التاسك بار ← تاسك بار المعلومات، وتحطه يمين أو يسار أو فوق أو تحت على أي شاشة. يعرض الساعة والتاريخ (والهجري لو تبي)، وكم باقي على الصلاة الجاية، واستهلاك المعالج وكرت الشاشة وحرارتهم، والرام، وسرعة النت ومساحة القرص. شغّل أو طفّ أي معلومة من الصفحة أو بكليك يمين على الشريط. شكله نفس تاسك بار Wibn بالضبط (الشكل والخلفية واللون والسماكة من إعداداته). اسحب طرفه عشان تقصّره أو تطوّله، ودبل كليك على الطرف يرجّعه كامل. وعشان تنقله: اضغط عليه واسحبه للطرف اللي تبيه، ويطلع لك وين بينحط. ولو الطرف فيه قطعة من تاسك بار Wibn (مثل الساعة لحالها فوق يمين) ينحط جنبها على نفس الخط، في الجهة اللي تفلته فيها (يسار أو يمين)، ويطلع وينزل معها. وتقدر تختار جهته (يسار أو يمين) وجهة تاسك بار الساعة من الصفحة أو بكليك يمين عليهم، ولو حطيتهم الثنين بنفس الجهة يجون جنب بعض. النوافذ المكبّرة توقف عنده وما تغطيه، وينزلق لبرّا مع الألعاب والمقاطع بملء الشاشة، وودّ الماوس لطرف الشاشة ويرجع. حرارة كرت الشاشة من ويندوز نفسه؛ أما حرارة المعالج فأغلب الأجهزة المكتبية ما تعطيها لويندوز، فشغّل برنامج LibreHardwareMonitor (مجاني) وتطلع لحالها. وتقدر تضيف تاسك بارات إضافية بالعدد اللي تبيه (من الصفحة ← أضف تاسك بار، أو كليك يمين على الشريط)، كل واحد بمكانه وباللي يعرضه، بشرط تبقى نص الشاشة للنوافذ (واللي جنب بعض على نفس الخط ما ياخذون منها)، وتبدّل ترتيبهم بالأسهم في الصفحة أو بكليك يمين ← مكانه ← قدّمه أو أخّره (اللي قبل يصير أقرب لطرف الشاشة)؛ ولو ما في مكان يقولك. وتقدر تحط فيها الويدجتس (الطقس، اللي يشتغل الحين، الأصوات، التقويم وغيرها): كل ويدجت تطلع على الشريط نفسه بشكل صغير يناسب سماكته (مثل الحرارة، أو الأغنية مع أزرار التشغيل، أو أيقونات الاختصارات) وتتحدث لحالها، وكليك يمين عليها لخياراتها ولونها (مثل لون موجات الصوت، أو نفس لون كتابة التاسك بار).",
+                  "An extra bar you turn on from the Taskbar page → Info bar, and put on the right, left, top or bottom of any screen. It shows the time and date (and the Hijri date if you like), the countdown to the next prayer, the processor's and graphics card's use and temperature, memory, network speed and disk space. Turn any of them on or off on the page or by right-clicking the bar. It looks exactly like Wibn's taskbar (shape, background, color and thickness from its settings). Drag its end to make it shorter or longer; double-click the end for full length. To move it: press on it and drag it to the edge you want; it shows where it'll go. If that edge has a piece of Wibn's taskbar (like the clock on its own at the top right), it sits beside it on the same line, on the side you drop it (left or right), and comes and goes with it. You can pick its side (left or right) and the clock bar's side on the page or by right-clicking them; put both on the same side and they sit next to each other. Maximized windows stop at it instead of covering it, and it slides away for full-screen games and videos; move the mouse to that screen edge and it comes back. The graphics card's temperature comes from Windows itself; most desktops don't give Windows the processor's, so run LibreHardwareMonitor (free) and it shows up by itself. You can add as many extra bars as you like (on the page → Add a taskbar, or right-click a bar), each with its own place and what it shows, as long as half the screen is left for windows (bars side by side on one line take none of it), and change their order with the arrows on the page or right-click → Position → Move earlier or Move later (an earlier one sits nearer the screen edge); if there's no room it tells you. You can also put widgets on them (weather, now playing, volume, calendar and more): each one shows on the bar itself in a small form that fits its thickness (the temperature, the song with play buttons, your shortcuts' icons…) and keeps itself up to date; right-click it for its options and its color (like the sound waves' color, or the same as the taskbar text).",
+                  "كل اللي تبي تراقبه قدامك على طول، بدون ما تفتح إدارة المهام أو ودجت، وفي المكان الفاضي اللي يناسبك بشاشتك.",
+                  "Everything you want to keep an eye on, always in front of you, without opening Task Manager or a widget, in whatever free spot suits your screen.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Window(20, 14, 170, 90, "Wibn");
+                      a.Rect(W - 52, 6, 44, H - 12, Panel, 8, 0xE8);
+                      a.Center(W - 30, 18, "10:42", 8, Ink);
+                      a.Center(W - 30, 38, "0:42:10", 7, Yellow);
+                      a.Center(W - 30, 58, "CPU", 6, Muted);
+                      a.Center(W - 30, 68, "54°", 8, Ink);
+                      a.Center(W - 30, 88, "GPU", 6, Muted);
+                      a.Center(W - 30, 98, "61°", 8, Ink);
+                      a.Center(W - 30, 118, "RAM", 6, Muted);
+                      a.Center(W - 30, 128, "52%", 8, Ink);
+                  }),
+                I("شكل زر ستارت", "Start button look",
+                  "في تاسك بار Wibn تقدر تغيّر زر ويندوز (ستارت): من صفحة التاسك بار ← شكل زر ويندوز (ستارت) اختر شعار ويندوز أو شعار Wibn أو وحدة من الأيقونات (بيت، نجمة، قلب، يد ألعاب…)، أو اضغط \"صورة من جهازك\" وحط أي صورة (PNG أو JPG أو ICO…) وتصير هي الزر. وغيّر لون الأيقونة من منتقي الألوان، و\"اللون الأصلي\" يرجّع أزرق ويندوز. الصور تبقى بألوانها، وWibn ياخذ منها نسخة، فلو حذفت الأصلية ما يتأثر الزر.",
+                  "On Wibn's taskbar you can change the Windows (Start) button: on the Taskbar page → Windows button (Start) look, pick Windows' logo, Wibn's logo or one of the icons (home, star, heart, game controller…), or press \"Picture from your PC\" and choose any picture (PNG, JPG, ICO…) to make it the button. Change the icon's color with the color picker; \"Original color\" brings back Windows' blue. Pictures keep their own colors, and Wibn keeps a copy, so deleting the original doesn't affect the button.",
+                  "زر ستارت على ذوقك، يمشي مع لون التاسك بار أو صورتك المفضلة.",
+                  "A Start button to your taste, matching your taskbar's color or a favorite picture.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(30, H - 40, 200, 30, Panel, 10, 0xE8);
+                      a.Glyph(50, H - 25, "", 16, Red);
+                      for (int i = 0; i < 4; i++) a.Rect(72 + i * 22, H - 33, 15, 15, Apps[i], 4);
+                      double[] xs = { 40, 76, 112, 148 };
+                      string[] gl = { "", "", "", "" };
+                      Color[] cs = { Blue, Yellow, Red, Purple };
+                      for (int i = 0; i < 4; i++)
+                      {
+                          a.Rect(xs[i] + 30, 30, 28, 28, Panel, 6);
+                          a.Glyph(xs[i] + 44, 44, gl[i], 15, cs[i]);
+                      }
+                      a.Rect(xs[2] + 29, 29, 30, 30, Red, 7, 0x40);
+                      a.Cursor(xs[2] + 48, 50);
+                  }),
+                I("لاقط الألوان", "Eyedropper",
+                  "في كل مكان فيه اختيار لون في Wibn (لون التاسك بار، زر ستارت، الويدجتات، الماوس…) فيه زر لاقط جنب كود اللون. اضغطه وودّ الماوس على أي شي في الشاشة: تطلع عدسة مكبّرة فيها اللون اللي تحت الماوس وكوده. كليك ياخذ اللون، وEsc أو كليك يمين يلغي.",
+                  "Everywhere you pick a color in Wibn (taskbar color, Start button, widgets, cursor…) there's an eyedropper button next to the color code. Press it and move the mouse over anything on the screen: a magnifier shows the color under the mouse and its code. Click to take the color; Esc or a right click cancels.",
+                  "تاخذ نفس لون خلفيتك أو أي برنامج بالضبط، بدون ما تدوّر عليه بالعين.",
+                  "Match your wallpaper or any app's color exactly, without hunting for it by eye.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(30, 24, 90, 90, Purple, 10);
+                      a.Rect(150, 30, 90, 70, Panel, 10, 0xF0);
+                      a.Rect(162, 42, 40, 40, Purple, 6);
+                      a.Text(162, 86, "#8E5CF6", 9, Ink);
+                      a.Cursor(76, 70);
+                  }),
+                I("أيقونات بيضاء وعلامة الرسائل", "White icons and unread badge",
+                  "من صفحة التاسك بار شغّل \"أيقونات بيضاء\" وتصير كل أيقونات تاسك بار Wibn (البرامج واللي جنب الساعة) بالأبيض وشفافة شوي، والأجزاء الفاتحة فيها تبقى أوضح. طفّه وترجع ألوانها. وأي برنامج عنده رسائل ما قريتها (ديسكورد، المتصفح، واتساب…) يطلع على أيقونته نقطة حمرا، ولو فيه عدد يطلع الرقم. Wibn ياخذها من اسم نافذة البرنامج مثل \"(3) Discord\". ولما تضغط على برنامج، نافذته تطلع فوق كل النوافذ.",
+                  "On the Taskbar page turn on \"White icons\" and every icon on Wibn's taskbar (apps and the ones next to the clock) turns white and a little see-through, with their bright parts clearer. Turn it off to bring their colors back. Any app with unread messages (Discord, your browser, WhatsApp…) gets a red dot on its icon, with the number when there is one. Wibn reads it from the app's window name, like \"(3) Discord\". And clicking an app brings its window above all the others.",
+                  "تاسك بار هادي بلون واحد، وما يفوتك أي إشعار.",
+                  "A calm one-color taskbar, and you never miss a message.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(30, H - 40, 200, 30, Panel, 10, 0xE8);
+                      for (int i = 0; i < 5; i++) a.Rect(56 + i * 26, H - 33, 15, 15, Colors.White, 4, 0xC0);
+                      a.Rect(119, H - 37, 8, 8, Red, 4);
                   }),
                 I("تكبير الأيقونات تحت الماوس", "Magnify under the mouse",
                   "الأيقونة اللي تحت الماوس تكبر، واللي جنبها تكبر شوي.",
@@ -97,8 +165,8 @@ namespace WinPlus
                       a.Cursor(118, H - 20);
                   }),
                 I("اللون والزجاج", "Color and glass",
-                  "تعطي الشريط لون بالضبط اللي تختاره، أو تخليه زجاجي يبين اللي وراه مغبّش، أو شفاف.",
-                  "Give the bar exactly the color you pick, or make it glass that blurs what's behind, or see-through.",
+                  "تعطي الشريط لون بالضبط اللي تختاره، أو تخليه زجاجي يبين اللي وراه مغبّش (ياخذ صورة اللي وراه مرة، ويحدّثها بس بعد ما تحرّك نافذة أو تكبّرها أو تصغّرها، عشان ما يثقّل الجهاز؛ ولحظة التصغير والتكبير يبين الخلفية بس عشان ما يتلوّن من النافذة)، أو شفاف.",
+                  "Give the bar exactly the color you pick, or make it glass that blurs what's behind (it takes one picture of what's behind and updates it only after a window is moved, resized, minimized or restored, so it never slows your PC down; while a window shrinks or grows it shows just the wallpaper, so the window's colors don't flash on it), or see-through.",
                   "يمشي مع خلفيتك وذوقك، بدل لون ويندوز الثابت.",
                   "It matches your wallpaper and taste, instead of Windows' fixed color.",
                   a =>
@@ -111,8 +179,8 @@ namespace WinPlus
                           for (int i = 0; i < 6; i++) a.Rect(60 + i * 22, 27 + r * 40, 14, 14, Colors.White, 3, 0xC0);
                   }),
                 I("الإخفاء مع ملء الشاشة والسنة", "Hide in full screen, and the year",
-                  "الشريط يختفي لما يكون عندك برنامج مكبّر أو ملء الشاشة، ويرجع لما تودّي الماوس تحت. وتقدر تضيف السنة للتاريخ.",
-                  "The bar hides when a window is maximized or full screen, and comes back when the mouse reaches the bottom. You can also add the year to the date.",
+                  "الشريط يختفي لما يكون عندك برنامج مكبّر أو ملء الشاشة، ويرجع لما تودّي الماوس تحت. ولو الساعة أو تاسك بار المعلومات فوق، ترفع الماوس لأعلى الشاشة فوقها بالضبط (مو أي مكان فوق) وتطلع هي بروحها بدون الشريط اللي تحت. ومع خيار \"بالألعاب يطلع بزر ويندوز بس\"، وأنت تلعب الماوس ما يطلّعه أبد (عشان ما يطلع وأنت تحرك الكاميرا)، يطلع بس لما تضغط زر الويندوز. وتقدر تضيف السنة للتاريخ.",
+                  "The bar hides when a window is maximized or full screen, and comes back when the mouse reaches the bottom. If the clock or the info bar is at the top, move the mouse to the top edge right over them (not just anywhere along the top) and only they come down, without the bottom bar. With \"In games, only the Windows key shows it\", the mouse never brings it up while you play (so it doesn't pop up as you move the camera); only the Windows key does. You can also add the year to the date.",
                   "مساحة كاملة للعبة أو المقطع، والتاريخ كامل بنظرة.",
                   "The whole screen for a game or video, and the full date at a glance.",
                   a =>
@@ -122,6 +190,19 @@ namespace WinPlus
                       a.Dashed(0, H - 22, W, 22, Muted, 0x10);
                       a.Arrow(130, H - 30, 130, H - 6, Muted, 1.5);
                       a.Text(176, 54, "1/11/2026", 13, Ink, true);
+                  }),
+                I("يختفي لما تكون نافذة تحته", "Hides when a window is under it",
+                  "لو رفعت نافذة وصار شريط يغطي عليها (التاسك بار أو الساعة أو تاسك بار المعلومات)، الشريط اللي فوقها بس ينسحب عشان تبان النافذة كاملة، والباقي يظلون مكانهم. يرجع لما تبعد النافذة عنه، أو تلصق الماوس على حافة الشاشة فوقه بالضبط. وأنت تسحب النافذة ما يتحرك شي، ويقرر أول ما تفلتها. تشغّله وتطفيه من كليك يمين على التاسك بار أو الساعة أو تاسك بار المعلومات ← \"يختفي لما تكون نافذة تحته\"، أو من صفحة التاسك بار.",
+                  "If you raise a window and a bar ends up covering it (the taskbar, the clock or an info bar), only the bar over it slides away so the whole window shows; the others stay where they are. It comes back when the window moves away from it, or when you push the mouse against the screen's edge right over it. Nothing moves while you're dragging the window: it's decided as soon as you let go. Turn it on or off by right-clicking the taskbar, the clock or an info bar → \"Hide when a window is under it\", or on the Taskbar page.",
+                  "النافذة كلها تبان، بدون ما تطفي الأشرطة أو تنزّل النافذة.",
+                  "The whole window shows, without turning the bars off or moving the window down.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(8, 6, 70, 18, Panel, 6, 0xC0);
+                      a.Dashed(84, 6, 90, 18, Muted, 0x10);
+                      a.Rect(180, 6, 70, 18, Panel, 6, 0xC0);
+                      a.Window(70, 12, 120, 100, L("نافذة", "Window"));
                   }),
             });
 
@@ -324,8 +405,8 @@ namespace WinPlus
             new[]
             {
                 I("طفّي اللي ما تحتاجه", "Turn off what you don't need",
-                  "كل برنامج يشتغل مع الجهاز له مفتاح، تطفيه ويوقف يشتغل لحاله (ويبقى موجود).",
-                  "Every app that starts with the PC has a switch; turn it off and it stops starting by itself (it stays installed).",
+                  "كل برنامج يشتغل مع الجهاز له مفتاح، تطفيه ويوقف يشتغل لحاله (ويبقى موجود). تطلع حتى تطبيقات المتجر (مثل ChatGPT)، والقائمة تتحدث لحالها أول ما يتغير شي.",
+                  "Every app that starts with the PC has a switch; turn it off and it stops starting by itself (it stays installed). Store apps (like ChatGPT) show too, and the list updates by itself the moment anything changes.",
                   "الجهاز يقلع أسرع، والرام تبقى فاضية للي تحتاجه.",
                   "The PC starts faster, and memory stays free for what you need.",
                   a =>
@@ -632,8 +713,8 @@ namespace WinPlus
             new[]
             {
                 I("ويدجتات تتحاذى مع الأيقونات", "Widgets that line up with your icons",
-                  "تضيف ويدجتات مثل الطقس ومواقيت الصلاة والتقويم واستهلاك الجهاز وسرعة الإنترنت وموجات الصوت، وتتحاذى مع أيقونات سطح المكتب. تسحبها وتكبّرها من زاويتها. لما تكبّر نافذة أو يصير شي بملء الشاشة، الويدجتات اللي على نفس الشاشة تختفي عشان تخفف الرام والمعالج، وترجع أول ما تصغّرها. ولما يشتغل Wibn، الويدجتات تطلع وحدة ورا الثانية من فوق لتحت.",
-                  "Add widgets like weather, prayer times, a calendar, PC usage, internet speed and sound waves; they line up with your desktop icons. Drag them and resize from their corner. When a window is maximized or something is full screen, the widgets on that screen hide to save RAM and CPU, and come back as soon as it is restored. When Wibn starts, the widgets appear one after another from top to bottom.",
+                  "تضيف ويدجتات مثل الطقس ومواقيت الصلاة والتقويم واستهلاك الجهاز وسرعة الإنترنت وموجات الصوت، وتتحاذى مع أيقونات سطح المكتب. تسحبها وتكبّرها من زاويتها. لما تكبّر نافذة أو يصير شي بملء الشاشة، الويدجتات اللي على نفس الشاشة تختفي عشان تخفف الرام والمعالج، وترجع أول ما تصغّرها. ولما يشتغل Wibn، الويدجتات تظهر وحدة ورا الثانية شوي شوي.",
+                  "Add widgets like weather, prayer times, a calendar, PC usage, internet speed and sound waves; they line up with your desktop icons. Drag them and resize from their corner. When a window is maximized or something is full screen, the widgets on that screen hide to save RAM and CPU, and come back as soon as it is restored. When Wibn starts, the widgets fade in one after another.",
                   "اللي تحتاجه قدامك أول ما تشوف سطح المكتب.",
                   "What you need, right there on your desktop.",
                   a =>
@@ -648,6 +729,19 @@ namespace WinPlus
                       a.Bar(148, 42, 48, 0.3, Blue, 5);
                       a.Rect(44, 78, 160, 64, Panel, 10, 0xE0);
                       a.Center(124, 104, "♪  Song", 12, Ink, true);
+                  }),
+                I("لون كتابة الويدجتات", "Widgets' text color",
+                  "من صفحة الويدجتات ← لون الكتابة اختر \"لون أختاره\" وحدد اللون من المنتقي، وتصير كل كتابة الويدجتات بهاللون: الكتابة البيضاء والرمادية مع بعض (الرمادية تبقى أخف شوي بنفس اللون). ترجّعها \"تلقائي\" وتصير الكتابة غامقة أو فاتحة لحالها حسب اللي وراها. الويدجتات اللي لها لون كتابة خاص فيها (مثل ويدجت الكتابة) تبقى على لونها.",
+                  "On the Widgets page → Text color, choose \"Pick a color\" and pick it, and all the widgets' text takes that color: the white and the gray text together (the gray stays a little softer, in the same color). Set it back to \"Automatic\" and the text turns dark or light by itself with what's behind it. Widgets with their own text color (like the text widget) keep theirs.",
+                  "الكتابة تبان واضحة على أي خلفية، حتى لو التلقائي ما ضبط معها.",
+                  "Text that's clear on any wallpaper, even where automatic doesn't get it right.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(40, 24, 180, 96, Panel, 12, 0xC0);
+                      a.Text(60, 44, "24°", 22, Yellow);
+                      a.Text(60, 80, "Riyadh", 11, Color.FromArgb(0xC8, Yellow.R, Yellow.G, Yellow.B));
+                      a.Text(150, 80, "Mon", 11, Color.FromArgb(0xC8, Yellow.R, Yellow.G, Yellow.B));
                   }),
                 I("الاختصارات بالأبيض والأسود", "Shortcuts in black and white",
                   "في ويدجت الاختصارات، كليك يمين عليه واختر \"أبيض وأسود\"، وتصير كل أيقونات برامجك ومجلداتك رمادية.",
@@ -785,9 +879,9 @@ namespace WinPlus
             L("حركة ظهور الويدجتات وسرعة فتح النوافذ.", "How widgets come in, and how fast windows open."),
             new[]
             {
-                I("ظهور الويدجتات من فوق لتحت", "Widgets showing from the top down",
-                  "لما يشتغل Wibn أو تضيف ويدجت، كل ويدجت يطلع من فوق لتحت، والويدجتات تطلع وحدة ورا الثانية من أعلى الشاشة لتحت. تشغّلها أو تطفيها، وتختار مدة الحركة (أو تضغط سريعة، عادية، بطيئة، بطيئة جدًا)، والفرق بين كل ويدجت والثاني (0 = كلها مع بعض). زر \"جرّبها الحين\" يعيدها على الويدجتات اللي قدامك. بعد ما تخلص الحركة ما يبقى منها شي في الرام.",
-                  "When Wibn starts or you add a widget, each widget shows from the top down, one after another from the top of the screen. Turn it on or off, pick how long it takes (or press Fast, Normal, Slow, Very slow), and the wait between one widget and the next (0 = all together). \"Try it now\" plays it again on the widgets on screen. Once it's done, nothing of it stays in RAM.",
+                I("ظهور الويدجتات تدريجيًا", "Widgets fading in",
+                  "لما يشتغل Wibn أو تضيف ويدجت، كل ويدجت يبدأ مخفي ويظهر شوي شوي، والويدجتات تظهر وحدة ورا الثانية من أعلى الشاشة لتحت. تشغّلها أو تطفيها، وتختار مدة الحركة (أو تضغط سريعة، عادية، بطيئة، بطيئة جدًا)، والفرق بين كل ويدجت والثاني (0 = كلها مع بعض). زر \"جرّبها الحين\" يعيدها على الويدجتات اللي قدامك. بعد ما تخلص الحركة ما يبقى منها شي في الرام.",
+                  "When Wibn starts or you add a widget, each widget starts hidden and fades in, one after another from the top of the screen. Turn it on or off, pick how long it takes (or press Fast, Normal, Slow, Very slow), and the wait between one widget and the next (0 = all together). \"Try it now\" plays it again on the widgets on screen. Once it's done, nothing of it stays in RAM.",
                   "سطح مكتبك يطلع بشكل مرتب وناعم، بالسرعة اللي تحبها.",
                   "Your desktop comes in neat and smooth, at the speed you like.",
                   a =>
@@ -809,6 +903,38 @@ namespace WinPlus
                       a.Rect(60, 30, 140, 90, Panel, 12, 0xE8);
                       a.Rect(80, 44, 100, 62, Panel, 10, 0x60);
                       a.Center(130, 75, "0.17s", 13, Ink, true);
+                  }),
+            });
+
+        private static HelpPage WallpapersHelp() => new(L("الخلفيات", "Wallpapers"),
+            L("خلفياتك كلها في مكان واحد، وتبدّل بينها بضغطة.", "All your wallpapers in one place, switched with one key press."),
+            new[]
+            {
+                I("قائمة الخلفيات بنص الشاشة", "The wallpaper list in the middle of the screen",
+                  "أضف صور أو مقاطع (أو مجلد كامل، أو اسحبها على الصفحة). اضغط الاختصار (Ctrl + Alt + W، وتقدر تغيّره) وتطلع خلفياتك بنص الشاشة مثل لينكس: الخلفية المختارة كبيرة بالنص، واللي حولها أصغر وأغمق. تنقّل بالأسهم أو عجلة الماوس، Home و End للأول والأخير، واضغط Enter (أو كليك على اللي بالنص) وتصير خلفيتك، وEsc أو كليك برّا يسكّرها. وفي الصفحة: كليك على أي خلفية يطبّقها، ووقف عليها بالماوس عشان تقدّمها أو تأخرها أو تشيلها من القائمة (الملف نفسه يبقى).",
+                  "Add pictures or videos (or a whole folder, or drag them onto the page). Press the shortcut (Ctrl + Alt + W; you can change it) and your wallpapers come up in the middle of the screen, Linux style: the chosen one big in the middle, the ones around it smaller and darker. Move with the arrows or the mouse wheel, Home and End for the first and last, and press Enter (or click the middle one) to set it; Esc or a click outside closes it. On the page: click any wallpaper to set it, and hover it to move it earlier or later or take it off the list (the file itself stays).",
+                  "تغيّر جو جهازك بثانية بدون ما تدوّر في المجلدات وإعدادات ويندوز.",
+                  "Change your PC's mood in a second, without digging through folders and Windows settings.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(0, 0, W, H, Back, 0, 0x90);
+                      a.Rect(14, 48, 56, 32, Purple, 6, 0x70);
+                      a.Rect(W - 70, 48, 56, 32, Orange, 6, 0x70);
+                      a.Rect(80, 36, 112, 60, Blue, 9, 0xFF, Blue, 3);
+                      a.Keys(96, 108, "←", "→", "Enter");
+                  }),
+                I("حركة التبديل والخلفيات المتحركة", "The transition and animated wallpapers",
+                  "الخلفية الجديدة تدخل بحركة تختارها: دائرة تكبر من النص، أو معيّن يكبر، أو تلاشي، أو مسح ناعم، أو موجة، أو انزلاق، أو ستارة، أو مربعات، أو حركة عشوائية كل مرة، أو بدون. والمقاطع (MP4، WebM، MOV…) تصير خلفية متحركة تحت أيقونات سطح المكتب، صوتها مكتوم وتعيد لحالها، ولما تكبّر نافذة على الشاشة الرئيسية أو يكون شي بملء الشاشة تصير صورة ثابتة (آخر إطار منها) وتتسكّر عشان ترجع الرام والمعالج مثل الخلفية العادية، وتكمل من نفس اللحظة لما تصغّر النافذة (تقدر تطفي هالشي). كرت الشاشة يشغّلها، وتختار كم إطار بالثانية: توفير (15) أو عادي (30) أو ناعم (60). ويندوز ياخذ صورة منها كخلفيته، فلو سكّرت Wibn يبقى سطح المكتب بنفس الشكل، ولما يشتغل Wibn ترجع تتحرك.",
+                  "The new wallpaper comes in with the animation you pick: a circle growing from the middle, a growing diamond, a fade, a soft wipe, a wave, a slide, blinds, tiles, a random one each time, or none. Videos (MP4, WebM, MOV…) become an animated wallpaper under the desktop icons, muted and looping, and when a window is maximized on the main screen or something is full screen they turn into a still picture (their last frame) and close, so memory and processor use go back to a normal wallpaper's; they carry on from the same moment when you restore the window (you can turn this off). The graphics card plays them, and you pick how many frames a second: Saver (15), Normal (30) or Smooth (60). Windows gets a frame of it as its own wallpaper, so if you close Wibn the desktop still looks the same, and it moves again when Wibn starts.",
+                  "سطح مكتب حي وأنيق، بدون برنامج خلفيات ثاني يشتغل بالخلفية.",
+                  "A lively, elegant desktop, without another wallpaper app running in the background.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Dot(130, 66, 90, Purple, 0xD0);
+                      a.Dot(130, 66, 50, Orange, 0xD0);
+                      a.Glyph(130, 66, "\uE768", 20, Ink);
                   }),
             });
 

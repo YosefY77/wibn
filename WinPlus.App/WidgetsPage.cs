@@ -36,6 +36,7 @@ namespace WinPlus
 
             Children.Add(new TextBlock { Style = St("Section"), FontSize = 18, Margin = new Thickness(2, 24, 0, 8), Text = Lang.T("شكل الويدجت") });
             AddBackColor();
+            AddTextColor();
             AddFont();
 
             Children.Add(new TextBlock { Style = St("Section"), FontSize = 18, Margin = new Thickness(2, 24, 0, 8), Text = Lang.T("على سطح المكتب") });
@@ -89,6 +90,38 @@ namespace WinPlus
                 Widgets.Back = (Widgets.BackMode)box.SelectedIndex;
                 pickerRow.Visibility = Widgets.Back == Widgets.BackMode.Custom ? Visibility.Visible : Visibility.Collapsed;
                 Widgets.RefreshGlass();
+            };
+        }
+
+        /// <summary>The color of all the widgets' text, the white and the gray: automatic (dark or
+        /// light with what's behind) or one picked here, for wallpapers where gray text is hard to read.</summary>
+        private void AddTextColor()
+        {
+            var box = new ComboBox { Width = 190, VerticalAlignment = VerticalAlignment.Center };
+            box.Items.Add(new ComboBoxItem { Content = Lang.T("تلقائي") });
+            box.Items.Add(new ComboBoxItem { Content = Lang.T("لون أختاره") });
+            box.SelectedIndex = Widgets.TextColor != 0 ? 1 : 0;
+            Children.Add(Row(box, "", Lang.T("لون الكتابة"),
+                Lang.T("كل كتابة الويدجتات، البيضاء والرمادية، تصير بهاللون. على تلقائي تتغير لحالها مع الخلفية")));
+
+            uint last = Widgets.TextColor != 0 ? Widgets.TextColor : 0xFFFFFFFF;
+            var picker = new ColorPicker { Color = last };
+            var pickerRow = new Border
+            {
+                Style = St("Row"), Margin = new Thickness(0, 0, 0, 6), Child = picker,
+                Visibility = box.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed,
+            };
+            Children.Add(pickerRow);
+
+            var apply = new System.Windows.Threading.DispatcherTimer { Interval = System.TimeSpan.FromMilliseconds(120) };
+            apply.Tick += (_, _) => { apply.Stop(); Widgets.TextColor = last | 0xFF000000; };
+            picker.ColorChanged += argb => { last = argb; if (box.SelectedIndex == 1) { apply.Stop(); apply.Start(); } };
+
+            box.SelectionChanged += (_, _) =>
+            {
+                bool custom = box.SelectedIndex == 1;
+                pickerRow.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
+                Widgets.TextColor = custom ? last | 0xFF000000 : 0;
             };
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -37,7 +37,11 @@ namespace WinPlus
         private readonly Grid _root = new();
         private readonly Grid _host = new();                 // the window's content (the glass's untransformed parent)
         private readonly Border _card = new();               // the bar's background: glass, a color, or see-through
-        private LiquidGlass? _glass;
+        private readonly List<LiquidGlass> _glasses = new();   // one per piece (two when the clock has its own bar)
+        private Border? _appsCard, _trayCard;                  // the two pieces, when split
+        private ClockBar? _clockWin;                           // the clock's piece on another edge
+        private FrameworkElement? _trayInside;                 // what's in the clock's piece (the clock, status, icons)
+        private CustomTaskbar.RECT _full;                      // where it would be at full length (the widgets line up with this)
         private readonly DispatcherTimer _glassSoon = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(200) };
         private readonly DispatcherTimer _wallpaper = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(1) };
         private double _radius;
@@ -59,6 +63,24 @@ namespace WinPlus
         /// <summary>The screen it's on, and where it is now (screen pixels; empty until placed).</summary>
         internal CustomTaskbar.RECT Monitor => _monitor;
         internal CustomTaskbar.RECT Placed => _placed;
+        /// <summary>Where it would be at its full length (not shortened by dragging its ends).</summary>
+        internal CustomTaskbar.RECT FullPlaced => _placed.Width == 0 ? default : _full;
+        /// <summary>The apps and the clock on two bars of their own (horizontal bars only).</summary>
+        private bool SplitOn => CustomTaskbar.Split && !_vertical;
+        /// <summary>The clock's piece is on another edge than the apps, in its own window.</summary>
+        private bool ClockApart => SplitOn && CustomTaskbar.ClockApartEdge(_top ? 1 : 0) >= 0;
+        /// <summary>The clock's piece is at the top of the screen (for the arrow's panel, which opens away from it).</summary>
+        internal bool ClockAtTop => ClockApart ? CustomTaskbar.ClockEdge == 1 : _top;
+        /// <summary>Where the clock's own bar is (empty unless it's apart and showing).</summary>
+        internal CustomTaskbar.RECT ClockPlaced => _clockWin?.Placed ?? default;
+        /// <summary>Where the clock's own bar is (or goes when it comes back), even while it's hidden.</summary>
+        internal CustomTaskbar.RECT ClockSpot => _clockLast;
+        /// <summary>Where the bar (its apps' piece) is, screen pixels (kept while it's hidden too).</summary>
+        internal CustomTaskbar.RECT AppsSpot => _placed;
+        /// <summary>Hidden only because the window in front is under it: the info bars beside it stay.</summary>
+        internal bool CoverHidden, ClockCoverHidden;
+        /// <summary>The shape that's used: split bars are always floating pieces.</summary>
+        private int ShapeNow => SplitOn ? 1 : CustomTaskbar.Shape;
 
         public TaskbarBar(bool primary)
         {
@@ -98,21 +120,33 @@ namespace WinPlus
 
             _refresh.Tick += (_, _) => RefreshApps();
             _glassSoon.Tick += (_, _) => { _glassSoon.Stop(); StartGlass(); };
-            _wallpaper.Tick += (_, _) => _glass?.Refresh();   // wallpaper slideshows
+            _wallpaper.Tick += (_, _) => { foreach (var g in _glasses) g.Refresh(); };   // wallpaper slideshows
             InputLang.Changed += ShowLang;
             TrayHost.Changed += RefreshTray;
             _soon.Tick += (_, _) => { _soon.Stop(); CustomTaskbar.RefreshAll(); };
             Status.Updated += ShowStatus;
             ContextMenuOpening += (_, e) => e.Handled = true;
-            MouseRightButtonUp += (s, e) => { if (e.OriginalSource == _root || e.OriginalSource == _card || e.OriginalSource is Grid or DockPanel or StackPanel) { BarMenu(); e.Handled = true; } };
+            MouseRightButtonUp += (s, e) =>
+            {
+                if (e.OriginalSource == _root || e.OriginalSource == _card || e.OriginalSource == _appsCard || e.OriginalSource == _trayCard
+                    || e.OriginalSource is Grid or DockPanel or StackPanel)
+                {
+                    if (SplitOn && Within(e.OriginalSource, _trayCard)) ClockMenu(_trayCard!); else BarMenu();
+                    e.Handled = true;
+                }
+            };
             Drop += OnDrop;
             HookEndDrag();
+            HookPieceDrag(this);   // before moving the bar: a press on a piece's end makes it longer instead
+            HookMoveDrag();
         }
 
         // ---- Place and look ---------------------------------------------------------------------
 
         /// <summary>Called by the manager four times a second: where it goes and whether it shows.</summary>
-        public void Place(CustomTaskbar.RECT strip, CustomTaskbar.RECT monitor, bool visible, CustomTaskbar.RECT windowsTray, bool slide = false, bool overFullscreen = false)
+        /// <param name="clockVisible">The clock's own bar (on the other edge) shows: over a full-screen app it comes
+        /// on its own when the mouse goes to its edge. Null = with the bar.</param>
+        public void Place(CustomTaskbar.RECT strip, CustomTaskbar.RECT monitor, bool visible, CustomTaskbar.RECT windowsTray, bool slide = false, bool overFullscreen = false, bool? clockVisible = null)
         {
             UpdateAppBar(windowsTray, monitor);
             bool vertical = strip.Height > strip.Width;
@@ -125,11 +159,14 @@ namespace WinPlus
 
             if (!visible)
             {
-                if (!_shown) return;
-                TaskbarPreview.HideNow();
-                CloseFlyout();
-                if (slide) SlideTo(1);   // goes down off the screen, then hides
-                else HideNow();
+                if (_shown)
+                {
+                    TaskbarPreview.HideNow();
+                    CloseFlyout();
+                    if (slide) SlideTo(1);   // goes down off the screen, then hides
+                    else HideNow();
+                }
+                ShowClock(clockVisible ?? false, slide, overFullscreen);
                 return;
             }
             bool first = !_shown;
@@ -153,6 +190,426 @@ namespace WinPlus
             else if (overFullscreen && _slideClock == null)
                 SetWindowPos(_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | 0x2 /* NOMOVE */ | 0x1 /* NOSIZE */);
             if (first) RefreshApps();
+            ShowClock(clockVisible ?? true, slide, overFullscreen);
+            PlaceClock();
+        }
+
+        // ---- Longer pieces (split taskbar): drag a piece's end ---------------------------------------------
+        //
+        // The apps' piece: both ends when it's in the middle (it grows both ways), its right end when it's
+        // at the start. The clock's piece: its left end (it stays at the right). Never shorter than what's
+        // on it; a double-click on the end makes it just that long again.
+
+        private Border? _lenPiece;
+        private bool _lenPending, _lenDragging;
+        private int _lenSide;                 // -1 = left end, 1 = right end
+        private double _lenFromX, _lenFromWidth;
+
+        /// <summary>The pieces take their saved lengths (after a change on another screen's bar too).</summary>
+        internal void ApplyPieceLengths()
+        {
+            if (_appsCard == null || _trayCard == null) return;
+            _appsCard.MinWidth = CustomTaskbar.AppsLength;
+            _trayCard.MinWidth = CustomTaskbar.ClockLength;
+            AlignClock();
+            PlaceClock();
+        }
+
+        /// <summary>In a clock piece longer than what's in it: the clock on the right, the left, or in the middle.</summary>
+        private void AlignClock()
+        {
+            if (_trayInside == null || !SplitOn) return;
+            _trayInside.HorizontalAlignment = CustomTaskbar.ClockAlign switch
+            {
+                1 => HorizontalAlignment.Left,
+                2 => HorizontalAlignment.Center,
+                _ => HorizontalAlignment.Right,
+            };
+        }
+
+        /// <summary>The clock piece's right-click menu: where the clock sits in it, then the bar's menu.</summary>
+        private void ClockMenu(UIElement target)
+        {
+            var menu = NewMenu();
+            var place = new MenuItem { Header = Lang.T("مكان الساعة في التاسك بار") };
+            foreach (var (name, v) in new[] { ("يمين", 0), ("يسار", 1), ("الوسط", 2) })
+            {
+                int value = v;
+                var i = Item(Lang.T(name), () => CustomTaskbar.ClockAlign = value);
+                i.IsCheckable = true;
+                i.IsChecked = CustomTaskbar.ClockAlign == value;
+                place.Items.Add(i);
+            }
+            menu.Items.Add(place);
+            if (ClockApart)
+            {
+                // On its own edge: at its right or left end (the info bar beside it takes the rest).
+                var side = new MenuItem { Header = Lang.T("جهة تاسك بار الساعة") };
+                foreach (var (name, v) in new[] { ("يمين", 0), ("يسار", 1) })
+                {
+                    int value = v;
+                    var i = Item(Lang.T(name), () => CustomTaskbar.ClockSide = value);
+                    i.IsCheckable = true;
+                    i.IsChecked = CustomTaskbar.ClockSide == value;
+                    side.Items.Add(i);
+                }
+                menu.Items.Add(side);
+            }
+            menu.Items.Add(CoverToggle());
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Item(Lang.T("إعدادات تاسك بار Wibn"), () => (Application.Current as App)?.ShowTaskbarSettings(), "\uE713"));
+            menu.Items.Add(Item(Lang.T("مدير المهام"), () => TaskbarApps.Launch("taskmgr.exe"), "\uE9D9"));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Item(Lang.T("رجّع تاسك بار ويندوز"), () => CustomTaskbar.Enabled = false, "\uE7E8"));
+            OpenMenu(menu, target, atMouse: true);
+        }
+
+        /// <summary>Which piece's end is under the mouse (screen pixels), and which end.</summary>
+        private (Border? Piece, int Side) PieceEndAt(Window w, Point screen)
+        {
+            if (!SplitOn || _appsCard == null || _trayCard == null) return (null, 0);
+            double zone = EndZone * _scale;
+            bool center = CustomTaskbar.Align == 0;
+            foreach (var piece in new[] { _appsCard, _trayCard })
+            {
+                if (Window.GetWindow(piece) != w || !piece.IsVisible || piece.ActualWidth < 4) continue;
+                var a = piece.PointToScreen(new Point(0, 0));
+                var z = piece.PointToScreen(new Point(piece.ActualWidth, piece.ActualHeight));
+                double l = Math.Min(a.X, z.X), r = Math.Max(a.X, z.X), t = Math.Min(a.Y, z.Y), b = Math.Max(a.Y, z.Y);
+                if (screen.Y < t || screen.Y > b) continue;
+                bool atLeft = Math.Abs(screen.X - l) <= zone, atRight = Math.Abs(screen.X - r) <= zone;
+                if (piece == _trayCard)
+                {
+                    // Its inner end: the left one, or the right one when it's on its own at the left of its edge.
+                    if (ClockApart && CustomTaskbar.ClockSide == 1) { if (atRight) return (piece, 1); }
+                    else if (atLeft) return (piece, -1);
+                    continue;
+                }
+                if (atRight) return (piece, 1);
+                if (atLeft && center) return (piece, -1);
+            }
+            return (null, 0);
+        }
+
+        private void HookPieceDrag(Window w)
+        {
+            w.PreviewMouseMove += (_, e) =>
+            {
+                var at = w.PointToScreen(e.GetPosition(w));
+                if (_lenDragging && _lenPiece != null)
+                {
+                    // Out = longer. The apps' piece in the middle grows both ways, so twice the move.
+                    double moved = (at.X - _lenFromX) * _lenSide / _scale;
+                    if (_lenPiece == _appsCard && CustomTaskbar.Align == 0) moved *= 2;
+                    _lenPiece.MinWidth = Math.Clamp(_lenFromWidth + moved, 0, MaxPieceLength(_lenPiece));
+                    if (_lenPiece == _trayCard)
+                    {
+                        PlaceClock();
+                        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) SnapClockToWidgets();   // Shift: as wide as the nearest widget
+                    }
+                    e.Handled = true;
+                    return;
+                }
+                if (_lenPending && e.LeftButton == MouseButtonState.Pressed && Math.Abs(at.X - _lenFromX) > 3 * _scale && _lenPiece != null)
+                {
+                    _lenDragging = true;
+                    _lenFromWidth = _lenPiece.ActualWidth;   // from what it really is now (at least what's on it)
+                    TaskbarPreview.HideNow();
+                    w.CaptureMouse();
+                    e.Handled = true;
+                    return;
+                }
+                if (PieceEndAt(w, at).Piece != null) w.Cursor = Cursors.SizeWE;
+                else if (w != this) w.Cursor = null;   // the bar's own window: its ends set the cursor themselves
+            };
+            w.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                if (e.Handled) return;
+                var at = w.PointToScreen(e.GetPosition(w));
+                if (w == this && EndAt(at.X) != 0) return;   // the bar's ends make the whole bar shorter
+                var (piece, side) = PieceEndAt(w, at);
+                if (piece == null) return;
+                e.Handled = true;   // not a drag of the bar or the clock, not a click
+                if (e.ClickCount == 2) { SaveLength(piece, 0); return; }   // just as long as what's on it again
+                _lenPiece = piece;
+                _lenSide = side;
+                _lenFromX = at.X;
+                _lenPending = true;
+            };
+            w.PreviewMouseLeftButtonUp += (_, e) =>
+            {
+                _lenPending = false;
+                if (!_lenDragging) return;
+                e.Handled = true;
+                EndLength(w);
+            };
+            w.LostMouseCapture += (_, _) => { if (_lenDragging) EndLength(w); };
+        }
+
+        private void EndLength(Window w)
+        {
+            _lenDragging = false;
+            if (w.IsMouseCaptured) w.ReleaseMouseCapture();
+            if (_lenPiece != null) SaveLength(_lenPiece, (int)Math.Round(_lenPiece.MinWidth));
+            _lenPiece = null;
+        }
+
+        private void SaveLength(Border piece, int dip)
+        {
+            if (piece == _appsCard) CustomTaskbar.AppsLength = dip; else CustomTaskbar.ClockLength = dip;   // every screen's bar takes it
+        }
+
+        /// <summary>How long a piece may get: the clock's own bar up to half the screen; beside each other,
+        /// the two pieces must still fit on the bar.</summary>
+        private double MaxPieceLength(Border piece)
+        {
+            double bar = _placed.Width / _scale;
+            if (piece == _trayCard && ClockApart) return (_monitor.Right - _monitor.Left) / _scale / 2;
+            var other = piece == _appsCard ? _trayCard : _appsCard;
+            double otherW = other != null && Window.GetWindow(other) == this ? other.ActualWidth : 0;
+            double room = bar - otherW - 24;
+            return Math.Max(0, piece == _appsCard && CustomTaskbar.Align == 0 ? room - otherW : room);   // in the middle: room on both sides of it
+        }
+
+        /// <summary>The clock's own bar being dragged with Shift held: its left end goes to the left edge of the
+        /// nearest widget, so the bar and the widgets over (or under) it are just as wide.</summary>
+        private void SnapClockToWidgets()
+        {
+            if (_clockWin == null || _trayCard == null || !ClockApart || CustomTaskbar.ClockSide != 0) return;
+            var p = _clockWin.Placed;
+            if (p.Width == 0) return;
+            int best = int.MaxValue;
+            foreach (var l in Widgets.CardLefts(_monitor.Left, _monitor.Right))
+                if (l < p.Right && Math.Abs(l - p.Left) < Math.Abs(best)) best = l - p.Left;
+            if (best == 0 || best == int.MaxValue) return;
+            double want = _trayCard.MinWidth - best / _scale;
+            if (want < 0 || want > MaxPieceLength(_trayCard)) return;
+            _trayCard.MinWidth = want;
+            PlaceClock();
+        }
+
+        // ---- The clock's own bar (split, on another edge) ---------------------------------------------
+
+        private ClockBar NewClockWindow()
+        {
+            var w = new ClockBar { Foreground = Ink, FlowDirection = FlowDirection };   // the bar's text color (it changes with what's behind)
+            w.MouseRightButtonUp += (_, e) =>
+            {
+                if (e.OriginalSource == _trayCard || e.OriginalSource is Grid or StackPanel) { ClockMenu(_trayCard!); e.Handled = true; }
+            };
+            HookPieceDrag(w);      // before moving the clock: its end makes it longer
+            HookClockDrag(w);
+            return w;
+        }
+
+        private void CloseClockWindow()
+        {
+            if (_clockWin == null) return;
+            var w = _clockWin;
+            _clockWin = null;
+            w.Host.Children.Clear();
+            try { w.Close(); } catch { }
+            CustomTaskbar.WidgetsFollowSoon();
+        }
+
+        /// <summary>On the clock's edge of this screen, at its chosen end (right or left), as tall as the bar's pieces.</summary>
+        private void PlaceClock()
+        {
+            if (_clockWin == null || _trayCard == null) return;
+            int edge = CustomTaskbar.ClockEdge;
+            var strip = CustomTaskbar.EdgeStrip(_monitor, _hwnd, edge);
+            int gap = (int)Math.Round(5 * _scale);
+            _trayCard.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            int w = (int)Math.Ceiling(_trayCard.DesiredSize.Width * _scale);
+            var r = new CustomTaskbar.RECT { Top = strip.Top + gap, Bottom = strip.Bottom - gap };
+            if (CustomTaskbar.ClockSide == 1) { r.Left = strip.Left + gap; r.Right = r.Left + w; }
+            else { r.Right = strip.Right - gap; r.Left = r.Right - w; }
+            _clockLast = r;
+            if (!_clockOn && !_clockWin.IsVisible) return;   // hidden (full screen): only where it would go
+            if (_clockWin.PlaceAt(r, ClockSlideDy(r)) && _clockSlide == 0)
+            {
+                RestartGlass();
+                CustomTaskbar.WidgetsFollowSoon();
+            }
+        }
+
+        /// <summary>How far the clock's own bar is pushed off its edge (top or bottom) while the taskbar slides.</summary>
+        private int ClockSlideDy(CustomTaskbar.RECT r)
+        {
+            if (_clockSlide <= 0) return 0;
+            bool top = r.Top - _monitor.Top < _monitor.Bottom - r.Bottom;
+            return top ? -(int)Math.Round((r.Bottom - _monitor.Top) * _clockSlide) : (int)Math.Round((_monitor.Bottom - r.Top) * _clockSlide);
+        }
+
+        // The clock's own bar slides on its own: over a full-screen app the mouse at its edge brings only it.
+        private bool _clockOn = true;
+        private double _clockSlide, _clockFrom, _clockTo;
+        private System.Diagnostics.Stopwatch? _clockClock;
+
+        internal bool ClockShowing => _clockWin != null && _clockWin.IsVisible && !(_clockClock != null && _clockTo >= 1);
+
+        private void ShowClock(bool on, bool slide, bool overFullscreen)
+        {
+            _clockOn = on;
+            if (_clockWin == null || !ClockApart) return;
+            if (on)
+            {
+                if (!_clockWin.IsVisible && _clockClock == null)
+                {
+                    _clockSlide = slide ? 1 : 0;   // comes in from the screen's edge
+                    PlaceClock();
+                }
+                ClockSlideTo(0);
+                // Full-screen apps put themselves on top too: it keeps coming back above them.
+                if (overFullscreen && _clockClock == null && _clockWin.IsVisible)
+                    SetWindowPos(_clockWin.Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | 0x2 /* NOMOVE */ | 0x1 /* NOSIZE */);
+                return;
+            }
+            if (!_clockWin.IsVisible) return;
+            if (slide) ClockSlideTo(1);
+            else { StopClockSlide(); _clockSlide = 0; _clockWin.HideIt(); }
+        }
+
+        private void ClockSlideTo(double to)
+        {
+            if (_clockClock != null ? _clockTo == to : _clockSlide == to) return;
+            _clockFrom = _clockSlide;
+            _clockTo = to;
+            if (_clockClock == null)
+            {
+                _clockClock = System.Diagnostics.Stopwatch.StartNew();
+                CompositionTarget.Rendering += ClockSlideFrame;
+            }
+            else _clockClock.Restart();
+        }
+
+        private void StopClockSlide()
+        {
+            if (_clockClock == null) return;
+            CompositionTarget.Rendering -= ClockSlideFrame;
+            _clockClock = null;
+        }
+
+        private void ClockSlideFrame(object? sender, EventArgs e)
+        {
+            if (_clockClock == null) return;
+            double t = Math.Min(1, _clockClock.Elapsed.TotalMilliseconds / SlideMs);
+            _clockSlide = _clockFrom + (_clockTo - _clockFrom) * (1 - Math.Pow(1 - t, 3));
+            if (t >= 1)
+            {
+                _clockSlide = _clockTo;
+                StopClockSlide();
+                if (_clockSlide >= 1) { _clockWin?.HideIt(); _clockSlide = 0; return; }
+            }
+            if (_clockWin != null && _clockLast.Width > 0) _clockWin.PlaceAt(_clockLast, ClockSlideDy(_clockLast));
+            // In its place again: the glass sees what's behind it now. A live glass already does (it follows the
+            // clock's bar as it slides): built again, the clock's bar came back after the others.
+            if (t >= 1 && (!LiquidGlass.LiveStream || _glasses.Count == 0)) RestartGlass();
+        }
+
+        private CustomTaskbar.RECT _clockLast;   // where the clock's own bar goes (kept while it's hidden too)
+
+        /// <summary>
+        /// What's really on the screen of this bar (screen pixels), and whether it's showing: the two pieces of a
+        /// split bar (and the clock's own bar), else the bar itself. The info bar sits beside them on their edge.
+        /// </summary>
+        internal IEnumerable<(CustomTaskbar.RECT Rect, bool Shown)> ScreenPieces()
+        {
+            if (_placed.Width == 0) yield break;
+            bool shown = Showing || CoverHidden;
+            if (SplitOn && _appsCard != null && _trayCard != null)
+            {
+                foreach (var piece in new[] { _appsCard, _trayCard })
+                {
+                    if (Window.GetWindow(piece) != this || piece.ActualWidth < 4) continue;
+                    Point at;
+                    try { at = piece.TranslatePoint(new Point(0, 0), _host); } catch { continue; }
+                    int w = (int)Math.Round(piece.ActualWidth * _scale), h = (int)Math.Round(piece.ActualHeight * _scale);
+                    int l = FlowDirection == FlowDirection.RightToLeft
+                        ? _placed.Right - (int)Math.Round(at.X * _scale) - w   // laid out from the right
+                        : _placed.Left + (int)Math.Round(at.X * _scale);
+                    int t = _placed.Top + (int)Math.Round(at.Y * _scale);
+                    yield return (new CustomTaskbar.RECT { Left = l, Top = t, Right = l + w, Bottom = t + h }, shown);
+                }
+                if (ClockApart && _clockWin != null && _clockLast.Width > 0) yield return (_clockLast, ClockShowing || ClockCoverHidden);
+                yield break;
+            }
+            yield return (_placed, shown);
+        }
+
+        /// <summary>Dragging an empty spot of the clock's piece moves only the clock: to the top, the bottom, or back beside the apps.</summary>
+        private void HookClockDrag(Window w)
+        {
+            bool pending = false, moving = false;
+            Point from = default;
+            int target = 0;
+            w.PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                if (e.Handled || !(e.OriginalSource == _trayCard || e.OriginalSource is Grid or StackPanel)) return;
+                pending = true;
+                from = w.PointToScreen(e.GetPosition(w));
+            };
+            w.PreviewMouseMove += (_, e) =>
+            {
+                if (!pending || e.LeftButton != MouseButtonState.Pressed) { pending = false; return; }
+                var now = w.PointToScreen(e.GetPosition(w));
+                if (!moving)
+                {
+                    if (Math.Abs(now.X - from.X) < 14 * _scale && Math.Abs(now.Y - from.Y) < 14 * _scale) return;
+                    moving = true;
+                    CloseFlyout();
+                    w.CaptureMouse();
+                    _edgePreview ??= new EdgePreview();
+                }
+                target = ClockTarget(now);
+                _moveSide = CustomTaskbar.ClockSide;   // it keeps the end it was at (right-click → its side to change it)
+                _edgePreview?.ShowAt(ClockPreview(target, _moveSide), Accent.Color);
+                e.Handled = true;
+            };
+            void End(bool apply)
+            {
+                bool was = moving;
+                moving = pending = false;
+                if (w.IsMouseCaptured) w.ReleaseMouseCapture();
+                _edgePreview?.Close();
+                _edgePreview = null;
+                if (was && apply) SetClockEdge(target, _moveSide);
+            }
+            w.PreviewMouseLeftButtonUp += (_, e) => { if (moving) { e.Handled = true; End(true); } pending = false; };
+            w.LostMouseCapture += (_, _) => { if (moving) End(true); };
+            w.KeyDown += (_, e) => { if (moving && e.Key == Key.Escape) End(false); };
+        }
+
+        /// <summary>The top or the bottom of this screen, whichever the mouse is nearer.</summary>
+        private int ClockTarget(Point screen) => screen.Y < (_monitor.Top + _monitor.Bottom) / 2.0 ? 1 : 0;
+
+        /// <summary>The clock goes to this edge, at this end of it (0 = right, 1 = left); on the apps' edge it's beside them again.</summary>
+        private static void SetClockEdge(int edge, int side)
+        {
+            int apps = CustomTaskbar.Edge;
+            if (edge != apps) CustomTaskbar.ClockSide = side;
+            CustomTaskbar.ClockEdge = edge == apps ? -1 : edge;
+        }
+
+        private int _moveSide;
+
+
+        /// <summary>Where the clock would go, lit up while it's dragged: its half of that edge (the whole edge beside the apps).</summary>
+        private CustomTaskbar.RECT ClockPreview(int edge, int side)
+        {
+            var strip = CustomTaskbar.EdgeStrip(_monitor, _hwnd, edge);
+            if (edge == CustomTaskbar.Edge) return strip;
+            int mid = (strip.Left + strip.Right) / 2;
+            if (side == 1) strip.Right = mid; else strip.Left = mid;
+            return strip;
+        }
+
+        private static bool Within(object source, FrameworkElement? box)
+        {
+            if (box == null) return false;
+            for (var d = source as DependencyObject; d != null; d = VisualTreeHelper.GetParent(d))
+                if (d == box) return true;
+            return false;
         }
 
         /// <summary>Up (or on its way up), not hidden or sliding down.</summary>
@@ -162,7 +619,11 @@ namespace WinPlus
         {
             StopSlide();
             _slide = 0;
-            Hide(); _shown = false; TaskbarPreview.HideNow(); StopGlass(); CloseFlyout();
+            // A live glass stays on while it's hidden (it copies nothing then): stopped, it stopped the clock's
+            // bar's glass too, and that came back late.
+            Hide(); _shown = false; TaskbarPreview.HideNow(); if (!LiquidGlass.LiveStream) StopGlass(); CloseFlyout();
+            if (_clockWin != null && !_clockOn) { StopClockSlide(); _clockSlide = 0; _clockWin.HideIt(); }
+            else if (ClockShowing && (!LiquidGlass.LiveStream || _glasses.Count == 0)) RestartGlass();   // the clock's bar stays on its own: its glass again
         }
 
         // ---- Sliding off the screen's edge (full screen) ------------------------------------------------
@@ -203,7 +664,9 @@ namespace WinPlus
                 StopSlide();
                 if (_slide >= 1) { HideNow(); return; }
                 MoveWindow();
-                RestartGlass();   // in its place again: the glass sees what's behind it now
+                // In its place again: the glass sees what's behind it now. A live glass already does (it follows
+                // the bar as it slides): built again, it came back late.
+                if (!LiquidGlass.LiveStream || _glasses.Count == 0) RestartGlass();
                 return;
             }
             MoveWindow();
@@ -227,9 +690,10 @@ namespace WinPlus
         private CustomTaskbar.RECT Target()
         {
             var s = _strip;
-            int shape = CustomTaskbar.Shape;
+            int shape = ShapeNow;
             int gap = (int)Math.Round(5 * _scale);
             var r = shape == 0 ? s : new CustomTaskbar.RECT { Left = s.Left + gap, Top = s.Top + gap, Right = s.Right - gap, Bottom = s.Bottom - gap };
+            _full = r;
             if (shape != 2 && !_vertical)
             {
                 // Made shorter by dragging an end: both ends come in by the same amount (it stays centered).
@@ -287,7 +751,7 @@ namespace WinPlus
             return (int)Math.Round(Math.Clamp(want, 0, max));
         }
 
-        private bool CanResize => CustomTaskbar.Shape != 2 && !_vertical && _placed.Width > 0;
+        private bool CanResize => ShapeNow != 2 && !_vertical && _placed.Width > 0;
 
         /// <summary>Which end the mouse is at (screen pixels): -1 left, 1 right, 0 neither.</summary>
         private int EndAt(double screenX)
@@ -354,6 +818,80 @@ namespace WinPlus
             LostMouseCapture += (_, _) => { if (_dragging) EndDrag(); };
         }
 
+        // ---- Moving it to another edge by dragging it ---------------------------------------------------
+        //
+        // Pressing on an empty spot of the bar and dragging shows where it would go (the screen edge
+        // nearest the mouse: bottom, top, left or right); letting go puts it there. The windows and the
+        // widgets make room for it.
+
+        private bool _movePending, _movingBar, _moveClock;
+        private Point _moveFrom;
+        private int _moveEdge;
+        private EdgePreview? _edgePreview;
+
+        private bool IsEmptySpot(object source) =>
+            source == _root || source == _card || source == _host || source == _appsCard || source == _trayCard || source is Grid or DockPanel or StackPanel;
+
+        private void HookMoveDrag()
+        {
+            PreviewMouseLeftButtonDown += (_, e) =>
+            {
+                if (e.Handled || !IsEmptySpot(e.OriginalSource)) return;
+                if (EndAt(ScreenX(e)) != 0) return;   // the ends make it shorter instead
+                _movePending = true;
+                _moveClock = SplitOn && Within(e.OriginalSource, _trayCard);   // the clock's piece: only the clock moves
+                _moveFrom = PointToScreen(e.GetPosition(this));
+            };
+            PreviewMouseMove += (_, e) =>
+            {
+                if (!_movePending || e.LeftButton != MouseButtonState.Pressed) { _movePending = false; return; }
+                var now = PointToScreen(e.GetPosition(this));
+                if (!_movingBar)
+                {
+                    if (Math.Abs(now.X - _moveFrom.X) < 14 * _scale && Math.Abs(now.Y - _moveFrom.Y) < 14 * _scale) return;
+                    _movingBar = true;
+                    TaskbarPreview.HideNow();
+                    CloseFlyout();
+                    CaptureMouse();
+                    _edgePreview ??= new EdgePreview();
+                }
+                if (_moveClock)
+                {
+                    _moveEdge = ClockTarget(now);
+                    _moveSide = CustomTaskbar.ClockSide;   // it keeps the end it was at (right-click → its side to change it)
+                    _edgePreview?.ShowAt(ClockPreview(_moveEdge, _moveSide), Accent.Color);
+                }
+                else
+                {
+                    var (edge, strip) = EdgePreview.NearestEdge((int)now.X, (int)now.Y, _hwnd);
+                    _moveEdge = edge;
+                    _edgePreview?.ShowAt(strip, Accent.Color);
+                }
+                e.Handled = true;
+            };
+            PreviewMouseLeftButtonUp += (_, e) =>
+            {
+                _movePending = false;
+                if (!_movingBar) return;
+                e.Handled = true;
+                EndMove(apply: true);
+            };
+            LostMouseCapture += (_, _) => { if (_movingBar) EndMove(apply: true); };
+            KeyDown += (_, e) => { if (_movingBar && e.Key == Key.Escape) EndMove(apply: false); };
+        }
+
+        private void EndMove(bool apply)
+        {
+            _movingBar = false;
+            _movePending = false;
+            if (IsMouseCaptured) ReleaseMouseCapture();
+            _edgePreview?.Close();
+            _edgePreview = null;
+            if (!apply) return;
+            if (_moveClock) SetClockEdge(_moveEdge, _moveSide);
+            else CustomTaskbar.Edge = _moveEdge;   // every bar goes there; the windows and widgets make room
+        }
+
         private void EndDrag()
         {
             _dragging = false;
@@ -370,7 +908,12 @@ namespace WinPlus
         public void ApplyLook()
         {
             _built = true;
-            int shape = CustomTaskbar.Shape, look = CustomTaskbar.Look, opacity = Math.Clamp(CustomTaskbar.Opacity, 0, 100);
+            // The glass's last pictures: the rebuilt bar shows them until its new glass is ready, not a dark
+            // gray (which looked like the bar blinking black whenever it was rebuilt).
+            var oldApps = _appsCard?.Background as ImageBrush;
+            var oldTray = _trayCard?.Background as ImageBrush;
+            var oldCard = _card.Background as ImageBrush;
+            int shape = ShapeNow, look = CustomTaskbar.Look, opacity = Math.Clamp(CustomTaskbar.Opacity, 0, 100);
             int rgb = CustomTaskbar.BackColor;
             var color = Color.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
 
@@ -380,18 +923,22 @@ namespace WinPlus
             // Background
             double h = (_vertical ? _strip.Width : _strip.Height) / _scale - (shape == 0 ? 0 : 10);
             _radius = shape == 0 ? 0 : Math.Clamp(h / 2 - 4, 6, 14);
-            _card.CornerRadius = new CornerRadius(_radius);
             StopGlass();
             byte alpha = (byte)Math.Max(1, opacity * 255 / 100);   // never 0: fully clear parts would let clicks through
-            _card.Background = look switch
+            _cardBack = look switch
             {
                 1 => new SolidColorBrush(color),
                 2 => new SolidColorBrush(Color.FromArgb(alpha, color.R, color.G, color.B)),
                 _ => new SolidColorBrush(Color.FromArgb(0xE0, 0x1C, 0x1C, 0x1E)),   // until the glass is ready (or with it off)
             };
-            _card.BorderThickness = new Thickness(shape == 0 ? 0 : 1);
-            _card.BorderBrush = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
-            if (look == 0) RestartGlass();
+            if (SplitOn)
+            {
+                // The window itself is clear between the two pieces (clicks there go to what's under it).
+                _card.Background = null;
+                _card.BorderThickness = new Thickness(0);
+                _card.CornerRadius = new CornerRadius(0);
+            }
+            else StylePiece(_card, shape);
 
             // Sizes (in device-independent pixels)
             double thick = (_vertical ? _strip.Width : _strip.Height) / _scale;
@@ -402,6 +949,16 @@ namespace WinPlus
             IconPx = Math.Min(IconPx, ButtonSize - 10);
 
             Build();
+            if (look == 0 && GlassSettings.Taskbar.On)
+            {
+                if (SplitOn)
+                {
+                    if (_appsCard != null && oldApps != null) _appsCard.Background = oldApps;
+                    if (_trayCard != null && oldTray != null) _trayCard.Background = oldTray;
+                }
+                else if (oldCard != null) _card.Background = oldCard;
+            }
+            if (look == 0) RestartGlass();
             _signature = "";
             RefreshApps();
             RefreshTray();
@@ -433,7 +990,7 @@ namespace WinPlus
 
             // Status, clock, desktop corner
             var tray = new StackPanel { Orientation = orient, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-            _chevron = SmallButton(_top ? "\uE70D" : "\uE70E", Lang.T("الأيقونات المخفية"), OpenTrayFlyout, 12);
+            _chevron = SmallButton(ClockAtTop ? "\uE70D" : "\uE70E", Lang.T("الأيقونات المخفية"), OpenTrayFlyout, 12);
             tray.Children.Add(_chevron);
             _trayIcons = new StackPanel { Orientation = orient, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
             tray.Children.Add(_trayIcons);
@@ -441,11 +998,56 @@ namespace WinPlus
             tray.Children.Add(StatusButton());
             tray.Children.Add(ClockButton());
             var end = new StackPanel { Orientation = orient };
+            _trayInside = end;
             end.Children.Add(tray);
             if (CustomTaskbar.DesktopCorner) end.Children.Add(DesktopCorner());
 
-            bool center = CustomTaskbar.Align == 0 && CustomTaskbar.Shape != 2;
+            bool center = CustomTaskbar.Align == 0 && ShapeNow != 2;
             var pad = _vertical ? new Thickness(0, 4, 0, 0) : new Thickness(4, 0, 0, 0);
+            _appsCard = _trayCard = null;
+            if (SplitOn)
+            {
+                // Two bars: the apps (in the middle, or at the start), and the clock with what's around it at the end.
+                _appsCard = new Border { Child = front, Padding = new Thickness(4, 0, 4, 0) };
+                _trayCard = new Border { Child = end, Padding = new Thickness(4, 0, 4, 0), HorizontalAlignment = HorizontalAlignment.Right };
+                StylePiece(_appsCard, 1);
+                _appsCard.MinWidth = CustomTaskbar.AppsLength;
+                _trayCard.MinWidth = CustomTaskbar.ClockLength;
+                AlignClock();
+                StylePiece(_trayCard, 1);
+                _appsCard.HorizontalAlignment = center ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+                // A piece that grows or shrinks (an app opened) gets its glass redone for its new size.
+                _appsCard.SizeChanged += (_, _) => { if (CustomTaskbar.Look == 0) RestartGlass(); };
+                _trayCard.SizeChanged += (_, _) => { if (CustomTaskbar.Look == 0) RestartGlass(); };
+                if (center)
+                {
+                    _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    _root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    Grid.SetColumn(_appsCard, 1);
+                    Grid.SetColumn(_trayCard, 2);
+                }
+                else
+                {
+                    _root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    _root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    Grid.SetColumn(_trayCard, 2);
+                }
+                _root.Children.Add(_appsCard);
+                if (ClockApart)
+                {
+                    _clockWin ??= NewClockWindow();
+                    _clockWin.SetPiece(_trayCard);
+                }
+                else
+                {
+                    _root.Children.Add(_trayCard);
+                    CloseClockWindow();
+                }
+                return;
+            }
+            CloseClockWindow();
             if (center)
             {
                 // Three slots: the middle one is centered on the whole bar, like Windows 11.
@@ -519,7 +1121,7 @@ namespace WinPlus
                     _buttons[g.Key] = b;
                     _apps.Children.Add(b);
                 }
-                if (CustomTaskbar.Shape == 2) _placed = default;   // the dock grows / shrinks
+                if (ShapeNow == 2) _placed = default;   // the dock grows / shrinks
             }
             IntPtr fg = TaskbarApps.Foreground();
             foreach (var g in groups)
@@ -582,17 +1184,8 @@ namespace WinPlus
 
         private Border StartButton()
         {
-            // The four squares of the Windows logo, in Windows 11's blue.
-            double q = IconPx * 0.46, gap = IconPx * 0.06;
-            var logo = new Canvas { Width = IconPx * 0.98, Height = IconPx * 0.98, FlowDirection = FlowDirection.LeftToRight };
-            var fill = new LinearGradientBrush(Color.FromRgb(0x5E, 0xD0, 0xFF), Color.FromRgb(0x00, 0x78, 0xD4), 45);
-            for (int i = 0; i < 4; i++)
-            {
-                var sq = new Border { Width = q, Height = q, Background = fill, CornerRadius = new CornerRadius(q * 0.12) };
-                Canvas.SetLeft(sq, i % 2 * (q + gap));
-                Canvas.SetTop(sq, i / 2 * (q + gap));
-                logo.Children.Add(sq);
-            }
+            // Windows' logo in its blue by default; the icon and color are chosen on the Taskbar page.
+            var logo = StartLogo.Build(CustomTaskbar.StartIcon, CustomTaskbar.StartColor, IconPx * 0.98);
             var b = ButtonFrame(logo, ButtonSize, ButtonSize);
             b.ToolTip = Lang.T("ابدأ");
             b.MouseLeftButtonUp += (_, e) => { KeyPress.Send(KeyPress.LWin); e.Handled = true; };
@@ -711,6 +1304,7 @@ namespace WinPlus
             bool bottom = tray.Bottom >= monitor.Bottom - 1, top = tray.Top <= monitor.Top + 1;
             int extra = (int)Math.Round(CustomTaskbar.ThicknessDip * _scale) - tray.Height;
             if (CustomTaskbar.HideInFullscreen) { RemoveAppBar(); return; }   // the whole screen is the windows' then
+            if (CustomTaskbar.Edge != 0) { RemoveAppBar(); return; }           // moved to the top or a side: the work area keeps its room
             // Only beside a normal horizontal taskbar (not Windows' auto-hide, which keeps no room).
             if (!horizontal || tray.Height < 24 || extra <= 0 || !(bottom || top)) { RemoveAppBar(); return; }
 
@@ -767,7 +1361,7 @@ namespace WinPlus
                 _trayIcons.Children.Add(v);
             }
             if (_flyout?.IsOpen == true) _flyout.Fill();
-            if (CustomTaskbar.Shape == 2) _placed = default;   // the dock's length changed
+            if (ShapeNow == 2) _placed = default;   // the dock's length changed
         }
 
         /// <summary>Where an icon's button is on the screen, in pixels (null if this bar doesn't show it).</summary>
@@ -852,23 +1446,35 @@ namespace WinPlus
             return i;
         }
 
-        internal void OpenMenu(ContextMenu menu, UIElement target)
+        internal void OpenMenu(ContextMenu menu, UIElement target, bool atMouse = false)
         {
             TaskbarPreview.HideNow();
             menu.PlacementTarget = target;
+            if (atMouse) { menu.Placement = PlacementMode.MousePoint; menu.IsOpen = true; return; }   // where the right-click was
             menu.Placement = _vertical ? PlacementMode.Right : _top ? PlacementMode.Bottom : PlacementMode.Top;
             if (_vertical && FlowDirection == FlowDirection.RightToLeft) menu.Placement = PlacementMode.Left;
             menu.IsOpen = true;
         }
 
+        /// <summary>"Hide when a window is under it", on or off (in the bar's and the clock's menus).</summary>
+        internal static MenuItem CoverToggle()
+        {
+            var i = Item(Lang.T("يختفي لما تكون نافذة تحته"), () => CustomTaskbar.HideOverWindow = !CustomTaskbar.HideOverWindow);
+            i.IsCheckable = true;
+            i.IsChecked = CustomTaskbar.HideOverWindow;
+            return i;
+        }
+
         private void BarMenu()
         {
             var menu = NewMenu();
+            menu.Items.Add(CoverToggle());
+            menu.Items.Add(new Separator());
             menu.Items.Add(Item(Lang.T("إعدادات تاسك بار Wibn"), () => (Application.Current as App)?.ShowTaskbarSettings(), ""));
             menu.Items.Add(Item(Lang.T("مدير المهام"), () => TaskbarApps.Launch("taskmgr.exe"), ""));
             menu.Items.Add(new Separator());
             menu.Items.Add(Item(Lang.T("رجّع تاسك بار ويندوز"), () => CustomTaskbar.Enabled = false, ""));
-            OpenMenu(menu, _root);
+            OpenMenu(menu, _root, atMouse: true);
         }
 
         // ---- Window plumbing -------------------------------------------------------------------------
@@ -879,9 +1485,10 @@ namespace WinPlus
             // on the screen forever, even over full-screen apps, with nothing moving it).
             void Step(string what, Action a) { try { a(); } catch (Exception ex) { CrashLog.Write("taskbar close: " + what, ex); } }
             Step("app bar", RemoveAppBar);
-            Step("slide", StopSlide);
+            Step("slide", () => { StopSlide(); StopClockSlide(); });
             Step("refresh", _refresh.Stop);
             Step("glass", StopGlass);
+            Step("clock", CloseClockWindow);
             Step("events", () => { Status.Updated -= ShowStatus; InputLang.Changed -= ShowLang; TrayHost.Changed -= RefreshTray; });
             Step("flyout", () => _flyout?.CloseIt());
             Step("preview", TaskbarPreview.HideNow);
@@ -899,7 +1506,7 @@ namespace WinPlus
         {
             if (msg == WM_MOUSEACTIVATE) { handled = true; return (IntPtr)MA_NOACTIVATE; }
             if (_appBarMsg != 0 && msg == _appBarMsg && w.ToInt32() == 1 /* ABN_POSCHANGED */) _appBarWant = default;
-            if (msg == 0x001A /* WM_SETTINGCHANGE */ && w.ToInt32() == 0x14 /* SPI_SETDESKWALLPAPER */) _glass?.Refresh();
+            if (msg == 0x001A /* WM_SETTINGCHANGE */ && w.ToInt32() == 0x14 /* SPI_SETDESKWALLPAPER */) foreach (var g in _glasses) g.Refresh();
             if (_shellMsg != 0 && msg == _shellMsg)
             {
                 int code = w.ToInt32();
@@ -927,8 +1534,36 @@ namespace WinPlus
         public void RefreshGlass()
         {
             if (CustomTaskbar.Look != 0) return;
-            _card.Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x1C, 0x1C, 0x1E));
+            foreach (var p in Pieces()) p.Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x1C, 0x1C, 0x1E));
             RestartGlass();
+        }
+
+        private Brush _cardBack = new SolidColorBrush(Color.FromArgb(0xE0, 0x1C, 0x1C, 0x1E));
+
+        /// <summary>What has a background: the whole bar, or the two pieces when split.</summary>
+        private IEnumerable<Border> Pieces()
+        {
+            if (_appsCard != null && _trayCard != null) { yield return _appsCard; yield return _trayCard; }
+            else yield return _card;
+        }
+
+        /// <summary>Each piece with the window and host it's in (the clock's piece may be in its own window).</summary>
+        private IEnumerable<(Window Window, FrameworkElement Host, Border Piece)> GlassPieces()
+        {
+            foreach (var p in Pieces())
+            {
+                if (p == _trayCard && _clockWin != null && p.Parent == _clockWin.Host) { if (_clockWin.IsVisible) yield return (_clockWin, _clockWin.Host, p); }
+                else if (_shown) yield return (this, _host, p);
+            }
+        }
+
+        /// <summary>A bar's (or a piece's) background, edge and corners for the chosen look.</summary>
+        private void StylePiece(Border b, int shape)
+        {
+            b.CornerRadius = new CornerRadius(_radius);
+            b.Background = _cardBack;
+            b.BorderThickness = new Thickness(shape == 0 ? 0 : 1);
+            b.BorderBrush = new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
         }
 
         private void RestartGlass()
@@ -941,32 +1576,43 @@ namespace WinPlus
 
         private void StopGlass()
         {
-            _glass?.Dispose();
-            _glass = null;
+            foreach (var g in _glasses) g.Dispose();
+            _glasses.Clear();
             _wallpaper.Stop();
         }
 
         private void StartGlass()
         {
             StopGlass();
-            if (!_shown || CustomTaskbar.Look != 0) return;
+            if (!(_shown || ClockShowing) || CustomTaskbar.Look != 0) return;
             if (!GlassSettings.Taskbar.On)
             {
                 // Turned off on the Liquid Glass page: plain dark gray.
-                _card.Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x1C, 0x1C, 0x1E));
+                foreach (var p in Pieces()) p.Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x1C, 0x1C, 0x1E));
                 SetInk(false);
                 return;
             }
             try
             {
                 // The look (bend, colors, frost, tint, rim) is the one set on the Liquid Glass page.
-                var glass = new LiquidGlass(this, _host, _card, new Thickness(0), _radius, GlassSettings.Taskbar, desktop: true,
-                                            tint: CustomTaskbar.GlassTint());
-                if (!glass.Available) return;   // stays the plain color
-                _glass = glass;
-                glass.LightBehindChanged += light => SetInk(light);
-                glass.Start();
-                _wallpaper.Start();
+                UpdateLayout();
+                _clockWin?.UpdateLayout();
+                bool first = true;
+                foreach (var (window, host, piece) in GlassPieces())
+                {
+                    if (piece.ActualWidth < 4) continue;
+                    Point at = piece.TranslatePoint(new Point(0, 0), host);
+                    // Live: what's really behind the bar (windows, a screen-edge light, videos…). While a window shrinks
+                    // or grows over it (minimize, restore…) it shows the wallpaper instead (see GlassCalm).
+                    var glass = new LiquidGlass(window, host, piece, new Thickness(at.X, at.Y, 0, 0), _radius, GlassSettings.Taskbar,
+                                                tint: CustomTaskbar.GlassTint(), live: true);
+                    if (!glass.Available) return;   // stays the plain color
+                    _glasses.Add(glass);
+                    if (first) glass.LightBehindChanged += light => SetInk(light);   // the apps' piece sets the icons' color
+                    first = false;
+                    glass.Start();
+                }
+                if (_glasses.Count > 0) _wallpaper.Start();
             }
             catch (Exception ex) { CrashLog.Write("taskbar glass", ex); }
         }
@@ -1005,6 +1651,20 @@ namespace WinPlus
         private readonly Border _line = new() { CornerRadius = new CornerRadius(1.5) };
         private readonly TextBlock _label = new() { FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 0) };
         private string _iconFor = "";
+        private bool _iconWhite;
+        // Unread messages (from the window's name, like "(3) Discord"): a red dot or count at the icon's corner.
+        private readonly Border _badge = new()
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0xE8, 0x3B, 0x3B)), CornerRadius = new CornerRadius(7),
+            MinWidth = 8, Height = 8, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 4, 4, 0), Visibility = Visibility.Collapsed, IsHitTestVisible = false,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x60, 0, 0, 0)), BorderThickness = new Thickness(1),
+        };
+        private readonly TextBlock _badgeText = new()
+        {
+            FontSize = 9, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(3, -1, 3, 0),
+        };
         private Point? _press;
         private bool _dragging;
         private readonly DispatcherTimer _hover = new() { Interval = TimeSpan.FromMilliseconds(450) };
@@ -1027,6 +1687,8 @@ namespace WinPlus
             inner.Children.Add(_label);
             content.Children.Add(inner);
             content.Children.Add(_line);
+            content.Children.Add(_badge);
+            _badge.Child = _badgeText;
             Child = content;
 
             bool labels = CustomTaskbar.Labels && !bar.Vertical;
@@ -1063,13 +1725,22 @@ namespace WinPlus
         public void Show(TaskbarApps.Group g, IntPtr foreground)
         {
             Group = g;
-            if (_iconFor != g.IconSource)
+            bool white = CustomTaskbar.WhiteIcons;
+            if (_iconFor != g.IconSource || _iconWhite != white)
             {
                 _iconFor = g.IconSource;
-                _icon.Source = TaskbarApps.Icon(g.IconSource, g.Windows.FirstOrDefault()?.Hwnd ?? IntPtr.Zero);
+                _iconWhite = white;
+                var img = TaskbarApps.Icon(g.IconSource, g.Windows.FirstOrDefault()?.Hwnd ?? IntPtr.Zero);
+                _icon.Source = white ? TaskbarApps.Whiten(img) : img;
             }
             _active = g.Windows.Any(w => w.Hwnd == foreground);
             _flash = !_active && g.Windows.Any(w => TaskbarBar.Flashing.Contains(w.Hwnd));
+            int unread = g.Windows.Count == 0 ? -1 : g.Windows.Max(w => TaskbarApps.Unread(w.Title));
+            _badge.Visibility = unread >= 0 ? Visibility.Visible : Visibility.Collapsed;
+            _badgeText.Text = unread > 99 ? "99+" : unread > 0 ? unread.ToString() : "";
+            _badgeText.Visibility = unread > 0 ? Visibility.Visible : Visibility.Collapsed;
+            _badge.Height = unread > 0 ? 14 : 8;
+            _badge.MinWidth = unread > 0 ? 14 : 8;
             _label.Text = g.Windows.Count == 1 ? g.Windows[0].Title : g.Name;
             int n = g.Windows.Count;
             _line.Visibility = n > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -1158,13 +1829,15 @@ namespace WinPlus
                 if (h == fg && !TaskbarApps.IsMinimized(h)) TaskbarApps.Minimize(h);
                 else TaskbarApps.Activate(h);
             }
-            else if (TaskbarPreview.IsShownFor(this))
+            else
             {
-                // Several windows: each click goes to the next one.
-                int i = g.Windows.FindIndex(w => w.Hwnd == fg);
-                TaskbarApps.Activate(g.Windows[(i + 1) % g.Windows.Count].Hwnd);
+                // Several windows: a click brings them all up, the next click minimizes them all
+                // (one of them is picked from the pictures over the button).
+                TaskbarPreview.HideNow();
+                bool up = g.Windows.Any(w => w.Hwnd == fg) && g.Windows.Any(w => !TaskbarApps.IsMinimized(w.Hwnd));
+                if (up) foreach (var w in g.Windows) TaskbarApps.Minimize(w.Hwnd);
+                else TaskbarApps.ShowAll(g.Windows.Select(w => w.Hwnd).ToList());
             }
-            else ShowPreview();
             _bar.Dispatcher.BeginInvoke(new Action(() => _bar.RefreshApps()), DispatcherPriority.Background);
         }
 
@@ -1207,7 +1880,7 @@ namespace WinPlus
             Background = Brushes.Transparent;
             Width = onBar ? (bar.Vertical ? size : Math.Max(24, size * 0.72)) : size;
             Height = onBar ? (bar.Vertical ? Math.Max(24, size * 0.72) : size) : size;
-            var img = new Image { Source = icon.Image, Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            var img = new Image { Source = CustomTaskbar.WhiteIcons ? TaskbarApps.Whiten(icon.Image) : icon.Image, Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
             RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
             Child = img;
             if (!string.IsNullOrWhiteSpace(icon.Tip) && (icon.ShowTip || icon.Version < 4)) ToolTip = icon.Tip;

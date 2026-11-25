@@ -160,7 +160,7 @@ namespace WinPlus
                 bool leftBar = l < System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)l, (int)t)).Bounds.Left + 200 * _scale;
                 _pin = new Point(leftBar ? r + gap : l - gap, (t + b) / 2);
             }
-            else _pin = new Point((l + r) / 2, _bar.AtTop ? b + gap : t - gap);
+            else _pin = new Point((l + r) / 2, _bar.ClockAtTop ? b + gap : t - gap);
             _card.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             PlaceAt(_card.DesiredSize.Width * _scale, _card.DesiredSize.Height * _scale);
         }
@@ -184,7 +184,7 @@ namespace WinPlus
             else
             {
                 x = p.X - w / 2;
-                y = _bar.AtTop ? p.Y : p.Y - h;   // grows away from the taskbar; the edge next to it stays put
+                y = _bar.ClockAtTop ? p.Y : p.Y - h;   // grows away from the taskbar; the edge next to it stays put
             }
             var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)p.X, (int)p.Y)).Bounds;
             x = Math.Clamp(x, screen.Left + 4, Math.Max(screen.Left + 4, screen.Right - w - 4));

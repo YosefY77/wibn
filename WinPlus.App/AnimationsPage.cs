@@ -13,7 +13,7 @@ namespace WinPlus
 
         public const int DefaultIntro = 450, DefaultGap = 90, DefaultOpen = 170;
 
-        /// <summary>Widgets show from the top down when they come onto the desktop.</summary>
+        /// <summary>Widgets fade in when they come onto the desktop.</summary>
         public static bool IntroOn { get => Get("IntroOn", 1) != 0; set => Set("IntroOn", value ? 1 : 0); }
         /// <summary>How long a widget takes to show (ms).</summary>
         public static int IntroMs { get => Math.Clamp(Get("IntroMs", DefaultIntro), 100, 3000); set => Set("IntroMs", value); }
@@ -48,7 +48,7 @@ namespace WinPlus
             Children.Add(Section(Lang.T("ظهور الويدجتات")));
             var on = new CheckBox { Style = Res<Style>("Switch"), IsChecked = AnimSettings.IntroOn };
             Children.Add(Row(on, "", Lang.T("حركة ظهور الويدجتات"),
-                Lang.T("الويدجتات تطلع من فوق لتحت لما يشتغل Wibn أو تضيف ويدجت. بعد ما تخلص الحركة ما تاخذ شي من الرام")));
+                Lang.T("الويدجتات تبدأ مخفية وتظهر شوي شوي لما يشتغل Wibn أو تضيف ويدجت. بعد ما تخلص الحركة ما تاخذ شي من الرام")));
 
             var options = new StackPanel();
             var (introSlider, introRow) = SliderRow("", Lang.T("مدة الحركة"), Lang.T("كم ياخذ كل ويدجت لين يطلع كامل. أقل = أسرع"),

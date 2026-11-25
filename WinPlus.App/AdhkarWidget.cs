@@ -88,6 +88,22 @@ namespace WinPlus
             SizeChanged += (_, _) => Fit();
         }
 
+        /// <summary>On a bar: the dhikr (a click: another one).</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            if (l.Vertical)
+            {
+                var g = BarGlyph(l, "\uE734");
+                g.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _text });
+                return BarButton(l, g, () => Show(Next(), animate: true));
+            }
+            var t = BarText(l, _text);
+            t.MaxWidth = 320;
+            t.TextWrapping = TextWrapping.NoWrap;
+            t.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _text });
+            return BarButton(l, t, () => Show(Next(), animate: true));
+        }
+
         public override void Start()
         {
             if (_shown < 0) Show(Next(), animate: false);

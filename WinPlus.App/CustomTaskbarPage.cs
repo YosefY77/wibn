@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -31,7 +31,7 @@ namespace WinPlus
             _options.Children.Add(Note(Lang.T("اسحب برنامج أو اختصار على التاسك بار عشان تثبّته، واسحب الأيقونات المثبتة عشان ترتبها.")));
 
             // Shape
-            _options.Children.Add(Choice(Lang.T("الشكل (الويدجتات تتحاذى مع العائم)"), new[] { Lang.T("كامل"), Lang.T("عائم"), Lang.T("دوك بالنص") },
+            _options.Children.Add(Choice(Lang.T("الشكل"), new[] { Lang.T("كامل"), Lang.T("عائم"), Lang.T("دوك بالنص") },
                 CustomTaskbar.Shape, v => CustomTaskbar.Shape = v));
             _options.Children.Add(Choice(Lang.T("مكان الأيقونات"), new[] { Lang.T("بالنص"), Lang.T("بالبداية") },
                 CustomTaskbar.Align, v => CustomTaskbar.Align = v));
@@ -86,17 +86,31 @@ namespace WinPlus
             _options.Children.Add(new Border { Style = Res<Style>("Row"), Child = colorBox });
             ShowFor(CustomTaskbar.Look);
 
-            // Switches
-            var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(-3, 6, -3, 0) };
-            grid.Children.Add(Toggle("", Lang.T("أسماء البرامج"), Lang.T("اسم النافذة جنب أيقونتها"), CustomTaskbar.Labels, v => CustomTaskbar.Labels = v));
-            grid.Children.Add(Toggle("\uE782", Lang.T("زر ويندوز (ستارت)"), Lang.T("الشعار اللي يفتح قائمة ابدأ. بدونه تفتحها من زر الويندوز في الكيبورد"), CustomTaskbar.StartButton, v => CustomTaskbar.StartButton = v));
-            grid.Children.Add(Toggle("", Lang.T("زر البحث (العدسة)"), Lang.T("يفتح بحث ويندوز"), CustomTaskbar.SearchButton, v => CustomTaskbar.SearchButton = v));
-            grid.Children.Add(Toggle("", Lang.T("زر عرض المهام"), Lang.T("كل النوافذ وأسطح المكتب"), CustomTaskbar.TaskViewButton, v => CustomTaskbar.TaskViewButton = v));
-            grid.Children.Add(Toggle("", Lang.T("التاريخ تحت الساعة"), Lang.T("بنفس صيغة ويندوز"), CustomTaskbar.ShowDate, v => CustomTaskbar.ShowDate = v));
-            grid.Children.Add(Toggle("", Lang.T("الثواني في الساعة"), Lang.T("مثل 10:42:07"), CustomTaskbar.Seconds, v => CustomTaskbar.Seconds = v));
-            grid.Children.Add(Toggle("", Lang.T("زاوية سطح المكتب"), Lang.T("كليك على طرف التاسك بار يصغّر كل النوافذ"), CustomTaskbar.DesktopCorner, v => CustomTaskbar.DesktopCorner = v));
-            grid.Children.Add(Toggle("", Lang.T("يختفي مع ملء الشاشة والتكبير"), Lang.T("لما تكبّر نافذة أو يكون برنامج أو لعبة بملء الشاشة. ودّ الماوس لآخر الشاشة تحت ويطلع"), CustomTaskbar.HideInFullscreen, v => CustomTaskbar.HideInFullscreen = v));
-            _options.Children.Add(grid);
+            // Switches, in three groups (they were one long list).
+            _options.Children.Add(new TextBlock { Text = Lang.T("الأزرار"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 14, 0, 2) });
+            var buttons = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(-3, 2, -3, 0) };
+            buttons.Children.Add(Toggle("\uE782", Lang.T("زر ويندوز (ستارت)"), Lang.T("الشعار اللي يفتح قائمة ابدأ. بدونه تفتحها من زر الويندوز في الكيبورد"), CustomTaskbar.StartButton, v => CustomTaskbar.StartButton = v));
+            buttons.Children.Add(Toggle("", Lang.T("زر البحث (العدسة)"), Lang.T("يفتح بحث ويندوز"), CustomTaskbar.SearchButton, v => CustomTaskbar.SearchButton = v));
+            buttons.Children.Add(Toggle("", Lang.T("زر عرض المهام"), Lang.T("كل النوافذ وأسطح المكتب"), CustomTaskbar.TaskViewButton, v => CustomTaskbar.TaskViewButton = v));
+            buttons.Children.Add(Toggle("", Lang.T("زاوية سطح المكتب"), Lang.T("كليك على طرف التاسك بار يصغّر كل النوافذ"), CustomTaskbar.DesktopCorner, v => CustomTaskbar.DesktopCorner = v));
+            _options.Children.Add(buttons);
+            _options.Children.Add(new TextBlock { Text = Lang.T("الشكل والساعة"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 14, 0, 2) });
+            var look = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(-3, 2, -3, 0) };
+            look.Children.Add(Toggle("", Lang.T("أسماء البرامج"), Lang.T("اسم النافذة جنب أيقونتها"), CustomTaskbar.Labels, v => CustomTaskbar.Labels = v));
+            look.Children.Add(Toggle("", Lang.T("أيقونات بيضاء"), Lang.T("كل الأيقونات بالأبيض وشفافة شوي، شكل موحّد وهادي"), CustomTaskbar.WhiteIcons, v => CustomTaskbar.WhiteIcons = v));
+            look.Children.Add(Toggle("", Lang.T("التاريخ تحت الساعة"), Lang.T("بنفس صيغة ويندوز"), CustomTaskbar.ShowDate, v => CustomTaskbar.ShowDate = v));
+            look.Children.Add(Toggle("", Lang.T("الثواني في الساعة"), Lang.T("مثل 10:42:07، في الساعة وفي التاسك بار الإضافي"), CustomTaskbar.Seconds, v => CustomTaskbar.Seconds = v));
+            look.Children.Add(Toggle("\uE8A0", Lang.T("الساعة في تاسك بار منفصل"), Lang.T("البرامج في تاسك بار، والساعة واللي حولها في تاسك بار ثاني لحاله"), CustomTaskbar.Split, v => CustomTaskbar.Split = v));
+            _options.Children.Add(look);
+            _options.Children.Add(new TextBlock { Text = Lang.T("الإخفاء"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 14, 0, 2) });
+            var hiding = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(-3, 2, -3, 0) };
+            hiding.Children.Add(Toggle("", Lang.T("يختفي مع ملء الشاشة والتكبير"), Lang.T("لما تكبّر نافذة أو يكون برنامج أو لعبة بملء الشاشة. ودّ الماوس لآخر الشاشة تحت ويطلع"), CustomTaskbar.HideInFullscreen, v => CustomTaskbar.HideInFullscreen = v));
+            hiding.Children.Add(Toggle("", Lang.T("يختفي لما تكون نافذة تحته"), Lang.T("الشريط اللي فوق النافذة بس ينسحب عشان تبان. الصق الماوس على الحافة فوقه ويطلع"), CustomTaskbar.HideOverWindow, v => CustomTaskbar.HideOverWindow = v));
+            hiding.Children.Add(Toggle("", Lang.T("بالألعاب يطلع بزر ويندوز بس"), Lang.T("وأنت تلعب، الماوس تحت ما يطلّع التاسك بار. يطلع بس لما تضغط زر الويندوز"), CustomTaskbar.GamesKeyOnly, v => CustomTaskbar.GamesKeyOnly = v));
+            _options.Children.Add(hiding);
+
+            // The Start button's icon and color
+            _options.Children.Add(StartSection(Soon));
 
             // The icons next to the clock: which ones show on the bar (the rest are under the arrow).
             _options.Children.Add(new TextBlock { Text = Lang.T("الأيقونات اللي جنب الساعة"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 14, 0, 2) });
@@ -108,6 +122,88 @@ namespace WinPlus
             _options.Children.Add(Note(Lang.T("لما يكون شغّال، الخيارات اللي تحت تخص تاسك بار ويندوز (المخفي).")));
 
             CustomTaskbar.Changed += () => Dispatcher.BeginInvoke(() => { _loading = true; _main.IsChecked = CustomTaskbar.Enabled; _loading = false; });
+        }
+
+        private readonly WrapPanel _startIcons = new() { Margin = new Thickness(0, 6, 0, 0) };
+
+        /// <summary>The Start button: pick its icon (built-in or a picture) and its color.</summary>
+        private Border StartSection(Action<Action> soon)
+        {
+            var box = new StackPanel();
+            box.Children.Add(new TextBlock { Text = Lang.T("شكل زر ويندوز (ستارت)"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 4, 0, 0) });
+            box.Children.Add(new TextBlock { Text = Lang.T("اختر أيقونة، أو حط صورة من جهازك. اللون يتغيّر على الأيقونات، والصور تبقى بألوانها."), Style = Res<Style>("RowDesc"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 0, 0, 0) });
+            box.Children.Add(_startIcons);
+            FillStartIcons();
+
+            var add = new Button { Style = Res<Style>("FlatButton"), Content = Lang.T("صورة من جهازك…"), Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(2, 4, 8, 0) };
+            add.Click += (_, _) => PickStartImage();
+            var reset = new Button { Style = Res<Style>("FlatButton"), Content = Lang.T("اللون الأصلي"), Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(0, 4, 0, 0) };
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+            buttons.Children.Add(add);
+            buttons.Children.Add(reset);
+            box.Children.Add(buttons);
+
+            box.Children.Add(new TextBlock { Text = Lang.T("لون الأيقونة"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 12, 0, 0) });
+            var picker = new ColorPicker { Width = 320, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(2, 4, 0, 0) };
+            int color = CustomTaskbar.StartColor;
+            picker.Color = 0xFF000000u | (uint)(color < 0 ? 0x0078D4 : color);
+            picker.ColorChanged += c =>
+            {
+                if (_loading) return;
+                soon(() => { CustomTaskbar.StartColor = (int)(c & 0xFFFFFF); FillStartIcons(); });
+            };
+            reset.Click += (_, _) =>
+            {
+                CustomTaskbar.StartColor = -1;
+                _loading = true; picker.Color = 0xFF0078D4; _loading = false;
+                FillStartIcons();
+            };
+            box.Children.Add(picker);
+            return new Border { Style = Res<Style>("Row"), Child = box, Margin = new Thickness(0, 6, 0, 6) };
+        }
+
+        private void FillStartIcons()
+        {
+            _startIcons.Children.Clear();
+            int selected = CustomTaskbar.StartIcon, color = CustomTaskbar.StartColor;
+            var choices = new System.Collections.Generic.List<int> { 0, 1 };
+            for (int i = 0; i < StartLogo.Glyphs.Length; i++) choices.Add(i + 2);
+            if (StartLogo.HasImage) choices.Add(-1);
+            foreach (int icon in choices)
+            {
+                int v = icon;
+                bool on = v == selected;
+                var tile = new Border
+                {
+                    Width = 44, Height = 44, CornerRadius = new CornerRadius(8), Margin = new Thickness(2, 2, 6, 6),
+                    Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1F, 0x22)),
+                    BorderThickness = new Thickness(2),
+                    BorderBrush = on ? new SolidColorBrush(Color.FromRgb(0x4C, 0x8D, 0xFF)) : Brushes.Transparent,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Child = new Viewbox { Width = 24, Height = 24, Child = StartLogo.Build(v, color, 24) },
+                    ToolTip = v switch { 0 => Lang.T("شعار ويندوز"), 1 => Lang.T("شعار Wibn"), -1 => Lang.T("صورتك"), _ => null },
+                };
+                tile.MouseLeftButtonUp += (_, _) => { CustomTaskbar.StartIcon = v; FillStartIcons(); };
+                _startIcons.Children.Add(tile);
+            }
+        }
+
+        private void PickStartImage()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = Lang.T("اختر صورة لزر ستارت"),
+                Filter = Lang.T("صور") + "|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico;*.webp;*.tif;*.tiff",
+            };
+            if (dlg.ShowDialog() != true) return;
+            if (!StartLogo.SaveImage(dlg.FileName, out string error))
+            {
+                MessageBox.Show(Lang.T("ما قدرت أفتح الصورة: ") + error, "Wibn", MessageBoxButton.OK, MessageBoxImage.Warning,
+                                MessageBoxResult.OK, Lang.MsgOptions);
+                return;
+            }
+            CustomTaskbar.StartIcon = -1;   // rebuilds the bars, so the new picture shows
+            FillStartIcons();
         }
 
         private void FillTray()

@@ -67,7 +67,42 @@ namespace WinPlus
             Child = panel;
         }
 
+        /// <summary>On a bar: each battery's icon and level (kept up to date with the widget).</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            void Fill()
+            {
+                row.Children.Clear();
+                foreach (var r in _rows.Values)
+                {
+                    var pair = BarRow(l);
+                    pair.Margin = l.Vertical ? new Thickness(0, 2, 0, 2) : new Thickness(3, 0, 3, 0);
+                    pair.ToolTip = r.Name.Text;
+                    var icon = BarGlyph(l, r.Icon.Text, l.Font + 1);
+                    icon.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Text") { Source = r.Icon });
+                    pair.Children.Add(icon);
+                    var v = BarText(l, r.Value);
+                    v.Margin = new Thickness(0);
+                    pair.Children.Add(v);
+                    row.Children.Add(pair);
+                }
+                if (row.Children.Count == 0) row.Children.Add(BarGlyph(l, "\uE83F"));
+            }
+            Fill();
+            // Batteries come and go (a headset turned on): the row follows.
+            var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            int count = _rows.Count;
+            t.Tick += (_, _) => { if (_rows.Count != count) { count = _rows.Count; Fill(); } };
+            row.Loaded += (_, _) => t.Start();
+            row.Unloaded += (_, _) => t.Stop();
+            return row;
+        }
+
         public override void Start() => _timer ??= new Timer(_ => Tick(), null, 0, 30_000);
+
+        /// <summary>Out of sight (a full-screen app, a maximized window over it): it stops updating until it shows again.</summary>
+        public override void Covered(bool covered) { if (covered) Stop(); else Start(); }
 
         public override void Stop()
         {

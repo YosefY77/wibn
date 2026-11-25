@@ -417,7 +417,9 @@ namespace WinPlus
         {
             public string Text = "", Glyph = "";
             public Action? Run;
-            public bool Checked, IsLine;
+            public bool Checked, IsLine, Enabled = true, StaysOpen;
+            public Brush? Swatch;                 // a color dot instead of a glyph (color choices)
+            public Func<bool>? CheckedNow;        // stays open: its check mark after a click
             public List<Entry>? Children;
             public Entry() { }
             public Entry(string text, string glyph, Action? run = null) { Text = text; Glyph = glyph; Run = run; }
@@ -471,13 +473,120 @@ namespace WinPlus
             Fill(entries);
             _openSoon.Tick += (_, _) => { _openSoon.Stop(); OpenPending(); };
             _watch.Tick += (_, _) => Watch();
-            Loaded += (_, _) => StartGlass();
+            // The glass starts in ShowAt / ShowBeside, once the menu is in its place:
+            // on Loaded it's still where Show() put it, so it copied the wrong part of the desktop.
             Open.Add(this);
         }
+
+        /// <summary>The mouse is on an open glass menu (or one of its submenus).</summary>
+        public static bool MouseOverAny => Open.Any(m => m.IsMouseOver);
 
         public static void CloseAll()
         {
             foreach (var m in Open.ToList()) m.CloseIt();
+        }
+
+        // ---- Every WPF right-click menu in Wibn opens as this one ------------------------------------
+
+        private static bool _installed;
+
+        /// <summary>
+        /// From now on, any ContextMenu Wibn opens (a widget's, a taskbar's, the info bar's…, and new ones later)
+        /// shows as a glass menu at the mouse instead, with the same items. Menus it can't show (custom
+        /// controls inside) and the text boxes' own cut/copy/paste menus stay as they are.
+        /// </summary>
+        public static void Install()
+        {
+            if (_installed) return;
+            _installed = true;
+            EventManager.RegisterClassHandler(typeof(ContextMenu), ContextMenu.OpenedEvent, new RoutedEventHandler(OnWpfMenuOpened));
+        }
+
+        private static void OnWpfMenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ContextMenu cm || !ReferenceEquals(e.OriginalSource, cm)) return;
+            if (cm.PlacementTarget is System.Windows.Controls.Primitives.TextBoxBase or PasswordBox) return;
+            if (Convert(cm.Items) == null) return;
+            GetCursorPos(out var pt);
+            cm.Opacity = 0;   // never seen: it closes right away
+            // After the menu's own Opened handlers (some fill their items there), before anything is drawn.
+            cm.Dispatcher.BeginInvoke(DispatcherPriority.Send, new Action(() =>
+            {
+                var entries = Convert(cm.Items);
+                cm.IsOpen = false;
+                cm.Opacity = 1;
+                if (entries == null || entries.Count == 0) return;
+                try
+                {
+                    CloseAll();
+                    new GlassMenu(entries).ShowAt(pt.X, pt.Y);
+                }
+                catch (Exception ex) { CrashLog.Write("glass menu", ex); }
+            }));
+        }
+
+        /// <summary>A WPF menu's items as glass menu entries; null if one of them can't be shown that way.</summary>
+        private static List<Entry>? Convert(ItemCollection items)
+        {
+            var list = new List<Entry>();
+            foreach (var o in items)
+            {
+                if (o is Separator s)
+                {
+                    if (s.Visibility == Visibility.Visible && list.Count > 0 && !list[^1].IsLine) list.Add(Entry.Line);
+                    continue;
+                }
+                if (o is not MenuItem mi) return null;
+                if (mi.Visibility != Visibility.Visible) continue;
+                string? text = TextOf(mi.Header) ?? (mi.Command as RoutedUICommand)?.Text;
+                if (text == null) return null;
+                var e = new Entry(text, "") { Enabled = mi.IsEnabled, Checked = mi.IsChecked };
+                if (mi.Icon is TextBlock tb) e.Glyph = tb.Text;
+                else if (mi.Icon is System.Windows.Shapes.Shape shape) e.Swatch = shape.Fill;
+                if (mi.HasItems)
+                {
+                    var children = Convert(mi.Items);
+                    if (children == null) return null;
+                    e.Children = children;
+                }
+                else
+                {
+                    var item = mi;
+                    e.StaysOpen = mi.StaysOpenOnClick;
+                    if (mi.IsCheckable) e.CheckedNow = () => item.IsChecked;
+                    e.Run = () =>
+                    {
+                        if (item.IsCheckable) item.IsChecked = !item.IsChecked;
+                        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent, item));
+                        if (item.Command is { } cmd)
+                        {
+                            if (cmd is RoutedCommand rc)
+                            {
+                                var target = item.CommandTarget ?? item;
+                                if (rc.CanExecute(item.CommandParameter, target)) rc.Execute(item.CommandParameter, target);
+                            }
+                            else if (cmd.CanExecute(item.CommandParameter)) cmd.Execute(item.CommandParameter);
+                        }
+                    };
+                }
+                list.Add(e);
+            }
+            while (list.Count > 0 && list[^1].IsLine) list.RemoveAt(list.Count - 1);
+            return list;
+        }
+
+        private static string? TextOf(object? header)
+        {
+            switch (header)
+            {
+                case null: return null;
+                case string s: return s;
+                case TextBlock t: return t.Text;
+                case FrameworkElement fe:
+                    var parts = LogicalTreeHelper.GetChildren(fe).OfType<object>().Select(TextOf).Where(x => !string.IsNullOrEmpty(x)).ToList();
+                    return parts.Count > 0 ? string.Join(" ", parts) : null;
+                default: return header.ToString();
+            }
         }
 
         // ---- Look: the widgets' ---------------------------------------------------------------------
@@ -521,7 +630,7 @@ namespace WinPlus
         private void Fill(List<Entry> entries)
         {
             var stack = new StackPanel { MinWidth = 210 };
-            bool anyCheck = entries.Any(e => e.Checked || (e.Children == null && e.Glyph.Length == 0 && !e.IsLine));
+            bool anyCheck = entries.Any(e => e.Checked || e.CheckedNow != null || e.Swatch != null ||(e.Children == null && e.Glyph.Length == 0 && !e.IsLine));
             foreach (var e in entries)
             {
                 if (e.IsLine)
@@ -529,24 +638,36 @@ namespace WinPlus
                     stack.Children.Add(new Border { Height = 1, Margin = new Thickness(8, 4, 8, 4), Background = _ink, Opacity = 0.15 });
                     continue;
                 }
-                var row = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 6, 10, 6), Background = Brushes.Transparent, Cursor = Cursors.Hand };
+                var row = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 6, 10, 6), Background = Brushes.Transparent, Cursor = e.Enabled ? Cursors.Hand : Cursors.Arrow, Opacity = e.Enabled ? 1 : 0.45 };
                 var dock = new DockPanel();
                 string mark = e.Checked ? "" : e.Glyph;
                 var glyph = new TextBlock { Text = mark, FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 14, Width = 22, Foreground = _ink, VerticalAlignment = VerticalAlignment.Center };
-                DockPanel.SetDock(glyph, Dock.Left);
-                if (mark.Length > 0 || anyCheck) dock.Children.Add(glyph);
+                if (e.Swatch != null && !e.Checked)
+                {
+                    var dot = new Grid { Width = 22 };
+                    dot.Children.Add(new System.Windows.Shapes.Ellipse { Width = 12, Height = 12, Fill = e.Swatch, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center });
+                    DockPanel.SetDock(dot, Dock.Left);
+                    dock.Children.Add(dot);
+                }
+                else
+                {
+                    DockPanel.SetDock(glyph, Dock.Left);
+                    if (mark.Length > 0 || anyCheck) dock.Children.Add(glyph);
+                }
                 if (e.Children != null)
                 {
                     var arrow = new TextBlock { Text = FlowDirection == FlowDirection.RightToLeft ? "" : "", FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 10, Foreground = _ink, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) };
                     DockPanel.SetDock(arrow, Dock.Right);
                     dock.Children.Add(arrow);
                 }
-                dock.Children.Add(new TextBlock { Text = e.Text, Foreground = _ink, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
+                // Clear to read on any glass: a bit bigger and heavier.
+                dock.Children.Add(new TextBlock { Text = e.Text, Foreground = _ink, FontSize = 14, FontWeight = FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
                 row.Child = dock;
 
                 var entry = e;
                 row.MouseEnter += (_, _) =>
                 {
+                    if (!entry.Enabled) return;
                     row.Background = _hover;
                     if (_childRow == row) { _openSoon.Stop(); return; }
                     _pending = entry; _pendingRow = row;
@@ -556,7 +677,14 @@ namespace WinPlus
                 row.MouseLeftButtonUp += (_, ev) =>
                 {
                     ev.Handled = true;
+                    if (!entry.Enabled) return;
                     if (entry.Children != null) { _pending = entry; _pendingRow = row; OpenPending(); return; }
+                    if (entry.StaysOpen)
+                    {
+                        try { entry.Run?.Invoke(); } catch (Exception ex) { CrashLog.Write("desktop menu item", ex); }
+                        if (entry.CheckedNow != null) glyph.Text = entry.CheckedNow() ? "" : "";
+                        return;
+                    }
                     CloseAll();
                     try { entry.Run?.Invoke(); } catch (Exception ex) { CrashLog.Write("desktop menu item", ex); }
                 };
@@ -601,6 +729,8 @@ namespace WinPlus
             py = Math.Clamp(py, screen.Top, Math.Max(screen.Top, screen.Bottom - h));
             Left = px / _scale;
             Top = py / _scale;
+            UpdateLayout();
+            StartGlass();
             _watch.Start();
         }
 
@@ -616,6 +746,8 @@ namespace WinPlus
             double py = Math.Clamp(top, screen.Top, Math.Max(screen.Top, screen.Bottom - h));
             Left = px / _scale;
             Top = py / _scale;
+            UpdateLayout();
+            StartGlass();
             _watch.Start();
         }
 
@@ -643,6 +775,7 @@ namespace WinPlus
         }
 
         [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
+        [DllImport("user32.dll")] private static extern bool GetCursorPos(out System.Drawing.Point pt);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr h, int index);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] private static extern IntPtr SetWindowLongPtr(IntPtr h, int index, IntPtr value);
     }

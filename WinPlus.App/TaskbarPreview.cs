@@ -16,8 +16,8 @@ namespace WinPlus
     ///
     /// The panel looks like the taskbar (glass, its color, or see-through), so it's a
     /// see-through window. Windows only draws live pictures on normal windows, so each
-    /// picture sits on a small window of its own, exactly over its spot; the mouse goes
-    /// through it to the panel underneath.
+    /// picture sits on a small window of its own, exactly over its spot, that takes the
+    /// clicks on it.
     /// </summary>
     internal sealed class TaskbarPreview : Window
     {
@@ -39,7 +39,7 @@ namespace WinPlus
             _hide.Tick += (_, _) =>
             {
                 _hide.Stop();
-                if (_current != null && !_current.IsMouseOver && !_current._button.IsMouseOver) HideNow();
+                if (_current != null && !_current.CursorOver() && !_current._button.IsMouseOver) HideNow();
             };
         }
 
@@ -55,6 +55,10 @@ namespace WinPlus
         }
 
         public static void HideSoon() { _hide.Stop(); _hide.Start(); }
+
+        /// <summary>The mouse is over the panel (its pictures are windows of their own, so WPF's IsMouseOver can miss it).</summary>
+        private bool CursorOver() => !_closed && GetCursorPos(out var p) && GetWindowRect(_hwnd, out var r)
+            && p.X >= r.Left && p.X < r.Right && p.Y >= r.Top && p.Y < r.Bottom;
 
         public static void HideNow()
         {
@@ -94,18 +98,33 @@ namespace WinPlus
             _scale = src.CompositionTarget.TransformToDevice.M11;
             ApplyLook();
 
+            _bar = bar;
             bool pictures = group.Windows.Count <= 6;
-            var list = new StackPanel
+            _list = new StackPanel
             {
                 Orientation = pictures && !bar.Vertical ? Orientation.Horizontal : Orientation.Vertical,
                 Margin = new Thickness(6),
             };
-            foreach (var w in group.Windows) list.Children.Add(Cell(w, pictures));
-            _card.Child = list;
+            foreach (var w in group.Windows) _list.Children.Add(Cell(w, pictures));
+            _card.Child = _list;
             MouseEnter += (_, _) => _hide.Stop();
             MouseLeave += (_, _) => HideSoon();
 
             // Measure, put it over the button, then show it, its glass and the pictures.
+            PlaceWindow();
+            Show();
+            UpdateLayout();
+            StartGlass();
+            PlaceThumbs();
+        }
+
+        private readonly TaskbarBar _bar;
+        private readonly StackPanel _list;
+
+        /// <summary>Over (or beside) its button, kept on the screen, for its size now.</summary>
+        private void PlaceWindow()
+        {
+            var button = _button; var bar = _bar;
             _card.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             var size = _card.DesiredSize;
             var b = button.PointToScreen(new Point(0, 0));
@@ -129,10 +148,42 @@ namespace WinPlus
             y = Math.Clamp(y, screen.Top + 4, Math.Max(screen.Top + 4, screen.Bottom - h - 4));
             Left = x / _scale;
             Top = y / _scale;
-            Show();
-            UpdateLayout();
-            StartGlass();
-            PlaceThumbs();
+        }
+
+        /// <summary>
+        /// A window closed from the panel: its cell (and picture) goes, and the panel stays open with the
+        /// others, so more can be closed or picked without pointing at the button again.
+        /// </summary>
+        private void CloseFromPanel(TaskbarApps.Win w, FrameworkElement cell, ThumbHost? host)
+        {
+            TaskbarApps.Close(w.Hwnd);
+            if (_closed) return;
+            int i = _thumbs.FindIndex(t => t.Host == host);
+            if (host != null && i >= 0)
+            {
+                if (_thumbs[i].Thumb != IntPtr.Zero) DwmUnregisterThumbnail(_thumbs[i].Thumb);
+                host.CloseIt();
+                _thumbs.RemoveAt(i);
+            }
+            _list.Children.Remove(cell);
+            if (_list.Children.Count == 0)
+            {
+                if (_current == this) HideNow(); else CloseIt();
+                return;
+            }
+            _hide.Stop();
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_closed) return;
+                UpdateLayout();
+                try { PlaceWindow(); }
+                catch { if (_current == this) HideNow(); else CloseIt(); return; }   // its button went away
+                UpdateLayout();
+                PlaceThumbs();
+                _glass?.Dispose();   // its size changed: new glass for the new size
+                _glass = null;
+                StartGlass();
+            }), DispatcherPriority.Render);
         }
 
         // ---- Look (the taskbar's) ----------------------------------------------------------------------
@@ -200,7 +251,9 @@ namespace WinPlus
             var close = new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(4), Background = Brushes.Transparent, Child = x };
             close.MouseEnter += (_, _) => { close.Background = new SolidColorBrush(Color.FromRgb(0xC4, 0x2B, 0x1C)); x.Foreground = Brushes.White; };
             close.MouseLeave += (_, _) => { close.Background = Brushes.Transparent; x.Foreground = _ink; };
-            close.MouseLeftButtonUp += (_, e) => { e.Handled = true; TaskbarApps.Close(w.Hwnd); HideNow(); };
+            Border? cell = null;
+            ThumbHost? thumbHost = null;
+            close.MouseLeftButtonUp += (_, e) => { e.Handled = true; CloseFromPanel(w, cell!, thumbHost); };
             var head = new DockPanel { Height = 26 };
             DockPanel.SetDock(close, Dock.Right);
             head.Children.Add(close);
@@ -211,7 +264,16 @@ namespace WinPlus
             if (picture)
             {
                 // The picture's window, and its size (keeping the window's shape).
-                var thumbHost = new ThumbHost(_hwnd);
+                // The picture takes clicks itself: a click goes to its window, a middle click closes it.
+                thumbHost = new ThumbHost(_hwnd, msg =>
+                {
+                    if (msg == 0x200 /* MOUSEMOVE */) { _hide.Stop(); return; }
+                    Dispatcher.BeginInvoke(new Action(() =>   // not while inside the picture's own window procedure
+                    {
+                        if (msg == 0x202 /* LBUTTONUP */) { TaskbarBar.Flashing.Remove(w.Hwnd); TaskbarApps.Activate(w.Hwnd); HideNow(); }
+                        else if (msg == 0x208 /* MBUTTONUP */) CloseFromPanel(w, cell!, thumbHost);
+                    }));
+                });
                 double pw = 200, ph = 120;
                 IntPtr thumb = IntPtr.Zero;
                 if (DwmRegisterThumbnail(thumbHost.Handle, w.Hwnd, out thumb) == 0)
@@ -229,7 +291,7 @@ namespace WinPlus
             }
             else title.MaxWidth = 300;
 
-            var cell = new Border
+            cell = new Border
             {
                 Child = stack, Padding = new Thickness(6), CornerRadius = new CornerRadius(6),
                 Width = picture ? 220 : double.NaN, MinWidth = picture ? 0 : 220,
@@ -239,7 +301,7 @@ namespace WinPlus
             cell.MouseEnter += (_, _) => cell.Background = _hover;
             cell.MouseLeave += (_, _) => cell.Background = rest;
             cell.MouseLeftButtonUp += (_, e) => { e.Handled = true; TaskbarBar.Flashing.Remove(w.Hwnd); TaskbarApps.Activate(w.Hwnd); HideNow(); };
-            cell.MouseUp += (_, e) => { if (e.ChangedButton == MouseButton.Middle) { TaskbarApps.Close(w.Hwnd); HideNow(); } };
+            cell.MouseUp += (_, e) => { if (e.ChangedButton == MouseButton.Middle) { e.Handled = true; CloseFromPanel(w, cell, thumbHost); } };
             return cell;
         }
 
@@ -282,14 +344,15 @@ namespace WinPlus
 
         /// <summary>
         /// A small plain window that only carries one live picture. It stays over the panel
-        /// (owned by it) and lets the mouse through to it, so the panel's hover and clicks work.
+        /// (owned by it) and takes the clicks on the picture itself (passing them through to the
+        /// panel didn't always reach it, so a window couldn't be picked).
         /// </summary>
         private sealed class ThumbHost
         {
             private readonly HwndSource _src;
             public IntPtr Handle => _src.Handle;
 
-            public ThumbHost(IntPtr owner)
+            public ThumbHost(IntPtr owner, Action<int> mouse)
             {
                 var p = new HwndSourceParameters("Wibn preview picture")
                 {
@@ -300,8 +363,10 @@ namespace WinPlus
                 _src = new HwndSource(p);
                 _src.AddHook((IntPtr h, int msg, IntPtr w, IntPtr l, ref bool handled) =>
                 {
-                    if (msg == 0x84 /* WM_NCHITTEST */) { handled = true; return new IntPtr(-1); }   // HTTRANSPARENT: to the panel below
+                    if (msg == 0x84 /* WM_NCHITTEST */) { handled = true; return (IntPtr)1; }   // HTCLIENT: it takes the clicks
                     if (msg == 0x21 /* WM_MOUSEACTIVATE */) { handled = true; return (IntPtr)3; }
+                    if (msg == 0x20 /* WM_SETCURSOR */) { handled = true; SetCursor(LoadCursor(IntPtr.Zero, (IntPtr)32512 /* IDC_ARROW */)); return (IntPtr)1; }
+                    if (msg is 0x200 or 0x202 or 0x208) { mouse(msg); handled = msg != 0x200; }
                     return IntPtr.Zero;
                 });
                 SetWindowLongPtr(_src.Handle, -8 /* GWLP_HWNDPARENT: owner */, owner);
@@ -339,6 +404,11 @@ namespace WinPlus
         [DllImport("dwmapi.dll")] private static extern int DwmUnregisterThumbnail(IntPtr thumb);
         [DllImport("dwmapi.dll")] private static extern int DwmUpdateThumbnailProperties(IntPtr thumb, ref DWM_THUMBNAIL_PROPERTIES props);
         [DllImport("dwmapi.dll")] private static extern int DwmQueryThumbnailSourceSize(IntPtr thumb, out SIZE size);
+        [StructLayout(LayoutKind.Sequential)] private struct POINTI { public int X, Y; }
+        [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINTI p);
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr h, out RECTI r);
+        [DllImport("user32.dll")] private static extern IntPtr SetCursor(IntPtr c);
+        [DllImport("user32.dll")] private static extern IntPtr LoadCursor(IntPtr inst, IntPtr name);
         [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr h, int index);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] private static extern IntPtr SetWindowLongPtr(IntPtr h, int index, IntPtr value);

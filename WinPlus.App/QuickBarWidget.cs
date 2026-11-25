@@ -104,7 +104,17 @@ namespace WinPlus
         private static string[]? Files(DragEventArgs e) =>
             e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 ? f : null;
 
+        /// <summary>On a bar: its buttons themselves, square, as thick as the bar.</summary>
+        public override bool BarSelf => true;
+
         public override void Start() => Rebuild();
+
+        /// <summary>Out of sight (a full-screen app, a maximized window over it): it stops updating until it shows again.</summary>
+        public override void Covered(bool covered)
+        {
+            if (covered) _stateTimer.Stop();
+            else if (_live.Count > 0) { RefreshState(); _stateTimer.Start(); }
+        }
 
         public override void Stop()
         {
@@ -201,6 +211,7 @@ namespace WinPlus
             Arrange();
             RefreshState();
             if (_live.Count > 0) _stateTimer.Start(); else _stateTimer.Stop();
+            BarChanged?.Invoke();
         }
 
         /// <summary>The buttons as big as fit: square, filling the bar's length, shrinking when there are many.</summary>

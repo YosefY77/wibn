@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -112,7 +112,11 @@ namespace WinPlus
         }
 
         /// <summary>Glass for this one: the main switch and its own switch are both on.</summary>
-        public bool On => Master && Enabled;
+        /// <summary>
+        /// Glass here. The taskbar's (and the info bars') has no switch of its own any more: its background on the
+        /// Taskbar page (glass, color, see-through) says it, two switches for one thing were confusing.
+        /// </summary>
+        public bool On => Master && (ReferenceEquals(this, Taskbar) || Enabled);
         public int Bend => SharedBend;
         public int Dispersion => SharedDispersion;
         public int Frost => SharedFrost;
@@ -153,7 +157,6 @@ namespace WinPlus
             string disc = Lang.T("الدائرة تعرض اللي تحتها منحني عند حافتها مثل زجاج أبل");
             Where(Video, "", Lang.T("شريط تحميل المقاطع"), Lang.T("الشريط يعرض اللي وراه منحني عند الأطراف مثل زجاج أبل"));
             Where(Capture, "", Lang.T("أزرار تصوير الشاشة"), Lang.T("أزرار الحفظ والنسخ زجاجية. مربع التحديد يبقى عادي بخط أبيض"));
-            Where(Taskbar, "\uE90E", Lang.T("تاسك بار Wibn"), Lang.T("لما تختار له خلفية زجاج من صفحة التاسك بار، يصير بنفس الزجاج والإعدادات اللي هنا"));
             Where(Widgets, "\uE8A9", "Widgets", Lang.T("الويدجتات اللي على سطح المكتب تصير زجاج يبين خلفيتك منحنية عند الأطراف"));
             Where(Menu(MediaTools.Mode.Convert), "", Lang.T("قائمة تحويل الصيغ"), disc);
             Where(Menu(MediaTools.Mode.Resize), "", Lang.T("قائمة تغيير الأبعاد"), disc);

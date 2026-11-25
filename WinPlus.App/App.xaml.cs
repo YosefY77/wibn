@@ -41,6 +41,16 @@ namespace WinPlus
                 return;
             }
 
+            // Copies the screen behind the taskbar's glass without Wibn's windows (they stay in screen shares).
+            if (e.Args.Length == 3 && e.Args[0] == "--glass-copy")
+            {
+                Shutdown(GlassCopy.RunHelper(e.Args));
+                return;
+            }
+
+            // Every right-click menu in Wibn (widgets, taskbars, info bar…) opens as the desktop's glass menu.
+            GlassMenu.Install();
+
             // Guard of Wibn's taskbar: brings Windows' taskbar back if Wibn dies or freezes.
             if (e.Args.Length == 2 && e.Args[0] == "--taskbar-guard")
             {
@@ -149,6 +159,7 @@ namespace WinPlus
             _tray.DoubleClick += (_, _) => ShowWindow();
 
             CreateMessageWindow();
+            WindowDrag.Start();   // knows when a window is being dragged (Wibn does less meanwhile)
             TaskbarPlacement.ApplyAutoHideMode();
             ApplyFeatures(starting: true);  // only what the user chose runs
             _ = Task.Run(ConvertHistory.Cleanup);  // drop originals older than 30 days
@@ -177,6 +188,9 @@ namespace WinPlus
             // Extras of the chosen features (FFmpeg, sendme) download in the background.
             _ = Task.Delay(TimeSpan.FromSeconds(15)).ContinueWith(_ => Features.DownloadMissingAsync());
 
+            // First run of a new version: show what's in it (once).
+            _ = Dispatcher.BeginInvoke(new Action(WhatsNew.ShowIfNew), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
             // New version? Check a little after start, then every 12 hours.
             var updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
             updateTimer.Tick += async (_, _) =>
@@ -204,8 +218,11 @@ namespace WinPlus
             }
             TaskbarPlacement.ApplyAutoHideMode();
             CustomTaskbar.Apply();   // Wibn's own taskbar, if chosen
+            InfoBar.Apply();         // the extra info bar, if chosen
+            MemoryTrim.StartIdle();  // memory nothing uses goes back to Windows now and then
             VideoDownloader.Refresh();
             ScreenCapture.Refresh();  // its shortcuts, and the "last minute" recording if on
+            Wallpapers.Refresh();     // its shortcut, and a video wallpaper back on the desktop
             // Glass taskbar (TaskbarStyle 1) is drawn by the DLL inside the taskbar now.
             if (SettingsStore.TaskbarStyle > 1) SettingsStore.TaskbarStyle = 0;   // the old "see-through" look is gone
 
@@ -317,6 +334,7 @@ namespace WinPlus
             if (Features.IsOn("hotkeys")) HotkeyManager.Init(_messageWindow);
             VideoDownloader.Init(_messageWindow);  // its shortcut (Ctrl+H), see ApplyFeatures
             ScreenCapture.Init(_messageWindow);    // the screen capture shortcuts
+            Wallpapers.Init(_messageWindow);       // the wallpapers' shortcut
         }
 
         /// <summary>Opens Wibn on a page (by its side-menu key, e.g. "glass").</summary>
@@ -359,6 +377,7 @@ namespace WinPlus
             // The DLL stays inside explorer but switches itself off.
             SettingsStore.AppActive = false;
             TaskbarInjector.SignalRefresh();
+            InfoBar.Stop();         // the windows get its room back
             CustomTaskbar.Stop();   // Windows' taskbar back
             TaskbarPlacement.RestoreTaskbar();
             Relocker.LockAllNow();
@@ -366,6 +385,8 @@ namespace WinPlus
             FileUndo.FinishAll();
             P2PTransfer.StopAll();
             ScreenCapture.StopAll();
+            Wallpapers.Shutdown();  // the video leaves the desktop (Windows keeps a frame of it)
+            GlassCopy.Shutdown();   // the glass's screen-copy helper goes too
             GameBoost.Shutdown();   // services and apps back as they were
 
             if (_tray != null)

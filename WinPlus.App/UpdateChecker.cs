@@ -26,7 +26,10 @@ namespace WinPlus
         public static Version Current =>
             Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 0, 0);
 
-        public static string CurrentText => $"{Current.Major}.{Current.Minor}.{Current.Build}";
+        /// <summary>"2.0", or "1.0.9" for the older three-part numbers.</summary>
+        public static string CurrentText => Current.Build > 0
+            ? $"{Current.Major}.{Current.Minor}.{Current.Build}"
+            : $"{Current.Major}.{Current.Minor}";
 
         /// <summary>A newer release than this one, or null.</summary>
         public static async Task<Release?> CheckAsync(bool includeIgnored = false)

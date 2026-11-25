@@ -63,9 +63,33 @@ namespace WinPlus
             Child = panel;
         }
 
+        /// <summary>On a bar: the processor, memory and graphics card use.</summary>
+        public override FrameworkElement? BarView(BarLook l)
+        {
+            var row = BarRow(l);
+            foreach (var (name, m) in new[] { ("CPU", _cpu), ("RAM", _ram), ("GPU", _gpu) })
+            {
+                var pair = new StackPanel { Orientation = l.Vertical ? Orientation.Vertical : Orientation.Horizontal, Margin = l.Vertical ? new Thickness(0, 2, 0, 2) : new Thickness(3, 0, 3, 0) };
+                pair.Children.Add(new TextBlock { Text = name, FontSize = l.Small, Foreground = l.Ink, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+                var v = BarText(l, m.Value);
+                v.Margin = new Thickness(0);
+                pair.Children.Add(v);
+                row.Children.Add(pair);
+            }
+            row.FlowDirection = FlowDirection.LeftToRight;
+            return BarButton(l, row, () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskmgr.exe") { UseShellExecute = true }));
+        }
+
         public override void Start()
         {
             _timer ??= new Timer(_ => Tick(), null, 0, 1000);
+        }
+
+        /// <summary>Out of sight (a full-screen app, a maximized window over it): it stops updating until it shows again.</summary>
+        public override void Covered(bool covered)
+        {
+            if (covered) { _timer?.Dispose(); _timer = null; }
+            else Start();
         }
 
         public override void Stop()
@@ -173,11 +197,11 @@ namespace WinPlus
 
         // ---- The numbers ----------------------------------------------------------------------
 
-        private readonly record struct Sample(double Cpu, long RamUsed, long RamTotal, double? Gpu, long DiskUsed, long DiskTotal);
+        internal readonly record struct Sample(double Cpu, long RamUsed, long RamTotal, double? Gpu, long DiskUsed, long DiskTotal);
 
         /// <summary>Reads the numbers. CPU from the system times, memory from Windows,
         /// the graphics card from its performance counters (when there are any).</summary>
-        private sealed class Sampler : IDisposable
+        internal sealed class Sampler : IDisposable
         {
             private ulong _idle, _kernel, _user;
             private IntPtr _query, _gpuCounter;

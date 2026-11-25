@@ -32,6 +32,7 @@ namespace WinPlus
             TaskbarGlassText.Text = $"{(int)TaskbarGlassSlider.Value}%";
             AutoHideBox.IsChecked = TaskbarPlacement.AutoHideEnabled;
             CustomTaskbarHost.Content = new CustomTaskbarPage();
+            InfoBarHost.Content = new InfoBarPage();
 
             VersionText.Text = "Wibn " + UpdateChecker.CurrentText;
             BuildFeatureList();
@@ -181,6 +182,8 @@ namespace WinPlus
             }
         }
 
+        private void OnWhatsNew(object sender, RoutedEventArgs e) => WhatsNew.Show(this);
+
         private void OnIgnoreUpdate(object sender, RoutedEventArgs e)
         {
             if (_release != null) UpdateChecker.IgnoredVersion = _release.Tag;
@@ -227,10 +230,11 @@ namespace WinPlus
         private SpecsPage? _specsPage;
         private GameModePage? _gamePage;
         private AnimationsPage? _animPage;
+        private WallpapersPage? _wallpapersPage;
 
         private FrameworkElement[] AllPages => new FrameworkElement[]
         {
-            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PageGame, PagePhone, PageWidgets, PageGlass, PageAnim, PageGeneral,
+            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PageGame, PagePhone, PageWidgets, PageGlass, PageAnim, PageWallpapers, PageGeneral,
         };
 
         private void OnNavChanged(object sender, RoutedEventArgs e)
@@ -268,6 +272,7 @@ namespace WinPlus
                 "game" => Build(PageGame, () => GameHost.Content = _gamePage ??= new GameModePage()),
                 "glass" => Build(PageGlass, () => GlassHost.Content ??= GlassSettings.Page()),
                 "anim" => Build(PageAnim, () => AnimHost.Content ??= _animPage ??= new AnimationsPage()),
+                "wallpapers" => Build(PageWallpapers, () => WallpapersHost.Content ??= _wallpapersPage ??= new WallpapersPage()),
                 "general" => PageGeneral,
                 _ => PageTaskbar,
             };
