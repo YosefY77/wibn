@@ -101,6 +101,7 @@ namespace WinPlus
             look.Children.Add(Toggle("", Lang.T("التاريخ تحت الساعة"), Lang.T("بنفس صيغة ويندوز"), CustomTaskbar.ShowDate, v => CustomTaskbar.ShowDate = v));
             look.Children.Add(Toggle("", Lang.T("الثواني في الساعة"), Lang.T("مثل 10:42:07، في الساعة وفي التاسك بار الإضافي"), CustomTaskbar.Seconds, v => CustomTaskbar.Seconds = v));
             look.Children.Add(Toggle("\uE8A0", Lang.T("الساعة في تاسك بار منفصل"), Lang.T("البرامج في تاسك بار، والساعة واللي حولها في تاسك بار ثاني لحاله"), CustomTaskbar.Split, v => CustomTaskbar.Split = v));
+            look.Children.Add(Toggle("", Lang.T("يظهر في البث"), Lang.T("التاسك بار يبان في البث والتسجيل (ديسكورد…)، وزجاجه يعرض الخلفية بس. مع OBS يصير لحاله"), CustomTaskbar.ShowInStreams, v => CustomTaskbar.ShowInStreams = v));
             _options.Children.Add(look);
             _options.Children.Add(new TextBlock { Text = Lang.T("الإخفاء"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 14, 0, 2) });
             var hiding = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(-3, 2, -3, 0) };

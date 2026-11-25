@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -35,6 +35,11 @@ namespace WinPlus
         /// <summary>0 = the picture's top-left corner clicks, 1 = its center.</summary>
         public static int Hotspot { get => GetInt("CursorHotspot", 0); set => SetInt("CursorHotspot", value); }
         public static bool AlsoHand { get => GetInt("CursorHand", 1) != 0; set => SetInt("CursorHand", value ? 1 : 0); }
+        /// <summary>
+        /// 25–100 %: how big our pointer is drawn in its square. Windows' pointers are never smaller than 32 px, so a
+        /// smaller one is drawn smaller inside it (the rest see-through).
+        /// </summary>
+        public static int ShrinkPercent { get => Math.Clamp(GetInt("CursorScale", 100), 25, 100); set => SetInt("CursorScale", Math.Clamp(value, 25, 100)); }
 
         /// <summary>Our copy of the picture the user chose (null if none yet).</summary>
         public static string? ImagePath
@@ -177,13 +182,14 @@ namespace WinPlus
         {
             var visual = new DrawingVisual();
             hotX = hotY = 0;
+            double shrink = ShrinkPercent / 100.0;   // smaller than Windows' smallest pointer: drawn smaller in its square
             using (var dc = visual.RenderOpen())
             {
                 string? image = ImagePath;
                 if (Mode == 1 && image != null && TryLoad(image) is BitmapSource pic)
                 {
                     // Fit inside the square, keeping its shape.
-                    double scale = Math.Min((double)size / pic.PixelWidth, (double)size / pic.PixelHeight);
+                    double scale = Math.Min((double)size / pic.PixelWidth, (double)size / pic.PixelHeight) * shrink;
                     double w = pic.PixelWidth * scale, h = pic.PixelHeight * scale;
                     double x = Hotspot == 1 ? (size - w) / 2 : 0, y = Hotspot == 1 ? (size - h) / 2 : 0;
                     dc.DrawImage(pic, new Rect(x, y, w, h));
@@ -191,9 +197,11 @@ namespace WinPlus
                 }
                 else
                 {
+                    dc.PushTransform(new ScaleTransform(shrink, shrink));   // from the top left (where it clicks)
                     DrawArrow(dc, size);
-                    hotX = (int)Math.Round(size * 0.04);
-                    hotY = (int)Math.Round(size * 0.04);
+                    dc.Pop();
+                    hotX = (int)Math.Round(size * 0.04 * shrink);
+                    hotY = (int)Math.Round(size * 0.04 * shrink);
                 }
             }
             var bmp = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);

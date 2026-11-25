@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -19,6 +19,8 @@ namespace WinPlus
             HandBox.IsChecked = CursorTool.AlsoHand;
             SizeSlider.Value = CursorTool.Size;
             SizeText.Text = $"{CursorTool.Size} px";
+            ScaleSlider.Value = CursorTool.ShrinkPercent;
+            ScaleText.Text = $"{CursorTool.ShrinkPercent}%";
             Picker.Color = CursorTool.Color;
             HotspotBox.SelectedIndex = CursorTool.Hotspot;
             if (CursorTool.Mode == 1) ModeImage.IsChecked = true; else ModeColor.IsChecked = true;
@@ -143,6 +145,26 @@ namespace WinPlus
             UpdatePreview();
         }
 
+        private bool _scaleDirty;
+
+        private void OnScaleChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (ScaleText == null) return;
+            ScaleText.Text = $"{(int)ScaleSlider.Value}%";
+            if (_loading) return;
+            _scaleDirty = true;
+        }
+
+        // Our pointer is drawn again once the slider is let go.
+        private void OnScaleCommit(object sender, EventArgs e)
+        {
+            if (!_scaleDirty) return;
+            _scaleDirty = false;
+            CursorTool.ShrinkPercent = (int)ScaleSlider.Value;
+            UpdatePreview();
+            if (CursorTool.Enabled) Safe(CursorTool.Apply);
+        }
+
         private void OnReset(object sender, RoutedEventArgs e)
         {
             _applyTimer.Stop();
@@ -152,8 +174,10 @@ namespace WinPlus
             CursorTool.Enabled = false;
             Safe(CursorTool.Reset);
             Safe(() => CursorTool.Size = 32);
+            CursorTool.ShrinkPercent = 100;
             _loading = true;
             SizeSlider.Value = 32;
+            ScaleSlider.Value = 100;
             _loading = false;
             UpdatePreview();
         }

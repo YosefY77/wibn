@@ -1673,6 +1673,9 @@ namespace WinPlus
             var cover = new MenuItem { Header = Lang.T("يختفي لما تكون نافذة تحته"), IsCheckable = true, IsChecked = CustomTaskbar.HideOverWindow };
             cover.Click += (_, _) => CustomTaskbar.HideOverWindow = cover.IsChecked;
             menu.Items.Add(cover);
+            var streams = new MenuItem { Header = Lang.T("يظهر في البث"), IsCheckable = true, IsChecked = CustomTaskbar.ShowInStreams };
+            streams.Click += (_, _) => CustomTaskbar.ShowInStreams = streams.IsChecked;
+            menu.Items.Add(streams);
             menu.Items.Add(new Separator());
             var add = new MenuItem { Header = Lang.T("أضف تاسك بار إضافي ثاني") };
             add.Click += (_, _) => AddAnother();

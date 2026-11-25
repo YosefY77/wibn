@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -192,6 +192,8 @@ namespace WinPlus
         {
             try
             {
+                // The taskbars with live glass in the picture too (they're left out of screen copies otherwise).
+                if (kind is Kind.Region or Kind.Full) LiquidGlass.ShowInScreenshot();
                 switch (kind)
                 {
                     case Kind.Region: TakeRegion(); break;

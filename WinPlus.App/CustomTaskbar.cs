@@ -199,6 +199,12 @@ namespace WinPlus
             set { Set("HideOverWindow", value ? 1 : 0); Poke(); InfoBar.CoverSettingChanged(); Changed?.Invoke(); }
         }
 
+        /// <summary>
+        /// The glass bars show in streams and recordings (Discord…) all the time; their glass shows the wallpaper behind
+        /// them then, not the windows. (With OBS, Streamlabs, XSplit… running it's that way by itself.) Off by default.
+        /// </summary>
+        public static bool ShowInStreams { get => Get("ShowInStreams", 0) != 0; set { Set("ShowInStreams", value ? 1 : 0); Changed?.Invoke(); } }
+
         /// <summary>Over a game the mouse at the edge doesn't bring the bar: only the Windows key (Start) does.</summary>
         public static bool GamesKeyOnly { get => Get("GamesKeyOnly", 1) != 0; set => Set("GamesKeyOnly", value ? 1 : 0); }
         public static bool SearchButton { get => Get("Search", 1) != 0; set { Set("Search", value ? 1 : 0); Restyle(); } }

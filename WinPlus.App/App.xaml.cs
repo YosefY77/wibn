@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -30,6 +30,9 @@ namespace WinPlus
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            // Settings brought in from a file (General settings → Bring in settings): before anything reads one,
+            // the language too. Not in the helper processes.
+            if (e.Args.Length == 0) SettingsTransfer.ApplyPending();
             Lang.Init(this);  // Arabic or English, before any window
 
             // Helper mode: WinPlus.exe --inject <pid> <dll> <endpoint>

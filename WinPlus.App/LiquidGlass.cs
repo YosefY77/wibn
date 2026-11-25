@@ -590,6 +590,7 @@ namespace WinPlus
 
         private static void StartClock()
         {
+            ScreenshotKeys.Start();   // (on the window thread, like Start)
             lock (LiveGlasses)
             {
                 if (_clock != null) return;
@@ -718,12 +719,18 @@ namespace WinPlus
             lock (_stepLock)
             {
                 if (!_running || !_ready) return false;
-                // Still out of screen copies? (Something may have put it back in: it would copy itself.)
+                // A screenshot is being taken: the bar is in screen copies for it, so no copy now (it would copy
+                // itself); the glass keeps its last picture.
+                if (Environment.TickCount64 < Interlocked.Read(ref _shotUntil) + ShotGraceMs) return false;
+                // Out of screen copies (or, while streaming, in them)? Checked every second, and at once when
+                // streaming starts or stops. Not as it should be: no copy this round (it could copy itself).
                 long now = Environment.TickCount64;
-                if (_magTried && now - _affinityCheckedAt > 1000)
+                bool safe = StreamSafe;
+                if (_magTried && (now - _affinityCheckedAt > 1000 || safe != _wasSafe))
                 {
                     _affinityCheckedAt = now;
-                    if (GetWindowDisplayAffinity(_hwnd, out uint aff) && aff != 0x11) ExcludeFromCapture();
+                    _wasSafe = safe;
+                    if (GetWindowDisplayAffinity(_hwnd, out uint aff) && aff != (safe ? 0u : 0x11u)) { ApplyAffinity(); return false; }
                 }
                 if (!_magTried)
                 {
@@ -732,7 +739,8 @@ namespace WinPlus
                     // glass froze). The price: the bars don't show in screen shares and screenshots.
                     _magTried = true;
                     _useMag = false;
-                    ExcludeFromCapture();
+                    _wasSafe = safe;
+                    ApplyAffinity();
                 }
                 _retry = false;
                 long t0 = Stopwatch.GetTimestamp();
@@ -807,7 +815,9 @@ namespace WinPlus
             // (most of the time: maximized windows stop at the bars): the wallpaper straight from the desktop's
             // picture. The same look, without asking Windows to copy the screen (each copy is work for all of it,
             // and with several bars at 30 a second the whole PC stuttered).
-            if (WallpaperNow || (!DesktopPicture.Animated && NothingBehind(r)))
+            // While streaming (see StreamSafe) the bars are in screen copies, so it never copies the screen: always
+            // the desktop's own picture (the wallpaper; windows behind the bar don't show in the glass then).
+            if (WallpaperNow || (LiveStream && StreamSafe) || (!DesktopPicture.Animated && NothingBehind(r)))
             {
                 _wx0 = r.Left; _wy0 = r.Top; _ox = x + _margin; _oy = y + _margin;
                 if (!CopyDesktop()) return false;
@@ -885,6 +895,47 @@ namespace WinPlus
         }
 
         private long _affinityCheckedAt;
+
+        // ---- Screenshots: the bars in them -------------------------------------------------------------------
+
+        private static long _shotUntil;
+        private const int ShotMs = 1500, ShotGraceMs = 200;
+        private static readonly Timer _shotOver = new(_ => ShotOver(), null, Timeout.Infinite, Timeout.Infinite);
+
+        /// <summary>
+        /// A screenshot is starting (PrintScreen, Win + Shift + S, Wibn's own; on the window thread). The live-glass
+        /// bars are kept out of screen copies (or their glass would copy itself): for a moment they're back in them,
+        /// so they're in the screenshot, and their glass keeps its last picture meanwhile. Returns once the screen
+        /// shows them (one screen frame).
+        /// </summary>
+        public static void ShowInScreenshot()
+        {
+            if (!LiveStream || StreamSafe) return;   // streaming: they're in screen copies already
+            IntPtr[] list;
+            lock (LiveWindows) list = _liveList;
+            if (list.Length == 0) return;
+            Interlocked.Exchange(ref _shotUntil, Environment.TickCount64 + ShotMs);
+            foreach (var h in list) SetWindowDisplayAffinity(h, 0 /* WDA_NONE */);
+            DwmFlush();
+            try { _shotOver.Change(ShotMs, Timeout.Infinite); } catch (ObjectDisposedException) { }
+        }
+
+        /// <summary>The screenshot is taken: the bars out of screen copies again (then the glass goes on).</summary>
+        private static void ShotOver()
+        {
+            try
+            {
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (Environment.TickCount64 < Interlocked.Read(ref _shotUntil)) return;   // another one started
+                    IntPtr[] list;
+                    lock (LiveWindows) list = _liveList;
+                    uint want = StreamSafe ? 0u : 0x11u /* WDA_EXCLUDEFROMCAPTURE */;
+                    foreach (var h in list) SetWindowDisplayAffinity(h, want);
+                }));
+            }
+            catch { }
+        }
         [DllImport("user32.dll")] private static extern bool GetWindowDisplayAffinity(IntPtr hwnd, out uint affinity);
 
         private int _cx, _cy;          // streaming: where this bar's screen copy goes (screen pixels)
@@ -1195,6 +1246,61 @@ namespace WinPlus
         {
             _liveVersion++;
             _liveList = System.Linq.Enumerable.ToArray(LiveWindows.Keys);
+        }
+
+        /// <summary>Streaming: out of screen copies, or in them while streaming (StreamSafe).</summary>
+        private void ApplyAffinity()
+        {
+            uint want = StreamSafe ? 0u : 0x11u;
+            try { _window.Dispatcher.BeginInvoke(new Action(() => { if (_running) SetWindowDisplayAffinity(_hwnd, want); })); }
+            catch { }
+        }
+
+        private bool _wasSafe;
+
+        /// <summary>
+        /// The bars show in streams and recordings (Discord, OBS…): turned on by hand (CustomTaskbar.ShowInStreams),
+        /// or a streaming app is running. Their glass then shows the wallpaper behind them, not the screen.
+        /// </summary>
+        internal static bool StreamSafe => CustomTaskbar.ShowInStreams || StreamApps.Running;
+
+        /// <summary>Is a streaming / recording app running? Looked at every 3 seconds (once the live glass is on).</summary>
+        private static class StreamApps
+        {
+            private static readonly string[] Names =
+            {
+                "obs64", "obs32", "obs", "streamlabs obs", "streamlabs desktop", "xsplit.core", "xsplit.broadcaster",
+                "twitchstudio", "twitch studio", "prismlivestudio", "meld studio",
+            };
+            private static Timer? _timer;
+            private static volatile bool _running;
+
+            public static bool Running { get { Start(); return _running; } }
+
+            private static void Start()
+            {
+                if (_timer != null) return;
+                lock (Names)
+                {
+                    if (_timer != null) return;
+                    _timer = new Timer(_ => Look(), null, 0, 3000);
+                }
+            }
+
+            private static void Look()
+            {
+                bool any = false;
+                try
+                {
+                    foreach (var p in System.Diagnostics.Process.GetProcesses())
+                    {
+                        if (!any && Array.IndexOf(Names, p.ProcessName.ToLowerInvariant()) >= 0) any = true;
+                        p.Dispose();
+                    }
+                }
+                catch { return; }
+                _running = any;
+            }
         }
 
         /// <summary>The old way: the window left out of every screen copy (it isn't in screen shares then).</summary>

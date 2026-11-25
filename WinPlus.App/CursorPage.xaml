@@ -1,4 +1,4 @@
-<UserControl x:Class="WinPlus.CursorPage"
+﻿<UserControl x:Class="WinPlus.CursorPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WinPlus">
@@ -41,6 +41,23 @@
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'الحجم'}"/>
                     <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'حجم ويندوز العادي 32 بكسل، ويتغير لكل المؤشرات'}"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Our pointer smaller than Windows' smallest (32 px): drawn smaller inside it -->
+        <Border Style="{StaticResource Row}">
+            <DockPanel>
+                <TextBlock x:Name="ScaleText" DockPanel.Dock="Right" Width="56" VerticalAlignment="Center"
+                           TextAlignment="Center" FlowDirection="LeftToRight"/>
+                <Slider x:Name="ScaleSlider" DockPanel.Dock="Right" Width="260" Minimum="25" Maximum="100"
+                        TickFrequency="5" IsSnapToTickEnabled="True" FlowDirection="LeftToRight"
+                        VerticalAlignment="Center" ValueChanged="OnScaleChanged"
+                        PreviewMouseLeftButtonUp="OnScaleCommit" LostMouseCapture="OnScaleCommit" KeyUp="OnScaleCommit"/>
+                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE73F;"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'حجم المؤشر الخاص'}"/>
+                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'يصغّر المؤشر حقك أصغر من أصغر حجم في ويندوز'}"/>
                 </StackPanel>
             </DockPanel>
         </Border>

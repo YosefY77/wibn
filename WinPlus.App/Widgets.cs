@@ -216,6 +216,8 @@ namespace WinPlus
                 4, 2, () => new AudioWavesWidget()),
             new("calendar", "", Lang.T("التقويم"), Lang.T("تاريخ اليوم بالميلادي أو الهجري ومواعيدك الجاية بألوانها. اضغط عليه يفتح التقويم في نص الشاشة وتضيف مواعيد مع تنبيه"),
                 3, 3, () => new CalendarWidget()),
+            new("discord", "", Lang.T("إشعارات ديسكورد"), Lang.T("كم إشعار عندك في ديسكورد، ومين أرسل وش قال. اضغط على إشعار يفتح ديسكورد. على التاسك بار الإضافي يطلع العدد وآخر إشعار جنبه"),
+                3, 3, () => new DiscordWidget()),
         };
 
         public static Kind? KindOf(string type) => Kinds.FirstOrDefault(k => k.Type == type);

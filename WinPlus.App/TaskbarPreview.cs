@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -253,6 +253,10 @@ namespace WinPlus
             close.MouseLeave += (_, _) => { close.Background = Brushes.Transparent; x.Foreground = _ink; };
             Border? cell = null;
             ThumbHost? thumbHost = null;
+            // Highlighted while the mouse is on the cell or on its picture (the picture is a window of its own over
+            // the panel: on it, the panel thinks the mouse has left, so only the edges lit up).
+            bool onPicture = false;
+            Action? hover = null;
             close.MouseLeftButtonUp += (_, e) => { e.Handled = true; CloseFromPanel(w, cell!, thumbHost); };
             var head = new DockPanel { Height = 26 };
             DockPanel.SetDock(close, Dock.Right);
@@ -267,7 +271,13 @@ namespace WinPlus
                 // The picture takes clicks itself: a click goes to its window, a middle click closes it.
                 thumbHost = new ThumbHost(_hwnd, msg =>
                 {
-                    if (msg == 0x200 /* MOUSEMOVE */) { _hide.Stop(); return; }
+                    if (msg == 0x200 /* MOUSEMOVE */)
+                    {
+                        _hide.Stop();
+                        if (!onPicture) { onPicture = true; hover?.Invoke(); }
+                        return;
+                    }
+                    if (msg == 0x2A3 /* MOUSELEAVE */) { onPicture = false; Dispatcher.BeginInvoke(new Action(() => hover?.Invoke())); return; }
                     Dispatcher.BeginInvoke(new Action(() =>   // not while inside the picture's own window procedure
                     {
                         if (msg == 0x202 /* LBUTTONUP */) { TaskbarBar.Flashing.Remove(w.Hwnd); TaskbarApps.Activate(w.Hwnd); HideNow(); }
@@ -298,8 +308,10 @@ namespace WinPlus
             };
             Brush rest = w.Hwnd == TaskbarApps.Foreground() ? _activeBack : Brushes.Transparent;
             cell.Background = rest;
-            cell.MouseEnter += (_, _) => cell.Background = _hover;
-            cell.MouseLeave += (_, _) => cell.Background = rest;
+            hover = () => cell.Background = cell.IsMouseOver || onPicture ? _hover : rest;
+            cell.MouseEnter += (_, _) => hover();
+            // (Onto its picture: the picture says so right after, so it doesn't blink off in between.)
+            cell.MouseLeave += (_, _) => Dispatcher.BeginInvoke(new Action(() => hover()), System.Windows.Threading.DispatcherPriority.Background);
             cell.MouseLeftButtonUp += (_, e) => { e.Handled = true; TaskbarBar.Flashing.Remove(w.Hwnd); TaskbarApps.Activate(w.Hwnd); HideNow(); };
             cell.MouseUp += (_, e) => { if (e.ChangedButton == MouseButton.Middle) { e.Handled = true; CloseFromPanel(w, cell, thumbHost); } };
             return cell;
@@ -350,7 +362,11 @@ namespace WinPlus
         private sealed class ThumbHost
         {
             private readonly HwndSource _src;
+            private bool _tracking;
             public IntPtr Handle => _src.Handle;
+
+            [StructLayout(LayoutKind.Sequential)] private struct TRACKMOUSEEVENT { public uint cbSize, dwFlags; public IntPtr hwndTrack; public uint dwHoverTime; }
+            [DllImport("user32.dll")] private static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT e);
 
             public ThumbHost(IntPtr owner, Action<int> mouse)
             {
@@ -366,6 +382,13 @@ namespace WinPlus
                     if (msg == 0x84 /* WM_NCHITTEST */) { handled = true; return (IntPtr)1; }   // HTCLIENT: it takes the clicks
                     if (msg == 0x21 /* WM_MOUSEACTIVATE */) { handled = true; return (IntPtr)3; }
                     if (msg == 0x20 /* WM_SETCURSOR */) { handled = true; SetCursor(LoadCursor(IntPtr.Zero, (IntPtr)32512 /* IDC_ARROW */)); return (IntPtr)1; }
+                    if (msg == 0x200 && !_tracking)
+                    {
+                        // Told when the mouse leaves the picture (WM_MOUSELEAVE).
+                        var t = new TRACKMOUSEEVENT { cbSize = (uint)Marshal.SizeOf<TRACKMOUSEEVENT>(), dwFlags = 0x2 /* TME_LEAVE */, hwndTrack = h };
+                        _tracking = TrackMouseEvent(ref t);
+                    }
+                    if (msg == 0x2A3 /* WM_MOUSELEAVE */) { _tracking = false; mouse(msg); }
                     if (msg is 0x200 or 0x202 or 0x208) { mouse(msg); handled = msg != 0x200; }
                     return IntPtr.Zero;
                 });

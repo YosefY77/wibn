@@ -459,6 +459,20 @@
                         </DockPanel>
                     </Border>
 
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource FlatButton}" Content="{local:Tr 'احفظ في ملف'}" Click="OnExportSettings" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button Style="{StaticResource FlatButton}" Content="{local:Tr 'جيب من ملف'}" Click="OnImportSettings" VerticalAlignment="Center" Margin="0"/>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8B7;"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'إعدادات البرنامج'}"/>
+                                <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'كل إعداداتك في ملف صغير، ترجعها منه أو تنقلها لجهاز ثاني'}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
                     <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'التحديثات'}"/>
                     <Border Style="{StaticResource Row}">
                         <DockPanel>

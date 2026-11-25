@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -444,6 +444,43 @@ namespace WinPlus
                 "Wibn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes,
                 english ? MessageBoxOptions.None : MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
             if (answer == MessageBoxResult.Yes) ((App)Application.Current).RestartApp();
+        }
+
+        private void OnExportSettings(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = Lang.T("احفظ إعدادات Wibn"), Filter = Lang.T("إعدادات Wibn") + " (*.wibn)|*.wibn",
+                FileName = "Wibn " + DateTime.Now.ToString("yyyy-MM-dd") + ".wibn",
+            };
+            if (dlg.ShowDialog(this) != true) return;
+            try
+            {
+                SettingsTransfer.Export(dlg.FileName);
+                MessageBox.Show(this, Lang.T("انحفظت الإعدادات. ما فيها رمز ربط الجوال ولا تسجيل دخولك لتحميل المقاطع."), "Wibn",
+                                MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.OK, Lang.MsgOptions);
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write("settings export", ex);
+                MessageBox.Show(this, Lang.T("ما قدرت أحفظ الملف") + Environment.NewLine + ex.Message, "Wibn", MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.OK, Lang.MsgOptions);
+            }
+        }
+
+        private void OnImportSettings(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Title = Lang.T("جيب إعدادات Wibn"), Filter = Lang.T("إعدادات Wibn") + " (*.wibn)|*.wibn" };
+            if (dlg.ShowDialog(this) != true) return;
+            var answer = MessageBox.Show(this, Lang.T("الإعدادات اللي في الملف بتصير بدل إعداداتك الحين، وWibn بيعيد التشغيل. إعداداتك الحالية تنحفظ قبلها احتياط. أكمل؟"), "Wibn",
+                                         MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No, Lang.MsgOptions);
+            if (answer != MessageBoxResult.Yes) return;
+            string? problem = SettingsTransfer.Prepare(dlg.FileName);
+            if (problem != null)
+            {
+                MessageBox.Show(this, problem, "Wibn", MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.OK, Lang.MsgOptions);
+                return;
+            }
+            ((App)Application.Current).RestartApp();   // applied at the start, before anything reads a setting
         }
 
         private void OnStartupChanged(object sender, RoutedEventArgs e)

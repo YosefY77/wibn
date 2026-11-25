@@ -256,6 +256,7 @@ namespace WinPlus
                 menu.Items.Add(side);
             }
             menu.Items.Add(CoverToggle());
+            menu.Items.Add(StreamsToggle());
             menu.Items.Add(new Separator());
             menu.Items.Add(Item(Lang.T("إعدادات تاسك بار Wibn"), () => (Application.Current as App)?.ShowTaskbarSettings(), "\uE713"));
             menu.Items.Add(Item(Lang.T("مدير المهام"), () => TaskbarApps.Launch("taskmgr.exe"), "\uE9D9"));
@@ -1465,10 +1466,20 @@ namespace WinPlus
             return i;
         }
 
+        /// <summary>"Show in streams", on or off (the bar's, the clock's and the info bars' menus).</summary>
+        internal static MenuItem StreamsToggle()
+        {
+            var i = Item(Lang.T("يظهر في البث"), () => CustomTaskbar.ShowInStreams = !CustomTaskbar.ShowInStreams);
+            i.IsCheckable = true;
+            i.IsChecked = CustomTaskbar.ShowInStreams;
+            return i;
+        }
+
         private void BarMenu()
         {
             var menu = NewMenu();
             menu.Items.Add(CoverToggle());
+            menu.Items.Add(StreamsToggle());
             menu.Items.Add(new Separator());
             menu.Items.Add(Item(Lang.T("إعدادات تاسك بار Wibn"), () => (Application.Current as App)?.ShowTaskbarSettings(), ""));
             menu.Items.Add(Item(Lang.T("مدير المهام"), () => TaskbarApps.Launch("taskmgr.exe"), ""));
@@ -1682,6 +1693,12 @@ namespace WinPlus
             _icon.HorizontalAlignment = HorizontalAlignment.Center;
 
             var content = new Grid();
+            // The hover highlight: a layer of its own, see-through until the mouse comes, then it fades in (and out).
+            _hoverLayer.CornerRadius = new CornerRadius(5);
+            _hoverLayer.Background = bar.Hover;
+            _hoverLayer.Opacity = 0;
+            _hoverLayer.IsHitTestVisible = false;
+            content.Children.Add(_hoverLayer);
             var inner = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             inner.Children.Add(_icon);
             inner.Children.Add(_label);
@@ -1695,7 +1712,7 @@ namespace WinPlus
             _label.Visibility = labels ? Visibility.Visible : Visibility.Collapsed;
             _label.Foreground = bar.Ink;
             Height = bar.ButtonSize;
-            if (labels) { MaxWidth = 170; MinWidth = bar.ButtonSize; Padding = new Thickness(8, 0, 8, 0); inner.HorizontalAlignment = HorizontalAlignment.Left; }
+            if (labels) { MaxWidth = 170; MinWidth = bar.ButtonSize; Padding = new Thickness(8, 0, 8, 0); inner.HorizontalAlignment = HorizontalAlignment.Left; _hoverLayer.Margin = new Thickness(-8, 0, -8, 0); }
             else Width = bar.ButtonSize;
             Margin = bar.Vertical ? new Thickness(0, 2, 0, 2) : new Thickness(2, 0, 2, 0);
             if (bar.Vertical)
@@ -1709,8 +1726,8 @@ namespace WinPlus
                 _line.HorizontalAlignment = HorizontalAlignment.Center; _line.Margin = new Thickness(0, 1, 0, 1);
             }
 
-            MouseEnter += (_, _) => { Background = _bar.Hover; if (Group?.Windows.Count > 0) _hover.Start(); else ToolTip = Group?.Name; };
-            MouseLeave += (_, _) => { _hover.Stop(); Paint(); TaskbarPreview.HideSoon(); };
+            MouseEnter += (_, _) => { FadeHover(true); if (Group?.Windows.Count > 0) _hover.Start(); else ToolTip = Group?.Name; };
+            MouseLeave += (_, _) => { FadeHover(false); _hover.Stop(); Paint(); TaskbarPreview.HideSoon(); };
             _hover.Tick += (_, _) => { _hover.Stop(); if (IsMouseOver && !_dragging) ShowPreview(); };
             MouseLeftButtonDown += OnDown;
             MouseMove += OnMove;
@@ -1753,7 +1770,18 @@ namespace WinPlus
 
         private void Paint()
         {
-            Background = IsMouseOver ? _bar.Hover : _flash ? TaskbarBar.FlashBack : _active ? _bar.ActiveBack : Brushes.Transparent;
+            // (The hover is its own layer on top, see FadeHover.)
+            Background = _flash ? TaskbarBar.FlashBack : _active ? _bar.ActiveBack : Brushes.Transparent;
+        }
+
+        private readonly Border _hoverLayer = new();
+        private static readonly System.Windows.Media.Animation.IEasingFunction HoverEase = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
+
+        /// <summary>The hover highlight fades in quickly and smoothly when the mouse comes, and out when it goes.</summary>
+        private void FadeHover(bool on)
+        {
+            var a = new System.Windows.Media.Animation.DoubleAnimation(on ? 1 : 0, TimeSpan.FromMilliseconds(on ? 120 : 180)) { EasingFunction = HoverEase };
+            _hoverLayer.BeginAnimation(OpacityProperty, a);
         }
 
         private void ShowPreview()

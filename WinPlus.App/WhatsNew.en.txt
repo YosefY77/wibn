@@ -1,14 +1,9 @@
 # What's new, one line per change (English). Lines starting with # are skipped.
-- Drag Wibn's taskbar to any screen edge, with a preview of where it will land
-- The clock can sit on a different edge than the apps (e.g. clock on top, apps at the bottom), and keeps its side when moved
-- Change the Start button's picture: Windows logo, Wibn logo, an icon in your color, or your own picture
-- Eyedropper: pick any color on the screen, with a magnifier showing its code
-- The new color picker window replaces Windows' old color dialog in widgets
-- Wallpapers: add your pictures and videos, press Ctrl + Alt + W and they come up in the middle of the screen, Linux style; move with the arrows and Enter changes the wallpaper with a smooth animation
-- Animated wallpapers: any video becomes a wallpaper under the desktop icons, and pauses by itself while a window is maximized or a game is full screen, to save memory
-- The glass on the taskbar and the extra bars shows what's behind it live (windows, videos), and all the bars change together. Glass bars don't show in streams and screenshots
-- Lighter and smoother: the stutter the glass caused is fixed, and Wibn uses less memory
-- New option: the bar covering the window in front slides away so the whole window shows; it comes back when the window moves away, or when you push the mouse against the screen edge over it
-- In full screen: push the mouse against the top of the screen right over a bar and only the clock and the extra bar come down, without the bottom taskbar
-- Simpler menus and settings: options grouped, duplicates removed
-- This "What's new" window, shown after every update
+- The glass taskbars now show in screenshots (PrintScreen, Win + Shift + S and Wibn's capture)
+- The bars show in streams and recordings: by themselves with OBS, Streamlabs and XSplit, or with "Show in streams" for Discord and others; their glass shows the wallpaper while streaming
+- The highlight on the taskbar's app icons fades in and out smoothly
+- In the taskbar's window previews, the whole picture highlights under the mouse, not just its edges
+- Your custom mouse pointer can be smaller than Windows' smallest size
+- New Discord notifications widget: the count, who sent each and what they said, on the desktop or an extra taskbar
+- Save all of Wibn's settings to a small file and load them back, or move them to another PC (General settings)
+- The "What's new" window is in English when English is chosen
