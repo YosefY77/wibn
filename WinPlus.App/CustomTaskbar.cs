@@ -51,6 +51,9 @@ namespace WinPlus
             get => Get("Enabled", 0) != 0;
             set
             {
+                // Turned on: every app pinned to Windows' taskbar is on Wibn's too (only then, not at every start,
+                // or one taken off Wibn's bar on purpose would keep coming back).
+                if (value && !Enabled) TaskbarApps.TakeInWindowsPins();
                 Set("Enabled", value ? 1 : 0);
                 TaskbarPlacement.ApplyAutoHideMode();   // "hide with full screen" is for Windows' taskbar only
                 Apply();

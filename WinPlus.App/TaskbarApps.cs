@@ -126,6 +126,38 @@ namespace WinPlus
             return System.IO.File.Exists(p) || System.IO.Directory.Exists(p);
         }
 
+        /// <summary>
+        /// Wibn's taskbar was turned on: every app pinned to Windows' taskbar that isn't on Wibn's yet is pinned there
+        /// too (after the ones it has). Nothing is taken off.
+        /// </summary>
+        public static void TakeInWindowsPins()
+        {
+            try
+            {
+                var current = (Directory.Exists(WindowsPinsDir) ? Directory.GetFiles(WindowsPinsDir, "*.lnk") : Array.Empty<string>()).ToList();
+                foreach (var (aumid, _) in WindowsPackagedPins())
+                {
+                    string path = @"shell:AppsFolder\" + aumid;
+                    if (DisplayName(path) != null) current.Add(path);
+                }
+                var pins = Pins;
+                int added = 0;
+                foreach (var path in current)
+                {
+                    if (!OnThisPc(path) || pins.Any(p => string.Equals(p.Path, path, StringComparison.OrdinalIgnoreCase))) continue;
+                    var pin = MakePin(path);
+                    if (pins.Any(p => SamePinnedApp(p, pin))) continue;   // the same app pinned another way
+                    pins.Add(pin);
+                    added++;
+                }
+                // What Windows has now counts as seen (so the follow-up below doesn't take it in twice).
+                using (var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(Key))
+                    k.SetValue("SeenWindowsPins", current.ToArray(), Microsoft.Win32.RegistryValueKind.MultiString);
+                if (added > 0) { SavePins(); CrashLog.Note($"taskbar pins: {added} taken in from Windows' taskbar"); }
+            }
+            catch (Exception ex) { CrashLog.Write("take in windows pins", ex); }
+        }
+
         // ---- Following Windows' pins --------------------------------------------------------------
 
         private static DateTime _lastSync = DateTime.MinValue;

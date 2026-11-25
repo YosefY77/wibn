@@ -604,7 +604,8 @@ namespace WinPlus
         // ---- Beside a piece of Wibn's taskbar, on the same line ----------------------------------------
 
         /// <summary>The line it shares (screen pixels), the free part it goes in (along the edge), and whether the taskbar shows.</summary>
-        private sealed record Share(CustomTaskbar.RECT Band, int SegStart, int SegEnd, int Side, double ThickDip, bool Shown);
+        private sealed record Share(CustomTaskbar.RECT Band, int SegStart, int SegEnd, int Side, double ThickDip, bool Shown,
+                                    bool Own = false, bool Lead = false);   // Own: a line of info bars only (see OwnLine)
         private Share? _share;
         private string _shareKey = "";
         private DateTime? _shareLostAt;
@@ -629,7 +630,8 @@ namespace WinPlus
         /// </summary>
         private Share? FindShare()
         {
-            if (!CustomTaskbar.Running || !ScreenOf(out _, out _)) return null;
+            if (!ScreenOf(out _, out _)) return null;
+            if (!CustomTaskbar.Running) return OwnLine();
             var m = _monitor;
             int gap = (int)Math.Round(5 * _scale), near = gap * 3;
             var on = new List<(CustomTaskbar.RECT Rect, bool Shown)>();
@@ -672,6 +674,62 @@ namespace WinPlus
             var seg = side == 0 ? free[0] : free[^1];
             double thick = (Vertical ? band.Width : band.Height) / _scale;
             return new Share(band, seg.A, seg.B, side, thick, on.Any(p => p.Shown));
+        }
+
+        // The line each edge's info bars share without Wibn's taskbar (screen, edge → the line, as the first one keeps it).
+        private static readonly Dictionary<(CustomTaskbar.RECT Monitor, int Edge), CustomTaskbar.RECT> OwnLines = new();
+
+        /// <summary>
+        /// Without Wibn's taskbar (Windows' own is up): the info bars on the same edge of a screen go side by side on
+        /// one line, like beside Wibn's taskbar, instead of each keeping a line of its own from Windows (they ended up
+        /// stacked one under the other). The first one keeps the line's room; the others sit beside it. Alone on its
+        /// edge: a line of its own as before (null).
+        /// </summary>
+        private Share? OwnLine()
+        {
+            var m = _monitor;
+            var mates = InfoBar.Windows.Where(w => w != this && !w._closed && w._edge == _edge && Same(w._monitor, m)).ToList();
+            if (mates.Count == 0) return null;
+            var earlier = InfoBar.Before(this).Where(w => mates.Contains(w)).ToList();
+            bool lead = earlier.Count == 0;
+            double thickDip = CustomTaskbar.ThicknessDip + (Shape == 0 ? 0 : 10);
+            int thick = (int)Math.Round(thickDip * _scale);
+            var want = _edge switch
+            {
+                1 => new CustomTaskbar.RECT { Left = m.Left, Right = m.Right, Top = m.Top, Bottom = m.Top + thick },
+                2 => new CustomTaskbar.RECT { Left = m.Left, Right = m.Left + thick, Top = m.Top, Bottom = m.Bottom },
+                3 => new CustomTaskbar.RECT { Left = m.Right - thick, Right = m.Right, Top = m.Top, Bottom = m.Bottom },
+                _ => new CustomTaskbar.RECT { Left = m.Left, Right = m.Right, Top = m.Bottom - thick, Bottom = m.Bottom },
+            };
+            var key = (m, _edge);
+            CustomTaskbar.RECT band;
+            if (lead)
+            {
+                // Windows says where there's room (next to its own taskbar), and keeps it for the line.
+                band = ReserveAppBar(_edge, want, query: true, thick);
+                if (band.Width <= 0 || band.Height <= 0) band = want;
+                OwnLines[key] = band;
+            }
+            else band = OwnLines.TryGetValue(key, out var kept) ? kept : want;
+
+            int gap = (int)Math.Round(5 * _scale);
+            var taken = earlier.Select(b => b.SharedPlaced).Where(r => r != null).Select(r => r!.Value).ToList();
+            var free = new List<(int A, int B)>();
+            int cur = (Vertical ? band.Top : band.Left) + gap, end = (Vertical ? band.Bottom : band.Right) - gap;
+            foreach (var p in taken.OrderBy(r => Vertical ? r.Top : r.Left))
+            {
+                int a = (Vertical ? p.Top : p.Left) - gap, b = (Vertical ? p.Bottom : p.Right) + gap;
+                if (a > cur) free.Add((cur, a));
+                cur = Math.Max(cur, b);
+            }
+            if (end > cur) free.Add((cur, end));
+            free.RemoveAll(f => f.B - f.A < (int)Math.Round(100 * _scale));
+            if (free.Count == 0) return null;   // no room left on the line: a line of its own
+            var seg = S.Side == 0 ? free[0] : free[^1];
+            // Over a full-screen app the first one slides away (Windows tells it); the others go and come with it.
+            var leader = lead ? this : earlier[0];
+            bool shown = !leader._fullscreen || leader._slideTo == 0;
+            return new Share(band, seg.A, seg.B, S.Side, (Vertical ? band.Width : band.Height) / _scale, shown, Own: true, Lead: lead);
         }
 
         /// <summary>Its place on the shared line: as long as what's on it (or longer, by its inner end), at its end of the free part.</summary>
@@ -1205,7 +1263,7 @@ namespace WinPlus
         /// </summary>
         private void PlaceShared(Share s, bool force)
         {
-            RemoveAppBar();
+            if (!s.Lead) RemoveAppBar();   // (the first one on its own line keeps that line's room)
             bool stripChanged = !Same(s.Band, _strip);
             _strip = s.Band;
             var target = ShareTarget(s);
@@ -1217,7 +1275,9 @@ namespace WinPlus
                 if (resized && !force) RestartGlass();
                 if (stripChanged) CustomTaskbar.WidgetsFollowSoon();
             }
-            SlideTo(s.Shown && !_fullscreen && (!_covered || DateTime.Now < _revealUntil) ? 0 : 1);
+            // (Over a full-screen app or a window: down while the mouse at the edge brought it, see RevealTick.)
+            bool revealed = DateTime.Now < _revealUntil;
+            SlideTo(s.Shown && (!_fullscreen || revealed) && (!_covered || revealed) ? 0 : 1);
         }
 
         /// <summary>The window's place in its strip for the taskbar's shape (like <see cref="TaskbarBar"/>'s Target).</summary>
@@ -1331,7 +1391,7 @@ namespace WinPlus
 
         private void OnFullscreen(bool on)
         {
-            if (_share != null) return;   // beside a taskbar piece it goes and comes with the taskbar
+            if (_share is { Own: false }) return;   // beside a taskbar piece it goes and comes with the taskbar
             if (on)
             {
                 IntPtr fg = GetForegroundWindow();
@@ -1381,7 +1441,7 @@ namespace WinPlus
         /// <summary>Over a full-screen app: in while the mouse is at its edge or on it, out a moment after.</summary>
         private void RevealTick()
         {
-            if (_moving || !((_fullscreen && _share == null) || _covered)) return;
+            if (_moving || !((_fullscreen && (_share == null || _share.Lead)) || _covered)) return;
             GetCursorPos(out var c);
             var m = _monitor;
             bool inside = c.X >= m.Left && c.X < m.Right && c.Y >= m.Top && c.Y < m.Bottom;

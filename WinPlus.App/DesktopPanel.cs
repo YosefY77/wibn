@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -396,6 +396,10 @@ namespace WinPlus
             }
             menu.Items.Add(Item("افتح", () => Open(path)));
             menu.Items.Add(Item("اعرضه في مكانه", () => Reveal(path)));
+            // Programs, shortcuts and folders can go on Wibn's taskbar (it shows them within a second).
+            string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+            if (CustomTaskbar.Enabled && (ext is ".lnk" or ".exe" or ".url" || System.IO.Directory.Exists(path)))
+                menu.Items.Add(Item("ثبّته في التاسك بار", () => TaskbarApps.AddPin(path)));
             menu.Items.Add(new Separator());
             menu.Items.Add(Item("قص", () => ToClipboard(path, cut: true)));
             menu.Items.Add(Item("انسخ", () => ToClipboard(path, cut: false)));
