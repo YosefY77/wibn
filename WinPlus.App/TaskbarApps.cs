@@ -80,7 +80,11 @@ namespace WinPlus
                     saved = withPackaged.ToArray();
                     try { using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(Key); k.SetValue("PinsPackaged", 1); } catch { }
                 }
-                _pins = saved.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase).Select(MakePin).ToList();
+                // A pin whose file isn't on this PC (e.g. settings brought in from another PC) is dropped: it only
+                // showed up as an empty button. Store apps and network paths (maybe just offline now) stay.
+                _pins = saved.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase)
+                             .Where(p => p.StartsWith("shell:", StringComparison.OrdinalIgnoreCase) || p.StartsWith(@"\\") || System.IO.File.Exists(p) || System.IO.Directory.Exists(p))
+                             .Select(MakePin).ToList();
                 if (saved.Length > 0) SavePins();
                 return _pins;
             }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,6 +40,9 @@ namespace WinPlus
             @"TaskbarScroll\AutoHideUserState", @"TaskbarScroll\CursorOrigArrow", @"TaskbarScroll\CursorOrigHand",
             @"TaskbarScroll\SelOrigHilight", @"TaskbarScroll\SelOrigHilightText", @"TaskbarScroll\SelOrigHot",
             @"TaskbarScroll\WhatsNewSeen", @"TaskbarScroll\LockedFiles", @"TaskbarScroll\AppActive",
+            // This PC's programs, not settings: on another PC they aren't there (pinned apps showed up empty).
+            @"CustomTaskbar\Pins", @"CustomTaskbar\PinsPackaged", @"CustomTaskbar\TrayHidden", @"CustomTaskbar\TrayShown",
+            @"GameMode\TaskExe",
         };
         private static readonly string[] SkipNames = { "AppBar", "WasShared" };
 
@@ -90,7 +93,7 @@ namespace WinPlus
                 {
                     RegistryValueKind.DWord => new JsonObject { ["dword"] = Convert.ToInt32(v) },
                     RegistryValueKind.QWord => new JsonObject { ["qword"] = Convert.ToInt64(v) },
-                    RegistryValueKind.String => new JsonObject { ["string"] = v as string ?? "" },
+                    RegistryValueKind.String => new JsonObject { ["string"] = name.StartsWith("Widget_") ? WithoutPrograms(v as string ?? "") : v as string ?? "" },
                     RegistryValueKind.ExpandString => new JsonObject { ["expand"] = v as string ?? "" },
                     RegistryValueKind.MultiString => new JsonObject { ["multi"] = new JsonArray(((string[]?)v ?? Array.Empty<string>()).Select(s => (JsonNode?)s).ToArray()) },
                     RegistryValueKind.Binary => new JsonObject { ["binary"] = Convert.ToBase64String((byte[]?)v ?? Array.Empty<byte>()) },
@@ -104,6 +107,25 @@ namespace WinPlus
                 using var child = key.OpenSubKey(sub);
                 if (child != null) ReadKey(child, path.Length == 0 ? sub : path + "\\" + sub, into);
             }
+        }
+
+        /// <summary>
+        /// A widget's saved info (JSON): its programs, files and folders (shortcuts, quick bar buttons) are left out,
+        /// they're this PC's; the quick bar's own actions ("a:…": mute Discord, calculator…) stay, they work anywhere.
+        /// </summary>
+        private static string WithoutPrograms(string json)
+        {
+            try
+            {
+                if (JsonNode.Parse(json) is not JsonObject info || info["Options"] is not JsonObject options) return json;
+                if (options["items"] is JsonNode items)
+                {
+                    var keep = ((string?)items ?? "").Split('\n').Where(l => l.StartsWith("a:")).ToArray();
+                    if (keep.Length > 0) options["items"] = string.Join("\n", keep); else options.Remove("items");
+                }
+                return info.ToJsonString();
+            }
+            catch { return json; }
         }
 
         // ---- In ----------------------------------------------------------------------------------------

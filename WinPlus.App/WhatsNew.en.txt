@@ -1,11 +1,3 @@
 # What's new, one line per change (English). Lines starting with # are skipped.
-- The glass taskbars now show in screenshots (PrintScreen, Win + Shift + S and Wibn's capture)
-- The bars show in streams and recordings: by themselves with OBS, Streamlabs and XSplit, or with "Show in streams" for Discord and others; their glass shows the wallpaper while streaming
-- The highlight on the taskbar's app icons fades in and out smoothly
-- In the taskbar's window previews, the whole picture highlights under the mouse, not just its edges
-- Your custom mouse pointer can be smaller than Windows' smallest size
-- New Discord notifications widget: the count, who sent each and what they said, on the desktop or an extra taskbar
-- Save all of Wibn's settings to a small file and load them back, or move them to another PC (General settings)
-- The app's Arabic is now in Modern Standard Arabic
-- The "Copy from the phone" feature was removed
-- The "What's new" window is in English when English is chosen
+- The settings file keeps only settings, not your programs (apps pinned to the taskbar, shortcut widgets' programs), so nothing missing shows up on another PC
+- The taskbar leaves out pinned apps that aren't on the PC any more
