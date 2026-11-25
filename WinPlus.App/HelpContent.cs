@@ -18,7 +18,7 @@ namespace WinPlus
     /// </summary>
     internal static class HelpContent
     {
-        private static string L(string ar, string en) => Lang.English ? en : ar;
+        private static string L(string ar, string en) => Lang.English ? en : Lang.T(ar);   // (Arabic: in فصحى)
 
         private static HelpItem I(string arTitle, string enTitle, string arWhat, string enWhat, string arWhy, string enWhy, Action<HelpArt> draw)
             => new(L(arTitle, enTitle), L(arWhat, enWhat), L(arWhy, enWhy), () => { var a = new HelpArt(); draw(a); return a.Done(); });
@@ -45,7 +45,6 @@ namespace WinPlus
             "capture" => Capture(),
             "volume" => Volume(),
             "specs" => Specs(),
-            "phone" => Phone(),
             "game" => GameHelp(),
             "widgets" => WidgetsHelp(),
             "glass" => Glass(),
@@ -676,24 +675,6 @@ namespace WinPlus
                   }),
             });
 
-        private static HelpPage Phone() => new(L("النسخ من الجوال", "Copy from the phone"),
-            L("الحافظة بين جوالك والكمبيوتر.", "The clipboard between your phone and PC."),
-            new[]
-            {
-                I("انسخ هنا والصق هناك", "Copy here, paste there",
-                  "تنسخ في الجوال وترسله لحافظة الكمبيوتر بضغطة، أو تاخذ المنسوخ من الكمبيوتر للجوال. كله داخل شبكة بيتك.",
-                  "Copy on the phone and send it to the PC's clipboard with one tap, or take what the PC copied to the phone. All inside your home network.",
-                  "روابط وأكواد ونصوص تنتقل بلحظة، بدون ما ترسلها لنفسك في الواتس.",
-                  "Links, codes and text move in a moment, without messaging them to yourself.",
-                  a =>
-                  {
-                      a.Phone(26, 32);
-                      a.Monitor(160, 40);
-                      a.Arrow(84, 62, 150, 62, Green);
-                      a.Arrow(150, 92, 84, 92, Blue);
-                      a.Glyph(117, 128, "", 16, Muted);
-                  }),
-            });
 
         private static HelpPage GameHelp() => new(L("وضع الألعاب", "Game mode"),
             L("خل المعالج كله للعبة.", "Give the whole processor to your game."),

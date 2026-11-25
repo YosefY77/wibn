@@ -245,7 +245,6 @@ namespace WinPlus
 
             if (Features.IsOn("widgets")) Widgets.Start(); else Widgets.Stop();
             Appointments.StartReminders();   // the calendar's notifications (once)
-            if (Features.IsOn("phone")) PhoneClipboard.Start(); else PhoneClipboard.Stop();
             if (starting) GameBoost.RecoverAtStart(); else GameBoost.Refresh();   // game booster: watches for games
 
             DragSpaceHook.Refresh();  // Space / R / C while dragging a file → convert / resize / compress

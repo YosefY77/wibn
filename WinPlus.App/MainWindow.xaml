@@ -81,8 +81,6 @@
                                      Content="{local:Tr 'إرسال الملفات'}" CommandParameter="transfer" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE722;"
                                      Content="{local:Tr 'تصوير الشاشة'}" CommandParameter="capture" Checked="OnNavChanged"/>
-                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE8EA;"
-                                     Content="{local:Tr 'النسخ من الجوال'}" CommandParameter="phone" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE767;"
                                      Content="{local:Tr 'أصوات البرامج'}" CommandParameter="volume" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE7FC;"
@@ -373,15 +371,6 @@
                     <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'مواصفات الجهاز'}"/>
                     <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'كل شي عن جهازك في مكان واحد. تقدر تنسخها كلها وترسلها لأحد.'}"/>
                     <ContentControl x:Name="SpecsHost"/>
-                </StackPanel>
-            </ScrollViewer>
-
-            <!-- Copy on the phone, paste on the PC (built when opened) -->
-            <ScrollViewer x:Name="PagePhone" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
-                <StackPanel Margin="40,28,40,24" MaxWidth="980">
-                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'النسخ من الجوال'}"/>
-                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'انسخ في الآيفون وأرسله لحافظة الكمبيوتر، أو خذ المنسوخ من الكمبيوتر للجوال. كله داخل شبكة بيتك.'}"/>
-                    <ContentControl x:Name="PhoneHost"/>
                 </StackPanel>
             </ScrollViewer>
 

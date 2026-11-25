@@ -6,4 +6,6 @@
 - Your custom mouse pointer can be smaller than Windows' smallest size
 - New Discord notifications widget: the count, who sent each and what they said, on the desktop or an extra taskbar
 - Save all of Wibn's settings to a small file and load them back, or move them to another PC (General settings)
+- The app's Arabic is now in Modern Standard Arabic
+- The "Copy from the phone" feature was removed
 - The "What's new" window is in English when English is chosen

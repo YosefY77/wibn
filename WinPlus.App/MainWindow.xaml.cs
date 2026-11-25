@@ -226,7 +226,6 @@ namespace WinPlus
         private CapturePage? _capturePage;
         private VolumePage? _volumePage;
         private WidgetsPage? _widgetsPage;
-        private PhonePage? _phonePage;
         private SpecsPage? _specsPage;
         private GameModePage? _gamePage;
         private AnimationsPage? _animPage;
@@ -234,7 +233,7 @@ namespace WinPlus
 
         private FrameworkElement[] AllPages => new FrameworkElement[]
         {
-            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PageGame, PagePhone, PageWidgets, PageGlass, PageAnim, PageWallpapers, PageGeneral,
+            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PageGame, PageWidgets, PageGlass, PageAnim, PageWallpapers, PageGeneral,
         };
 
         private void OnNavChanged(object sender, RoutedEventArgs e)
@@ -267,7 +266,6 @@ namespace WinPlus
                 "capture" => Build(PageCapture, () => CaptureHost.Content = _capturePage ??= new CapturePage()),
                 "volume" => Build(PageVolume, () => VolumeHost.Content = _volumePage ??= new VolumePage()),
                 "widgets" => Build(PageWidgets, () => WidgetsHost.Content = _widgetsPage ??= new WidgetsPage()),
-                "phone" => Build(PagePhone, () => PhoneHost.Content = _phonePage ??= new PhonePage()),
                 "specs" => Build(PageSpecs, () => SpecsHost.Content = _specsPage ??= new SpecsPage()),
                 "game" => Build(PageGame, () => GameHost.Content = _gamePage ??= new GameModePage()),
                 "glass" => Build(PageGlass, () => GlassHost.Content ??= GlassSettings.Page()),
@@ -440,7 +438,7 @@ namespace WinPlus
             Lang.Save(english);
             var answer = MessageBox.Show(this,
                 english ? "Wibn needs to restart to switch to English. Restart now?"
-                        : "يحتاج Wibn يعيد التشغيل عشان يصير بالعربي. أعيد التشغيل الحين؟",
+                        : "يحتاج Wibn إلى إعادة التشغيل ليصبح بالعربية. هل أعيد التشغيل الآن؟",
                 "Wibn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes,
                 english ? MessageBoxOptions.None : MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
             if (answer == MessageBoxResult.Yes) ((App)Application.Current).RestartApp();

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Microsoft.Win32;
 
@@ -35,7 +35,6 @@ namespace WinPlus
             new("video", Lang.T("تحميل المقاطع"), Lang.T("Ctrl+H والصق رابط من يوتيوب، انستا، تويتر، ريديت، تيك توك، سبوتيفاي. يحتاج yt-dlp (تقريبًا 18 ميقا)"), new[] { "video" }, "ytdlp"),
             new("transfer", Lang.T("إرسال الملفات"), Lang.T("إرسال مباشر عبر الإنترنت. يحتاج sendme (كم ميقا)"), new[] { "transfer" }, "sendme"),
             new("capture", Lang.T("تصوير الشاشة"), Lang.T("صورة لمكان تحدده أو للشاشة كاملة، تسجيل فيديو، وحفظ آخر دقيقة. كل نوع باختصار تختاره. الفيديو يحتاج FFmpeg"), new[] { "capture" }, DefaultOn: false),
-            new("phone", Lang.T("النسخ من الجوال"), Lang.T("انسخ في الآيفون أو أي جوال، وأرسله لحافظة الكمبيوتر بضغطة (وبالعكس). على نفس الواي فاي"), new[] { "phone" }, DefaultOn: false),
             new("volume", Lang.T("أصوات البرامج"), Lang.T("علّي أو خفّض صوت كل برنامج مفتوح لحاله، أو اكتمه"), new[] { "volume" }),
             new("game", Lang.T("وضع الألعاب"), Lang.T("Game Booster: يوقف خدمات الخلفية مثل Windows Update و SysMain أثناء اللعب ويرجّعها بعدها"), new[] { "game" }),
             new("widgets", "Widgets", Lang.T("نوافذ صغيرة على سطح المكتب تتحاذى مع الأيقونات، أولها أصوات البرامج"), new[] { "widgets" }),

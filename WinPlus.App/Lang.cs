@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Markup;
 using Microsoft.Win32;
@@ -39,8 +39,12 @@ namespace WinPlus
         }
 
         /// <summary>The text in the app's language.</summary>
-        public static string T(string arabic) =>
-            English && arabic != null && En.TryGetValue(arabic, out var en) ? en : arabic!;
+        public static string T(string arabic)
+        {
+            if (arabic == null) return null!;
+            if (English) return En.TryGetValue(arabic, out var en) ? en : arabic;
+            return Fusha.TryGetValue(arabic, out var fusha) ? fusha : arabic;   // the app's Arabic in فصحى (Lang.Fusha.cs)
+        }
 
         /// <summary>Like string.Format, with the format in the app's language.</summary>
         public static string F(string arabic, params object?[] args)
