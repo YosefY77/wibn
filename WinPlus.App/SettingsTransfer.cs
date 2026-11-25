@@ -28,6 +28,20 @@ namespace WinPlus
         private static string PendingPath => Path.Combine(Folder, "settings-pending.wibn");
         public static string BackupPath => Path.Combine(Folder, "settings-backup.wibn");
 
+        /// <summary>The taskbar pins this PC had before settings were brought in (from settings-backup.wibn), or none.</summary>
+        public static string[] BackupPins()
+        {
+            try
+            {
+                if (!File.Exists(BackupPath)) return Array.Empty<string>();
+                var doc = JsonNode.Parse(File.ReadAllText(BackupPath));
+                if (doc?["registry"]?["CustomTaskbar"]?["Pins"]?["multi"] is JsonArray list)
+                    return list.Select(i => (string?)i ?? "").Where(s => s.Length > 0).ToArray();
+            }
+            catch (Exception ex) { CrashLog.Write("backup pins", ex); }
+            return Array.Empty<string>();
+        }
+
         /// <summary>Small files that are settings too (name in the WinPlus folder).</summary>
         private static readonly string[] Files = { "appointments.json", "widgets.json", "start-icon.png" };
 
@@ -42,7 +56,7 @@ namespace WinPlus
             @"TaskbarScroll\WhatsNewSeen", @"TaskbarScroll\LockedFiles", @"TaskbarScroll\AppActive",
             // This PC's programs, not settings: on another PC they aren't there (pinned apps showed up empty).
             @"CustomTaskbar\Pins", @"CustomTaskbar\PinsPackaged", @"CustomTaskbar\TrayHidden", @"CustomTaskbar\TrayShown",
-            @"GameMode\TaskExe", @"Widgets\DiscordTipShown",
+            @"GameMode\TaskExe", @"Widgets\DiscordTipShown", @"CustomTaskbar\PinsFromBackup",
         };
         private static readonly string[] SkipNames = { "AppBar", "WasShared" };
 

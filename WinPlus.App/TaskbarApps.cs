@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -93,8 +93,27 @@ namespace WinPlus
                     here = here.Concat(mine.Where(OnThisPc)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                     CrashLog.Note($"taskbar pins: {all.Count - here.Count} from another PC left out, this PC's taken from Windows");
                 }
+                // Once: settings brought in from another PC (before they left the pins out) replaced this PC's own
+                // pins, and those pinned on Wibn's taskbar are nowhere else. They're in the backup kept at that moment.
+                bool fromBackup = false;
+                try
+                {
+                    using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(Key);
+                    if (k.GetValue("PinsFromBackup") is not int seen || seen != 1)
+                    {
+                        k.SetValue("PinsFromBackup", 1);
+                        var back = SettingsTransfer.BackupPins().Where(OnThisPc).Where(p => !here.Contains(p, StringComparer.OrdinalIgnoreCase)).ToList();
+                        if (back.Count > 0)
+                        {
+                            here.AddRange(back);
+                            fromBackup = true;
+                            CrashLog.Note($"taskbar pins: {back.Count} brought back from the settings backup");
+                        }
+                    }
+                }
+                catch (Exception ex) { CrashLog.Write("taskbar pins backup", ex); }
                 _pins = here.Select(MakePin).ToList();
-                if (saved.Length > 0) SavePins();
+                if (saved.Length > 0 || fromBackup) SavePins();
                 return _pins;
             }
         }
