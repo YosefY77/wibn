@@ -135,6 +135,7 @@ namespace WinPlus
             try
             {
                 var current = (Directory.Exists(WindowsPinsDir) ? Directory.GetFiles(WindowsPinsDir, "*.lnk") : Array.Empty<string>()).ToList();
+                current.AddRange(ImplicitWindowsPins(TaskbandBlob()));
                 foreach (var (aumid, _) in WindowsPackagedPins())
                 {
                     string path = @"shell:AppsFolder\" + aumid;
@@ -167,6 +168,58 @@ namespace WinPlus
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             @"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar");
 
+        private static string ImplicitPinsDir => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            @"Microsoft\Internet Explorer\Quick Launch\User Pinned\ImplicitAppShortcuts");
+
+        /// <summary>
+        /// Apps with their own app id (Steam…) are pinned from a shortcut Windows keeps in
+        /// "ImplicitAppShortcuts\{hash}\", not in the TaskBar folder. That folder also holds shortcuts
+        /// that aren't pinned, so only the ones Windows' pin list names count.
+        /// </summary>
+        private static List<string> ImplicitWindowsPins(byte[]? blob)
+        {
+            var list = new List<string>();
+            try
+            {
+                if (blob == null || !Directory.Exists(ImplicitPinsDir)) return list;
+                var texts = new[]
+                {
+                    System.Text.Encoding.Unicode.GetString(blob),
+                    System.Text.Encoding.Unicode.GetString(blob, 1, blob.Length - 1),
+                };
+                foreach (var sub in Directory.GetDirectories(ImplicitPinsDir))
+                {
+                    string hash = Path.GetFileName(sub);
+                    foreach (var lnk in Directory.GetFiles(sub, "*.lnk"))
+                    {
+                        string name = Path.GetFileName(lnk);
+                        foreach (var t in texts)
+                        {
+                            int at = t.IndexOf(hash, StringComparison.OrdinalIgnoreCase);
+                            int n = at < 0 ? -1 : t.IndexOf(name, at, StringComparison.OrdinalIgnoreCase);
+                            if (n >= 0 && n - at < 400) { list.Add(lnk); break; }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        private static byte[]? TaskbandBlob()
+        {
+            try
+            {
+                using var tb = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband");
+                return tb?.GetValue("Favorites") as byte[];
+            }
+            catch { return null; }
+        }
+
+        private static bool IsImplicitPin(string p) =>
+            p.StartsWith(ImplicitPinsDir + "\\", StringComparison.OrdinalIgnoreCase);
+
         /// <summary>
         /// An app pinned to Windows' taskbar later on ("Pin to taskbar" in Start or a right-click menu)
         /// shows up here too; one unpinned there goes away here. Pins added or removed only on Wibn's
@@ -179,13 +232,7 @@ namespace WinPlus
             try
             {
                 string dir = WindowsPinsDir;
-                byte[]? blob = null;
-                try
-                {
-                    using var tb = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Taskband");
-                    blob = tb?.GetValue("Favorites") as byte[];
-                }
-                catch { }
+                byte[]? blob = TaskbandBlob();
                 var lnks = Directory.Exists(dir) ? Directory.GetFiles(dir, "*.lnk") : Array.Empty<string>();
                 string sig = string.Join("|", lnks.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)) + "#" +
                              (blob == null ? "" : Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(blob)));
@@ -194,6 +241,7 @@ namespace WinPlus
 
                 // What Windows has pinned now.
                 var current = new List<string>(lnks);
+                current.AddRange(ImplicitWindowsPins(blob));
                 foreach (var (aumid, _) in WindowsPackagedPins())
                 {
                     string path = @"shell:AppsFolder\" + aumid;
@@ -226,7 +274,8 @@ namespace WinPlus
                 {
                     bool isLnk = gone.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase);
                     if (!isLnk && !packagedRead) continue;
-                    if (isLnk && File.Exists(gone)) continue;
+                    // An implicit shortcut stays on disk after it's unpinned: Windows' list decides.
+                    if (isLnk && File.Exists(gone) && !(IsImplicitPin(gone) && blob != null)) continue;
                     var pin = pins.FirstOrDefault(p => string.Equals(p.Path, gone, StringComparison.OrdinalIgnoreCase));
                     if (pin != null) { pins.Remove(pin); changed = true; }
                 }
@@ -260,6 +309,7 @@ namespace WinPlus
                     @"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar");
                 if (!Directory.Exists(dir)) return Array.Empty<string>();
                 var files = Directory.GetFiles(dir, "*.lnk").ToList();
+                files.AddRange(ImplicitWindowsPins(TaskbandBlob()));
                 // File Explorer first, like on Windows' own taskbar.
                 files.Sort((a, b) =>
                 {

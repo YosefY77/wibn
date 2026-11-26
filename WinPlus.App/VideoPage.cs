@@ -61,6 +61,12 @@ namespace WinPlus
                 CornerRadius = new CornerRadius(8), Padding = new Thickness(20), Margin = new Thickness(0, 0, 0, 12), Child = hero,
             });
 
+            // ---- Trim before downloading
+            var trim = new Button { Style = St("AccentButton"), Content = Lang.T("✂  قص مقطع"), Padding = new Thickness(18, 6, 18, 6) };
+            trim.Click += (_, _) => VideoTrimWindow.ShowWindow(Window.GetWindow(this));
+            Children.Add(Row(trim, "", Lang.T("قص مقطع قبل التحميل"),
+                Lang.T("الصق رابط يوتيوب وحدّد من وين يبدأ ووين ينتهي، ويتحمّل الجزء اللي تبيه بس"), 0));
+
             // ---- Settings (two columns)
             var grid = new UniformGrid { Columns = 2, Margin = new Thickness(-3, 0, -3, 0) };
 

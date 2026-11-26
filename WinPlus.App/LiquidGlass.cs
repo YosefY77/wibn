@@ -61,6 +61,7 @@ namespace WinPlus
         private IntPtr _deskDc, _deskBmp, _deskOld;    // desktop mode: the last picture of the whole desktop
         private RECT _deskRect;
         private bool _sharedRef;                       // desktop mode: uses the shared picture of the desktop
+        private bool _videoShown;                      // desktop mode: the glass shows a frame of the video wallpaper
         private readonly bool _live;                   // live mode: the screen behind, again and again (the taskbar)
         private int[] _last = Array.Empty<int>();      // live mode: the last copy, to skip drawing when nothing changed
         private const int LiveFrameMs = 33;            // live mode: about 30 copies a second
@@ -397,6 +398,169 @@ namespace WinPlus
             }
         }
 
+        /// <summary>
+        /// While streaming (the bars in screen copies): the windows behind a bar, for its glass. The screen can't be
+        /// copied then (the bar would copy itself), so each window gives its own picture (PrintWindow), kept and taken
+        /// again a few times a second; every round they're drawn where the windows are right now, so a window dragged
+        /// over a bar moves smoothly in its glass. Only on the glass clock's thread.
+        /// </summary>
+        private static class BehindShots
+        {
+            // Each window keeps only the band of its picture that is behind the bar (with a margin around it, so a
+            // window moved a little still has what's needed). The whole window is drawn once into one shared scratch
+            // picture and only that band is kept: a whole picture of every window took hundreds of MB.
+            private sealed class Shot
+            {
+                public IntPtr Dc, Bmp, Old;
+                public int W, H;          // the band's size
+                public int X, Y;          // where the band is in the window (from the window's corner)
+                public int WinW, WinH;    // the window's size when it was taken
+                public long TakenAt, SeenAt;
+                public bool Ok;
+            }
+
+            private const int RefreshMs = 200;    // a window's picture is taken again after this long
+            private const int Margin = 120;       // kept around the part behind the bar
+            private static readonly System.Collections.Generic.Dictionary<(IntPtr, int, int, int, int), Shot> Shots = new();
+            private static readonly System.Collections.Generic.List<(IntPtr Hwnd, RECT Frame)> Found = new();
+            private static readonly EnumProc CollectProc = CollectOne;
+            private static RECT _area;
+            private static IntPtr _screen, _scratchDc, _scratchBmp, _scratchOld;
+            private static int _scratchW, _scratchH;
+            private static long _cleanedAt, _scratchUsedAt;
+            // When the bars stop asking (streaming over, glass off), what's kept is let go anyway.
+            private static readonly System.Threading.Timer Sweep = new(_ =>
+            {
+                lock (Shots) { long n = Environment.TickCount64; if (n - _cleanedAt > 3000) { _cleanedAt = n; Clean(n); } }
+            }, null, 5000, 5000);
+
+            /// <summary>The windows behind (x, y, w, h) drawn over what's in dc. True when any was drawn.</summary>
+            public static bool DrawBehind(IntPtr dc, int x, int y, int w, int h)
+            {
+                lock (Shots)
+                {
+                    long now = Environment.TickCount64;
+                    _area = new RECT { Left = x, Top = y, Right = x + w, Bottom = y + h };
+                    Found.Clear();
+                    EnumWindows(CollectProc, IntPtr.Zero);   // front to back
+                    bool any = false;
+                    for (int i = Found.Count - 1; i >= 0; i--)   // back to front, so the front ones end up on top
+                    {
+                        var (hwnd, f) = Found[i];
+                        if (!GetWindowRect(hwnd, out var wr)) continue;
+                        // What's needed: the drawn part of the window that's behind the bar, from the window's corner.
+                        int nl = Math.Max(f.Left, x) - wr.Left, nt = Math.Max(f.Top, y) - wr.Top;
+                        int nr = Math.Min(f.Right, x + w) - wr.Left, nb = Math.Min(f.Bottom, y + h) - wr.Top;
+                        if (nr <= nl || nb <= nt) continue;
+                        var shot = Take(hwnd, wr, nl, nt, nr, nb, now, (x, y, w, h));
+                        if (shot == null || !shot.Ok) continue;
+                        if (BitBlt(dc, wr.Left + nl - x, wr.Top + nt - y, nr - nl, nb - nt, shot.Dc, nl - shot.X, nt - shot.Y, 0x00CC0020 /* SRCCOPY */)) any = true;
+                    }
+                    if (now - _cleanedAt > 2000) { _cleanedAt = now; Clean(now); }
+                    return any;
+                }
+            }
+
+            private static bool CollectOne(IntPtr h, IntPtr _)
+            {
+                if (!IsWindowVisible(h) || IsIconic(h)) return true;
+                GetWindowThreadProcessId(h, out uint pid);
+                if (pid == OwnPid || (pid != 0 && pid == GlassCopy.HelperPid)) return true;
+                if (DwmGetWindowAttribute(h, 14 /* DWMWA_CLOAKED */, out int cloaked, 4) == 0 && cloaked != 0) return true;
+                if (DwmGetWindowAttribute(h, 9 /* DWMWA_EXTENDED_FRAME_BOUNDS */, out RECT f, Marshal.SizeOf<RECT>()) != 0 && !GetWindowRect(h, out f)) return true;
+                if (f.Right - f.Left <= 0 || f.Bottom - f.Top <= 0) return true;
+                if (f.Left >= _area.Right || f.Right <= _area.Left || f.Top >= _area.Bottom || f.Bottom <= _area.Top) return true;
+                var sb = new System.Text.StringBuilder(32);
+                GetClassName(h, sb, sb.Capacity);
+                string cls = sb.ToString();
+                if (cls is "Progman" or "WorkerW") return true;   // the desktop: the wallpaper is drawn already
+                if (IsOverlay(h, cls)) return true;
+                Found.Add((h, f));
+                return true;
+            }
+
+            /// <summary>
+            /// The band of the window's picture holding (nl, nt)-(nr, nb): the kept one, or a new one when it's old,
+            /// the window's size changed, or it moved so the kept band no longer holds what's needed.
+            /// </summary>
+            private static Shot? Take(IntPtr hwnd, RECT wr, int nl, int nt, int nr, int nb, long now, (int, int, int, int) bar)
+            {
+                int ww = wr.Right - wr.Left, wh = wr.Bottom - wr.Top;
+                if (ww <= 0 || wh <= 0 || ww > 16384 || wh > 16384) return null;
+                var key = (hwnd, bar.Item1, bar.Item2, bar.Item3, bar.Item4);
+                if (!Shots.TryGetValue(key, out var shot)) Shots[key] = shot = new Shot();
+                shot.SeenAt = now;
+                bool holds = shot.Dc != IntPtr.Zero && shot.WinW == ww && shot.WinH == wh
+                             && nl >= shot.X && nt >= shot.Y && nr <= shot.X + shot.W && nb <= shot.Y + shot.H;
+                if (holds && now - shot.TakenAt < RefreshMs) return shot;
+
+                if (_screen == IntPtr.Zero) _screen = GetDC(IntPtr.Zero);
+                if (!Scratch(ww, wh)) return shot.Ok ? shot : null;
+                shot.TakenAt = now;
+                // A window that can't draw itself (some games): it stays out, the wallpaper shows instead. A picture
+                // that didn't work this time keeps the last good one.
+                if (!PrintWindow(hwnd, _scratchDc, 2 /* PW_RENDERFULLCONTENT */)) return shot.Ok ? shot : null;
+                _scratchUsedAt = now;
+
+                int bl = Math.Max(0, nl - Margin), bt = Math.Max(0, nt - Margin);
+                int bw = Math.Min(ww, nr + Margin) - bl, bh = Math.Min(wh, nb + Margin) - bt;
+                if (shot.Dc == IntPtr.Zero || shot.W != bw || shot.H != bh)
+                {
+                    Free(shot);
+                    shot.Dc = CreateCompatibleDC(_screen);
+                    shot.Bmp = CreateCompatibleBitmap(_screen, bw, bh);
+                    if (shot.Dc == IntPtr.Zero || shot.Bmp == IntPtr.Zero) { Free(shot); return null; }
+                    shot.Old = SelectObject(shot.Dc, shot.Bmp);
+                    shot.W = bw; shot.H = bh;
+                }
+                BitBlt(shot.Dc, 0, 0, bw, bh, _scratchDc, bl, bt, 0x00CC0020 /* SRCCOPY */);
+                shot.X = bl; shot.Y = bt; shot.WinW = ww; shot.WinH = wh;
+                shot.Ok = true;
+                return shot;
+            }
+
+            /// <summary>The shared scratch picture, at least w x h.</summary>
+            private static bool Scratch(int w, int h)
+            {
+                if (_scratchDc != IntPtr.Zero && _scratchW >= w && _scratchH >= h) return true;
+                FreeScratch();
+                int sw = Math.Max(w, _scratchW), sh = Math.Max(h, _scratchH);
+                _scratchDc = CreateCompatibleDC(_screen);
+                _scratchBmp = CreateCompatibleBitmap(_screen, sw, sh);
+                if (_scratchDc == IntPtr.Zero || _scratchBmp == IntPtr.Zero) { FreeScratch(); return false; }
+                _scratchOld = SelectObject(_scratchDc, _scratchBmp);
+                _scratchW = sw; _scratchH = sh;
+                return true;
+            }
+
+            private static void FreeScratch()
+            {
+                if (_scratchDc != IntPtr.Zero && _scratchOld != IntPtr.Zero) SelectObject(_scratchDc, _scratchOld);
+                if (_scratchBmp != IntPtr.Zero) DeleteObject(_scratchBmp);
+                if (_scratchDc != IntPtr.Zero) DeleteDC(_scratchDc);
+                _scratchDc = _scratchBmp = _scratchOld = IntPtr.Zero;
+                _scratchW = _scratchH = 0;
+            }
+
+            private static void Clean(long now)
+            {
+                var gone = new System.Collections.Generic.List<(IntPtr, int, int, int, int)>();
+                foreach (var (key, shot) in Shots)
+                    if (now - shot.SeenAt > 2000) { Free(shot); gone.Add(key); }
+                foreach (var key in gone) Shots.Remove(key);
+                if (now - _scratchUsedAt > 3000) FreeScratch();   // not streaming any more: the big scratch picture goes
+            }
+
+            private static void Free(Shot s)
+            {
+                if (s.Dc != IntPtr.Zero && s.Old != IntPtr.Zero) SelectObject(s.Dc, s.Old);
+                if (s.Bmp != IntPtr.Zero) DeleteObject(s.Bmp);
+                if (s.Dc != IntPtr.Zero) DeleteDC(s.Dc);
+                s.Dc = s.Bmp = s.Old = IntPtr.Zero;
+                s.W = s.H = 0;
+            }
+        }
+
         private static bool BehindOne(IntPtr h, IntPtr _)
         {
             if (!IsWindowVisible(h) || IsIconic(h)) return true;
@@ -701,6 +865,17 @@ namespace WinPlus
 
         [DllImport("gdi32.dll")] private static extern bool GdiFlush();
 
+        /// <summary>
+        /// The copy's pixels into _src. GDI holds drawing back in a queue (per thread), so the pixels were read
+        /// now and then before the copy was really in them: half a picture, the black it was cleared with, or the
+        /// last round's — the glass blinked. Flushed first, it's always the finished copy.
+        /// </summary>
+        private void ReadBits()
+        {
+            GdiFlush();
+            Marshal.Copy(_bits, _src, 0, _src.Length);
+        }
+
         /// <summary>On the clock's thread: the glass from the last copy, into _front.</summary>
         private bool Draw()
         {
@@ -759,6 +934,10 @@ namespace WinPlus
                 if (_brush == null)
                 {
                     _brush = new ImageBrush(_bitmap) { Stretch = Stretch.Fill };
+                    // Right-to-left (Wibn in Arabic): WPF mirrors what the element draws, the glass too, so what's
+                    // behind showed the wrong way round. Mirrored once more, it's the right way.
+                    if (_target.FlowDirection == FlowDirection.RightToLeft)
+                        _brush.RelativeTransform = new ScaleTransform(-1, 1, 0.5, 0.5);
                     if (_target is System.Windows.Controls.Border border) border.Background = _brush;
                     else if (_target is System.Windows.Shapes.Shape shape) shape.Fill = _brush;   // e.g. a round menu's disc
                 }
@@ -795,7 +974,7 @@ namespace WinPlus
                 if (!BitBlt(_memDc, 0, 0, _cw, _ch, _screenDc, _x, _y, 0x00CC0020 /* SRCCOPY */)) return false;
             }
             finally { SetWindowDisplayAffinity(_hwnd, 0 /* WDA_NONE */); }
-            Marshal.Copy(_bits, _src, 0, _src.Length);
+            ReadBits();
             FillPastEdges(_x, _y, null);
             return true;
         }
@@ -817,10 +996,18 @@ namespace WinPlus
             // and with several bars at 30 a second the whole PC stuttered).
             // While streaming (see StreamSafe) the bars are in screen copies, so it never copies the screen: always
             // the desktop's own picture (the wallpaper; windows behind the bar don't show in the glass then).
-            if (WallpaperNow || (LiveStream && StreamSafe) || (!DesktopPicture.Animated && NothingBehind(r)))
+            bool streamSafe = LiveStream && StreamSafe;
+            if (WallpaperNow || streamSafe || (!DesktopPicture.Animated && NothingBehind(r)))
             {
                 _wx0 = r.Left; _wy0 = r.Top; _ox = x + _margin; _oy = y + _margin;
                 if (!CopyDesktop()) return false;
+                // While streaming the screen can't be copied (the bar is in screen copies), so the windows behind
+                // it are drawn over the wallpaper one by one, each from its own picture (see BehindShots).
+                if (streamSafe && !WallpaperNow && BehindShots.DrawBehind(_memDc, x, y, _cw, _ch))
+                {
+                    ReadBits();
+                    FillPastEdges(x, y, null);
+                }
                 ApplyStandIn(x, y);
                 _blackSince = 0;
                 if (_last.Length == _src.Length && _src.AsSpan().SequenceEqual(_last)) return false;
@@ -849,7 +1036,7 @@ namespace WinPlus
             else
             {
                 if (!BitBlt(_memDc, 0, 0, _cw, _ch, _screenDc, x, y, 0x00CC0020 /* SRCCOPY */)) return false;
-                Marshal.Copy(_bits, _src, 0, _src.Length);
+                ReadBits();
             }
             return AfterScreenCopy(x, y);
         }
@@ -878,7 +1065,7 @@ namespace WinPlus
                     PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
                     if (VideoWallpaper.DrawInto(_memDc, x, y, _cw, _ch))
                     {
-                        Marshal.Copy(_bits, _src, 0, _src.Length);
+                        ReadBits();
                         FillPastEdges(x, y, null);
                     }
                     else if (_last.Length > 0) { _retry = true; return false; }
@@ -985,11 +1172,16 @@ namespace WinPlus
                 PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
                 if (VideoWallpaper.DrawInto(_memDc, x, y, _cw, _ch))
                 {
-                    Marshal.Copy(_bits, _src, 0, _src.Length);
+                    ReadBits();
                     FillPastEdges(x, y, null);
+                    _videoShown = true;
                     return true;
                 }
+                // No frame for a moment (the video starting over, a hiccup): the last picture stays. Falling back to
+                // the still picture of the desktop for one round and back to the video made the glass blink.
+                if (_videoShown) return false;
             }
+            else _videoShown = false;
 
             // A still wallpaper: one picture of the desktop for every glass (widgets, taskbars, menus).
             if (!DesktopPicture.Animated)
@@ -998,7 +1190,7 @@ namespace WinPlus
                 if (!_sharedRef) { DesktopPicture.AddRef(); _sharedRef = true; }
                 PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
                 if (!DesktopPicture.CopyTo(_memDc, x, y, _cw, _ch, fresh, out var rect)) return false;
-                Marshal.Copy(_bits, _src, 0, _src.Length);
+                ReadBits();
                 FillPastEdges(x, y, rect);
                 return true;
             }
@@ -1023,7 +1215,7 @@ namespace WinPlus
             // Outside the desktop (the edge of the screen): black, the bend barely reaches there.
             PatBlt(_memDc, 0, 0, _cw, _ch, 0x00000042 /* BLACKNESS */);
             if (!BitBlt(_memDc, 0, 0, _cw, _ch, _deskDc, x - _deskRect.Left, y - _deskRect.Top, 0x00CC0020 /* SRCCOPY */)) return false;
-            Marshal.Copy(_bits, _src, 0, _src.Length);
+            ReadBits();
             FillPastEdges(x, y, _deskRect);
             return true;
         }

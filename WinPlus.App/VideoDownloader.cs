@@ -215,11 +215,22 @@ namespace WinPlus
 
         private static int _active;
 
-        public static async Task DownloadAsync(Uri uri)
+        /// <summary>A part of a video to keep: from Start to End, in seconds.</summary>
+        public readonly record struct Cut(double Start, double End);
+
+        public static Task DownloadAsync(Uri uri) => DownloadAsync(uri, null, null, null);
+
+        /// <summary>
+        /// Downloads the link. <paramref name="audioOnly"/> overrides the page's setting,
+        /// <paramref name="cut"/> keeps only that part (needs FFmpeg) and <paramref name="status"/>
+        /// hears how it's going (from any thread). True when the file(s) were saved.
+        /// </summary>
+        public static async Task<bool> DownloadAsync(Uri uri, bool? audioOnly, Cut? cut, Action<string>? status)
         {
             string site = SiteName(uri) ?? uri.Host;
             Interlocked.Increment(ref _active);
             App.SetTrayText(Lang.T("Wibn: يتحمّل من ") + site + "…");
+            status?.Invoke(Lang.T("يجهّز التحميل…"));
             string temp = Path.Combine(Path.GetTempPath(), "Wibn-video-" + Guid.NewGuid().ToString("N")[..8]);
             try
             {
@@ -230,9 +241,11 @@ namespace WinPlus
                 }
                 await UpdateAsync(force: false);   // once a day: sites change, the tools catch up fast
 
+                if (cut != null && Converter.FindFfmpeg() == null)
+                    throw new UserMessage(Lang.T("القص يحتاج FFmpeg. حمّله من صفحة تحميل المقاطع."));
                 uri = await ResolveShareLinkAsync(uri, site);
                 string target = uri.ToString();
-                bool audio = AudioOnly;
+                bool audio = audioOnly ?? AudioOnly;
                 if (site == "Spotify")
                 {
                     // Spotify's audio is encrypted: find the same song on YouTube.
@@ -243,14 +256,15 @@ namespace WinPlus
                     audio = true;
                 }
                 Directory.CreateDirectory(temp);
+                status?.Invoke(cut != null ? Lang.T("يحمّل الجزء اللي اخترته ويقصّه…") : Lang.T("يتحمّل…"));
 
-                var (files, error) = await FetchAsync(uri, site, target, audio, temp);
+                var (files, error) = await FetchAsync(uri, site, target, audio, temp, cut, status);
                 if (files.Count == 0)
                 {
                     // Maybe the site changed since the last update: update now and try once more.
                     if (await UpdateAsync(force: true))
                     {
-                        var again = await FetchAsync(uri, site, target, audio, temp);
+                        var again = await FetchAsync(uri, site, target, audio, temp, cut, status);
                         files = again.files;
                         error = again.error ?? error;
                     }
@@ -273,21 +287,75 @@ namespace WinPlus
                     saved.Add(dest);
                 }
                 ShowInFolder(saved);
+                return true;
             }
             catch (UserMessage ex)
             {
-                App.Notify(Lang.T("ما تحمّل"), ex.Message);
+                if (status != null) status("⚠ " + ex.Message);
+                else App.Notify(Lang.T("ما تحمّل"), ex.Message);
             }
             catch (Exception ex)
             {
                 CrashLog.Write("video download", ex);
-                App.Notify(Lang.T("ما تحمّل"), Lang.T("صار خطأ. تأكد من النت ومن الرابط."));
+                if (status != null) status("⚠ " + Lang.T("صار خطأ. تأكد من النت ومن الرابط."));
+                else App.Notify(Lang.T("ما تحمّل"), Lang.T("صار خطأ. تأكد من النت ومن الرابط."));
             }
             finally
             {
                 try { if (Directory.Exists(temp)) Directory.Delete(temp, true); } catch { }
                 if (Interlocked.Decrement(ref _active) == 0) App.SetTrayText(null);
             }
+            return false;
+        }
+
+        /// <summary>What's behind a link, for the trim window.</summary>
+        public sealed record VideoInfo(Uri Link, string Id, string Title, string? Uploader, double Duration, string? Thumbnail, bool IsYouTube);
+
+        /// <summary>
+        /// Asks yt-dlp about the video without downloading it: its title, length and
+        /// picture. Throws <see cref="UserMessage"/> with what went wrong.
+        /// </summary>
+        public static async Task<VideoInfo> GetInfoAsync(Uri uri)
+        {
+            string site = SiteName(uri) ?? uri.Host;
+            if (site == "Spotify")
+                throw new UserMessage(Lang.T("القص لمقاطع الفيديو بس، مو أغاني سبوتيفاي."));
+            if (!File.Exists(ExePath)) await InstallAsync(null, CancellationToken.None);
+            await UpdateAsync(force: false);
+            uri = await ResolveShareLinkAsync(uri, site);
+
+            string error = "";
+            foreach (var cookies in new string?[] { null }.Concat(Browsers()))
+            {
+                var args = new List<string> { "-J", "--no-playlist", "--no-warnings", "--encoding", "utf-8" };
+                AddCookies(args, cookies);
+                args.Add("--");
+                args.Add(uri.ToString());
+                var json = new StringBuilder();
+                var (_, err) = await RunToolAsync(ExePath, args, Path.GetTempPath(), line => { lock (json) json.AppendLine(line); });
+                string text;
+                lock (json) text = json.ToString().Trim();
+                if (text.StartsWith("{"))
+                {
+                    using var doc = JsonDocument.Parse(text);
+                    var r = doc.RootElement;
+                    string Str(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+                    double duration = r.TryGetProperty("duration", out var d) && d.ValueKind == JsonValueKind.Number ? d.GetDouble() : 0;
+                    if (duration <= 0)
+                        throw new UserMessage(Lang.T("ما قدرت أعرف طول المقطع (يمكن بث مباشر). جرّب مقطع ثاني."));
+                    string id = Str("id");
+                    bool yt = Str("extractor_key").Equals("Youtube", StringComparison.OrdinalIgnoreCase);
+                    // YouTube's own picture may be .webp; its .jpg always opens.
+                    string thumb = yt && id.Length > 0 ? $"https://i.ytimg.com/vi/{id}/hqdefault.jpg" : Str("thumbnail");
+                    string uploader = Str("uploader") is { Length: > 0 } u ? u : Str("channel");
+                    return new VideoInfo(uri, id, Str("title"), uploader.Length > 0 ? uploader : null, duration,
+                                         thumb.Length > 0 ? thumb : null, yt);
+                }
+                error += err;
+                if (!NeedsLogin(err)) break;
+            }
+            CrashLog.Write("video info", new Exception(error));
+            throw new UserMessage(Explain(error));
         }
 
         /// <summary>
@@ -298,10 +366,11 @@ namespace WinPlus
         ///   * the same again with the browser's sign-in, when a site wants one;
         ///   * Instagram: the public embed page, as a last resort.
         /// </summary>
-        private static async Task<(List<string> files, string? error)> FetchAsync(Uri uri, string site, string target, bool audio, string temp)
+        private static async Task<(List<string> files, string? error)> FetchAsync(Uri uri, string site, string target, bool audio, string temp,
+                                                                                 Cut? cut, Action<string>? status)
         {
             var errors = new StringBuilder();
-            bool pictures = !audio && site != "YouTube" && site != "Spotify" && site != "SoundCloud" && site != "Twitch";
+            bool pictures = !audio && cut == null && site != "YouTube" && site != "Spotify" && site != "SoundCloud" && site != "Twitch";
             // Instagram posts and TikTok photo posts are mostly pictures: gallery-dl first.
             bool reel = Regex.IsMatch(uri.AbsolutePath, "/(reel|reels|tv)/");
             bool picturesFirst = pictures && ((site == "Instagram" && !reel) || uri.AbsolutePath.Contains("/photo/"));
@@ -314,7 +383,7 @@ namespace WinPlus
             }
 
             var order = new List<Func<string?, Task<List<string>>>>();
-            Func<string?, Task<List<string>>> video = cookies => Try(() => RunYtDlpAsync(target, audio, temp, site, cookies));
+            Func<string?, Task<List<string>>> video = cookies => Try(() => RunYtDlpAsync(target, audio, temp, site, cookies, cut, status));
             Func<string?, Task<List<string>>> gallery = cookies => Try(() => RunGalleryDlAsync(target, temp, cookies));
             if (picturesFirst) { order.Add(gallery); order.Add(video); }
             else { order.Add(video); if (pictures && site != "TikTok") order.Add(gallery); }   // TikTok: tikwm below is quicker
@@ -327,7 +396,7 @@ namespace WinPlus
 
             // TikTok hides some posts behind a sign-in ("may not be comfortable for some
             // audiences"); a public download service gets them without one.
-            if (site == "TikTok")
+            if (site == "TikTok" && cut == null)
             {
                 var got = await TikwmAsync(uri, audio, temp, errors);
                 if (got.Count > 0) return (got, null);
@@ -344,7 +413,7 @@ namespace WinPlus
                     }
             }
 
-            if (site == "Instagram" && !audio)
+            if (site == "Instagram" && !audio && cut == null)
             {
                 var got = await InstagramEmbedAsync(uri, temp);
                 if (got.Count > 0) return (got, null);
@@ -513,7 +582,14 @@ namespace WinPlus
             // fail with "Could not copy" / "DPAPI"), so trying them only wastes time.
         }
 
-        private sealed class UserMessage : Exception
+        /// <summary>"1.05" for 65 s, "1.02.03" past an hour (file names can't have ":").</summary>
+        private static string TimeName(double t)
+        {
+            var ts = TimeSpan.FromSeconds(Math.Round(t));
+            return ts.TotalHours >= 1 ? $"{(int)ts.TotalHours}.{ts.Minutes:00}.{ts.Seconds:00}" : $"{ts.Minutes}.{ts.Seconds:00}";
+        }
+
+        internal sealed class UserMessage : Exception
         {
             public UserMessage(string m) : base(m) { }
         }
@@ -542,15 +618,18 @@ namespace WinPlus
                 .ToList();
 
         /// <summary>Runs yt-dlp; returns the finished files (in <paramref name="temp"/>) or the error text.</summary>
-        private static async Task<(List<string> files, string? error)> RunYtDlpAsync(string target, bool audio, string temp, string site, string? cookies)
+        private static async Task<(List<string> files, string? error)> RunYtDlpAsync(string target, bool audio, string temp, string site, string? cookies,
+                                                                                     Cut? cut = null, Action<string>? status = null)
         {
             string? ffmpeg = Converter.FindFfmpeg();
+            string name = "%(title).100B [%(id)s]";
+            if (cut is Cut c) name += $" ({TimeName(c.Start)} - {TimeName(c.End)})";
             var args = new List<string>
             {
                 "--no-mtime", "--windows-filenames", "--no-part", "--newline",
                 "--encoding", "utf-8", "--color", "never",
                 "-P", temp,
-                "-o", "%(title).100B [%(id)s].%(ext)s",
+                "-o", name + ".%(ext)s",
                 "--print", "after_move:WPFILE:%(filepath)s",
                 "--progress", "--progress-template", "download:WPPROG:%(progress._percent_str)s",
             };
@@ -560,6 +639,12 @@ namespace WinPlus
             else args.AddRange(new[] { "--yes-playlist", "-I", "1:30" });
             if (site == "TikTok") args.AddRange(new[] { "--impersonate", "chrome" });   // TikTok blocks plain requests
             AddCookies(args, cookies);
+            if (cut is Cut part)
+            {
+                // Only that part is downloaded, cut on the exact second (the edges get re-encoded).
+                static string Inv(double t) => t.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                args.AddRange(new[] { "--download-sections", $"*{Inv(part.Start)}-{Inv(part.End)}", "--force-keyframes-at-cuts" });
+            }
             if (ffmpeg != null)
             {
                 args.Add("--ffmpeg-location");
@@ -584,7 +669,9 @@ namespace WinPlus
 
             var (exit, error) = await RunToolAsync(ExePath, args, temp, line =>
             {
-                if (line.StartsWith("WPPROG:")) App.SetTrayText(Lang.T("Wibn: يتحمّل ") + line.Substring(7).Trim());
+                if (!line.StartsWith("WPPROG:")) return;
+                App.SetTrayText(Lang.T("Wibn: يتحمّل ") + line.Substring(7).Trim());
+                status?.Invoke(Lang.T("يتحمّل ") + line.Substring(7).Trim());
             });
 
             // This yt-dlp can't pretend to be a browser: the same without it.

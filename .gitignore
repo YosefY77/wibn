@@ -19,3 +19,6 @@ package.ps1
 publish.ps1
 release.ps1
 installer/
+
+# Discord webhook for the suggestion box (kept out of the public repo)
+WinPlus.App/suggestions.webhook

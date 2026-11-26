@@ -736,8 +736,7 @@ namespace WinPlus
         private CustomTaskbar.RECT ShareTarget(Share s)
         {
             int gap = (int)Math.Round(5 * _scale);
-            _list.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            double content = (Vertical ? _list.DesiredSize.Height : _list.DesiredSize.Width) + 2;   // + the rim
+            double content = ContentLength() + 2;   // + the rim
             int len = (int)Math.Ceiling(Math.Max(content, _dragLen ?? S.ShareLength) * _scale);
             len = Math.Min(len, s.SegEnd - s.SegStart);
             int a = s.Side == 0 ? s.SegStart : s.SegEnd - len;
@@ -767,8 +766,24 @@ namespace WinPlus
             RestartGlass();
         }
 
+        /// <summary>
+        /// How long what's on it is (DIPs): the longest it has been since the chips were built. The numbers on it
+        /// change all the time (a countdown, the heat, the speed…) and the bar grew and shrank with every one of
+        /// them; now it only grows when something really needs more room, and keeps that length.
+        /// </summary>
+        private double ContentLength()
+        {
+            _list.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double now = Vertical ? _list.DesiredSize.Height : _list.DesiredSize.Width;
+            if (now > _widest) _widest = now;
+            return _widest;
+        }
+
+        private double _widest;   // see ContentLength (cleared when the chips are built again)
+
         private void BuildChips()
         {
+            _widest = 0;
             _list.Children.Clear();
             _chips.Clear();
             _list.Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal;
@@ -1292,16 +1307,16 @@ namespace WinPlus
             if (shape == 2)
             {
                 // Dock: only as long as what's on it, in the middle.
-                _list.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double content = ContentLength();
                 if (Vertical)
                 {
-                    int len = Math.Min(r.Height, (int)Math.Ceiling(_list.DesiredSize.Height * _scale) + gap * 2);
+                    int len = Math.Min(r.Height, (int)Math.Ceiling(content * _scale) + gap * 2);
                     int mid = (s.Top + s.Bottom) / 2;
                     r.Top = mid - len / 2; r.Bottom = r.Top + len;
                 }
                 else
                 {
-                    int len = Math.Min(r.Width, (int)Math.Ceiling(_list.DesiredSize.Width * _scale) + gap * 2);
+                    int len = Math.Min(r.Width, (int)Math.Ceiling(content * _scale) + gap * 2);
                     int mid = (s.Left + s.Right) / 2;
                     r.Left = mid - len / 2; r.Right = r.Left + len;
                 }

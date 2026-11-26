@@ -1129,6 +1129,30 @@ namespace WinPlus
                 if (_buttons.TryGetValue(g.Key, out var b)) b.Show(g, fg);
         }
 
+        /// <summary>
+        /// Where a window's button is on screen (in pixels), on any of Wibn's taskbars that shows it now; null if none.
+        /// For the minimize animation, to know where the window goes.
+        /// </summary>
+        internal static Rect? ButtonRect(IntPtr hwnd)
+        {
+            foreach (var bar in Application.Current.Windows.OfType<TaskbarBar>())
+            {
+                if (bar.Gone || !bar.IsVisible) continue;
+                foreach (var b in bar._buttons.Values)
+                {
+                    if (b.Group == null || !b.IsVisible || b.ActualWidth < 1 || !b.Group.Windows.Any(w => w.Hwnd == hwnd)) continue;
+                    try
+                    {
+                        var a = b.PointToScreen(new Point(0, 0));
+                        var z = b.PointToScreen(new Point(b.ActualWidth, b.ActualHeight));
+                        return new Rect(new Point(Math.Min(a.X, z.X), Math.Min(a.Y, z.Y)), new Point(Math.Max(a.X, z.X), Math.Max(a.Y, z.Y)));
+                    }
+                    catch { }
+                }
+            }
+            return null;
+        }
+
         /// <summary>The pinned buttons, in order (for dragging them around).</summary>
         internal List<AppButton> PinnedButtons() =>
             _apps.Children.OfType<AppButton>().Where(b => b.Group?.Pin != null).ToList();
@@ -1734,6 +1758,14 @@ namespace WinPlus
             MouseLeftButtonUp += OnUp;
             MouseUp += (_, e) => { if (e.ChangedButton == MouseButton.Middle && Group != null) TaskbarApps.Launch(Group.Launch); };
             MouseRightButtonUp += (_, e) => { Menu(); e.Handled = true; };
+            // The wheel on an app: its own volume up or down.
+            MouseWheel += (_, e) =>
+            {
+                if (Group == null) return;
+                _hover.Stop(); TaskbarPreview.HideSoon();
+                WheelVolume.App(this, Group, e.Delta);
+                e.Handled = true;
+            };
         }
 
         private bool _active, _flash;

@@ -1,3 +1,14 @@
 # What's new, one line per change (English). Lines starting with # are skipped.
-- With Wibn's taskbar off, the extra bars on the same edge stay side by side on one line instead of stacking
-- Turning on Wibn's taskbar pins every app pinned to Windows' taskbar on it too
+- Trim before downloading: on the Download videos page press "Trim", paste a YouTube link, pick the start and end, and only that part is downloaded
+- On an extra taskbar: Discord notifications now use the Discord logo, with a red dot on it whenever there is any notification
+- Fixed the glass showing the wallpaper mirrored on the extra bars and widgets
+- In the desktop corner panel: right-click a program or shortcut to pin it to the taskbar
+- Fixed the glass blinking on some taskbars
+- The glass shows the windows behind it even with "Show in streams" on
+- The info bar keeps its size instead of growing and shrinking as the numbers and text on it change
+- A suggestion box on the General page: write your idea and it goes straight to the developer
+- Fixed some apps pinned to Windows' taskbar (like Steam) missing from Wibn's taskbar
+- Right-click any page in the side menu, or any option inside a page, to add it to "Favorites" at the top or hide it; Taskbar and Desktop are now under "Interface"
+- Each group in the side menu has an arrow: click it to fold or open its pages
+- Scroll the mouse wheel on the sound waves on a taskbar to change the device's volume, or on an app's icon to change just that app's volume
+- New minimize animations: a Mac-like genie, shrink into the icon, fade, fall down or zoom away. Turn it on from the Animations page

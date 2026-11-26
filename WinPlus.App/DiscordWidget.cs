@@ -17,6 +17,20 @@ namespace WinPlus
     internal sealed class DiscordWidget : WidgetContent
     {
         private static readonly Brush Blurple = new SolidColorBrush(Color.FromRgb(0x58, 0x65, 0xF2));
+        private static readonly Brush Unread = new SolidColorBrush(Color.FromRgb(0xF2, 0x3F, 0x43));
+
+        /// <summary>Discord's logo (24 × 24).</summary>
+        private static readonly Geometry Logo = Geometry.Parse(
+            "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z");
+
+        static DiscordWidget() { Unread.Freeze(); Logo.Freeze(); }
+
+        /// <summary>The Discord logo, size × size, in the given color.</summary>
+        private static FrameworkElement LogoIcon(double size, Brush fill) => new System.Windows.Shapes.Path
+        {
+            Data = Logo, Fill = fill, Stretch = Stretch.Uniform, Width = size, Height = size,
+            VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+        };
         private readonly SolidColorBrush _ink = new(Color.FromRgb(0xF2, 0xF3, 0xF5));
         private readonly SolidColorBrush _inkMuted = new(Color.FromRgb(0xA0, 0xA3, 0xAA));
         private readonly SolidColorBrush _hover = new(Color.FromArgb(0x1E, 0xFF, 0xFF, 0xFF));
@@ -35,11 +49,8 @@ namespace WinPlus
             var panel = new DockPanel();
             var head = new DockPanel { Margin = new Thickness(2, 0, 2, 6), Cursor = Cursors.Hand, Background = Brushes.Transparent };
             head.MouseLeftButtonUp += (_, e) => { e.Handled = true; DiscordNotes.OpenDiscord(); };
-            var icon = new TextBlock
-            {
-                Text = "", FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 14,
-                Foreground = Blurple, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0),
-            };
+            var icon = LogoIcon(15, Blurple);
+            icon.Margin = new Thickness(0, 0, 6, 0);
             _title = new TextBlock { Text = "Discord", FontWeight = FontWeights.SemiBold, FontSize = 13, Foreground = _ink, VerticalAlignment = VerticalAlignment.Center };
             _count = new TextBlock { FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(6, 1, 6, 1), FlowDirection = FlowDirection.LeftToRight };
             var badge = new Border { Background = Blurple, CornerRadius = new CornerRadius(9), Child = _count, VerticalAlignment = VerticalAlignment.Center, MinWidth = 18 };
@@ -129,7 +140,23 @@ namespace WinPlus
         public override FrameworkElement? BarView(BarLook l)
         {
             var row = BarRow(l);
-            var glyph = BarGlyph(l, "");
+            // Discord's logo with a red dot on its top right corner while there's any notification (like Discord's own).
+            var size = l.Font + 4;
+            var dotSize = Math.Max(6, Math.Round(size * 0.42));
+            var dot = new System.Windows.Shapes.Ellipse
+            {
+                Width = dotSize, Height = dotSize, Fill = Unread, HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -dotSize * 0.3, -dotSize * 0.35, 0),
+                IsHitTestVisible = false,
+            };
+            var glyph = new Grid
+            {
+                VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = l.Vertical ? new Thickness(0, 3, 0, 2) : new Thickness(3, 1, 4, 0),
+                FlowDirection = FlowDirection.LeftToRight,
+            };
+            glyph.Children.Add(LogoIcon(size, l.Ink));
+            glyph.Children.Add(dot);
             var count = new TextBlock { FontSize = l.Small, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(5, 0, 5, 0), FlowDirection = FlowDirection.LeftToRight };
             var badge = new Border { Background = Blurple, CornerRadius = new CornerRadius(8), Child = count, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MinWidth = 16, Margin = l.Vertical ? new Thickness(0, 1, 0, 1) : new Thickness(0, 0, 4, 0) };
             var latest = BarText(l);
@@ -142,6 +169,7 @@ namespace WinPlus
                 var notes = DiscordNotes.Notes;
                 count.Text = notes.Count > 99 ? "99+" : notes.Count.ToString();
                 badge.Visibility = notes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                dot.Visibility = notes.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
                 var n = notes.FirstOrDefault();
                 latest.Text = n == null ? "" : n.Text.Length > 0 ? $"{n.Sender}: {n.Text}" : n.Sender;
                 latest.Visibility = n == null ? Visibility.Collapsed : Visibility.Visible;

@@ -36,7 +36,7 @@ namespace WinPlus
 
             VersionText.Text = "Wibn " + UpdateChecker.CurrentText;
             BuildFeatureList();
-            ApplyFeatureVisibility();
+            SetupSideMenu();
 
             _loading = false;
         }
@@ -128,7 +128,7 @@ namespace WinPlus
         private void ApplyFeatureVisibility()
         {
             TextBlock? header = null;
-            bool anyInGroup = false;
+            bool anyInGroup = false, folded = false;
             void CloseGroup() { if (header != null) header.Visibility = anyInGroup ? Visibility.Visible : Visibility.Collapsed; }
             foreach (var child in SideList.Children)
             {
@@ -137,13 +137,23 @@ namespace WinPlus
                     CloseGroup();
                     header = group;
                     anyInGroup = false;
+                    folded = group.Tag is string g && SidePrefs.IsCollapsed(g);
+                    UpdateGroupArrow(group, folded);
                 }
                 else if (child is RadioButton { CommandParameter: string key } nav)
                 {
-                    bool on = Features.IsNavOn(key);
-                    nav.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+                    bool on = Features.IsNavOn(key) && !SidePrefs.IsHidden(key);
+                    nav.Visibility = on && !folded ? Visibility.Visible : Visibility.Collapsed;
                     if (on) anyInGroup = true;
                     if (!on && nav.IsChecked == true) NavGeneral.IsChecked = true;
+                }
+                else if (child is RadioButton { CommandParameter: null, DataContext: string rowId } fav)
+                {
+                    // A favorite option from inside a page: shown while its page and itself are.
+                    string page = RowPage(rowId);
+                    bool on = Features.IsNavOn(page) && !SidePrefs.IsHidden(page) && !SidePrefs.IsHidden(rowId);
+                    fav.Visibility = on && !folded ? Visibility.Visible : Visibility.Collapsed;
+                    if (on) anyInGroup = true;
                 }
             }
             CloseGroup();
@@ -442,6 +452,23 @@ namespace WinPlus
                 "Wibn", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes,
                 english ? MessageBoxOptions.None : MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
             if (answer == MessageBoxResult.Yes) ((App)Application.Current).RestartApp();
+        }
+
+        private async void OnSendSuggestion(object sender, RoutedEventArgs e)
+        {
+            SuggestionSend.IsEnabled = false;
+            SuggestionStatus.Text = Lang.T("يرسل…");
+            try
+            {
+                string? problem = await Suggestions.Send(SuggestionBox.Text);
+                if (problem == null)
+                {
+                    SuggestionBox.Clear();
+                    SuggestionStatus.Text = Lang.T("وصل اقتراحك، شكرًا!");
+                }
+                else SuggestionStatus.Text = problem;
+            }
+            finally { SuggestionSend.IsEnabled = true; }
         }
 
         private void OnExportSettings(object sender, RoutedEventArgs e)

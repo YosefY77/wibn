@@ -248,6 +248,7 @@ namespace WinPlus
             if (starting) GameBoost.RecoverAtStart(); else GameBoost.Refresh();   // game booster: watches for games
 
             DragSpaceHook.Refresh();  // Space / R / C while dragging a file → convert / resize / compress
+            MinimizeAnim.Refresh();   // Wibn's own minimize animation (genie…), if chosen
         }
 
         /// <summary>The installer of a new version was started: get out of its way.</summary>
@@ -390,6 +391,7 @@ namespace WinPlus
             Wallpapers.Shutdown();  // the video leaves the desktop (Windows keeps a frame of it)
             GlassCopy.Shutdown();   // the glass's screen-copy helper goes too
             GameBoost.Shutdown();   // services and apps back as they were
+            MinimizeAnim.Stop();    // Windows' own minimize animation back
 
             if (_tray != null)
             {

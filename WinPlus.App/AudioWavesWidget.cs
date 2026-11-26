@@ -85,13 +85,20 @@ namespace WinPlus
         public override FrameworkElement? BarView(BarLook l)
         {
             double t = Math.Max(20, (l.Vertical ? 44 : l.Thick) - 12);
-            return new System.Windows.Shapes.Rectangle
+            var view = new Border
             {
-                Width = l.Vertical ? t : t * 3, Height = l.Vertical ? t * 2 : t,
-                Fill = new VisualBrush(_canvas) { Stretch = Stretch.Fill },
+                Background = Brushes.Transparent,
                 VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(3),
+                Child = new System.Windows.Shapes.Rectangle
+                {
+                    Width = l.Vertical ? t : t * 3, Height = l.Vertical ? t * 2 : t,
+                    Fill = new VisualBrush(_canvas) { Stretch = Stretch.Fill },
+                    Margin = new Thickness(3),
+                },
             };
+            // The wheel on it: the device's volume up or down.
+            view.MouseWheel += (_, e) => { WheelVolume.Device(view, e.Delta); e.Handled = true; };
+            return view;
         }
 
         public override void Start()
