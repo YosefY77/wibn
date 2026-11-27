@@ -78,8 +78,6 @@
                                      Content="{local:Tr 'ملف مضغوط'}" CommandParameter="archive" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE714;"
                                      Content="{local:Tr 'تحميل المقاطع'}" CommandParameter="video" Checked="OnNavChanged"/>
-                        <RadioButton Style="{StaticResource SideItem}" Tag="&#xE724;"
-                                     Content="{local:Tr 'إرسال الملفات'}" CommandParameter="transfer" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE722;"
                                      Content="{local:Tr 'تصوير الشاشة'}" CommandParameter="capture" Checked="OnNavChanged"/>
                         <RadioButton Style="{StaticResource SideItem}" Tag="&#xE767;"
@@ -327,15 +325,6 @@
                     <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'تحميل المقاطع'}"/>
                     <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'حمّل أي مقطع أو أغنية من رابطها، بدون مواقع ولا إعلانات.'}"/>
                     <ContentControl x:Name="VideoHost"/>
-                </StackPanel>
-            </ScrollViewer>
-
-            <!-- P2P file transfer (built when opened) -->
-            <ScrollViewer x:Name="PageTransfer" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
-                <StackPanel Margin="40,28,40,24" MaxWidth="980">
-                    <TextBlock Style="{StaticResource PageTitle}" Text="{local:Tr 'إرسال الملفات'}"/>
-                    <TextBlock Style="{StaticResource PageDesc}" Text="{local:Tr 'أرسل أي ملف لأي أحد عبر الإنترنت، مباشرة من جهاز لجهاز.'}"/>
-                    <ContentControl x:Name="TransferHost"/>
                 </StackPanel>
             </ScrollViewer>
 

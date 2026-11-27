@@ -31,7 +31,7 @@ namespace WinPlus
             [PageTaskbar] = "taskbar", [PageDesktop] = "desktop", [PageBig] = "big", [PageTemp] = "temp", [PageDup] = "dup",
             [PageBin] = "bin", [PageHotkeys] = "hotkeys", [PageRam] = "ram", [PageLock] = "lock", [PageStartup] = "startup",
             [PageDownloads] = "downloads", [PageConvert] = "convert", [PageResize] = "resize", [PageCompress] = "compress",
-            [PageArchive] = "archive", [PageVideo] = "video", [PageTransfer] = "transfer", [PageCapture] = "capture",
+            [PageArchive] = "archive", [PageVideo] = "video", [PageCapture] = "capture",
             [PageVolume] = "volume", [PageSpecs] = "specs", [PageGame] = "game", [PageWidgets] = "widgets",
             [PageGlass] = "glass", [PageAnim] = "anim", [PageWallpapers] = "wallpapers", [PageGeneral] = "general",
         };

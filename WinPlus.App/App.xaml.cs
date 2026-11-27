@@ -196,7 +196,9 @@ namespace WinPlus
 
             if (Features.IsOn("taskbar")) _ = ConnectAsync();
 
-            // Extras of the chosen features (FFmpeg, sendme) download in the background.
+            // Extras of the chosen features (FFmpeg, yt-dlp) download in the background.
+            // The file-transfer feature is gone (2.9): drop the sendme it downloaded.
+            _ = Task.Run(() => { try { var d = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinPlus", "sendme"); if (System.IO.Directory.Exists(d)) System.IO.Directory.Delete(d, true); } catch { } });
             _ = Task.Delay(TimeSpan.FromSeconds(15)).ContinueWith(_ => Features.DownloadMissingAsync());
 
             // First run of a new version: show what's in it (once).
@@ -395,7 +397,6 @@ namespace WinPlus
             Relocker.LockAllNow();
             DragSpaceHook.Stop();
             FileUndo.FinishAll();
-            P2PTransfer.StopAll();
             ScreenCapture.StopAll();
             Wallpapers.Shutdown();  // the video leaves the desktop (Windows keeps a frame of it)
             GlassCopy.Shutdown();   // the glass's screen-copy helper goes too

@@ -48,7 +48,6 @@
 | **Resize** | Drag an image or video and press `R` |
 | **Compress** | Drag a file and press `C`, smaller without losing quality |
 | **Archive** | Drag files or a folder and press `Z` to make a ZIP, 7Z or RAR |
-| **File transfer** | Send files straight to any device over the internet |
 
 ### Media
 
@@ -73,7 +72,7 @@ Every page has a **!** button that explains each feature.
 
 ## Privacy
 
-- No account and no tracking. Wibn only goes online for what you use: updates, weather, downloads and file transfer.
+- No account and no tracking. Wibn only goes online for what you use: updates, weather and downloads.
 - The sign-in for video downloads stays on your PC, encrypted with your Windows account, and is never included in exported settings.
 - The download tools ([yt-dlp](https://github.com/yt-dlp/yt-dlp), [gallery-dl](https://github.com/mikf/gallery-dl)) are open source, and Wibn checks their fingerprint before running them.
 

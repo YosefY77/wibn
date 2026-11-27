@@ -242,7 +242,6 @@ namespace WinPlus
         private DownloadsPage? _downloadsPage;
         private ConvertPage? _convertPage;
         private ToolPage? _resizePage, _compressPage, _archivePage;
-        private TransferPage? _transferPage;
         private VideoPage? _videoPage;
         private CapturePage? _capturePage;
         private VolumePage? _volumePage;
@@ -254,7 +253,7 @@ namespace WinPlus
 
         private FrameworkElement[] AllPages => new FrameworkElement[]
         {
-            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageTransfer, PageCapture, PageVolume, PageSpecs, PageGame, PageWidgets, PageGlass, PageAnim, PageWallpapers, PageGeneral,
+            PageTaskbar, PageDesktop, PageBig, PageTemp, PageDup, PageBin, PageHotkeys, PageRam, PageLock, PageStartup, PageDownloads, PageConvert, PageResize, PageCompress, PageArchive, PageVideo, PageCapture, PageVolume, PageSpecs, PageGame, PageWidgets, PageGlass, PageAnim, PageWallpapers, PageGeneral,
         };
 
         private void OnNavChanged(object sender, RoutedEventArgs e)
@@ -283,7 +282,6 @@ namespace WinPlus
                 "compress" => Build(PageCompress, () => CompressHost.Content = _compressPage ??= new ToolPage(MediaTools.Mode.Compress)),
                 "archive" => Build(PageArchive, () => ArchiveHost.Content = _archivePage ??= new ToolPage(MediaTools.Mode.Archive)),
                 "video" => Build(PageVideo, () => VideoHost.Content = _videoPage ??= new VideoPage()),
-                "transfer" => Build(PageTransfer, () => TransferHost.Content = _transferPage ??= new TransferPage()),
                 "capture" => Build(PageCapture, () => CaptureHost.Content = _capturePage ??= new CapturePage()),
                 "volume" => Build(PageVolume, () => VolumeHost.Content = _volumePage ??= new VolumePage()),
                 "widgets" => Build(PageWidgets, () => WidgetsHost.Content = _widgetsPage ??= new WidgetsPage()),
@@ -390,8 +388,6 @@ namespace WinPlus
                 ResizeHost.Content = null;
                 CompressHost.Content = null;
                 ArchiveHost.Content = null;
-                _transferPage = null;
-                TransferHost.Content = null;
                 _videoPage = null;
                 VideoHost.Content = null;
                 _capturePage = null;

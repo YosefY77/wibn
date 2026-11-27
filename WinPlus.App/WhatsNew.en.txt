@@ -20,3 +20,4 @@
 - Wibn's hidden taskbar comes back only when the mouse is at its own spot on the edge, not anywhere along it
 - The sign-in for downloading videos is now saved encrypted with your Windows account, Wibn paces its requests to protect your account, and it checks the download tools' fingerprint before running them
 - The suggestion box is back on the General page, safely: pick a suggestion, complaint or bug, and only the developer gets it, without your name or anything about your PC
+- The Send files feature is gone, and its tool (sendme) is removed from your PC by itself

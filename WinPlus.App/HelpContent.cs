@@ -41,7 +41,6 @@ namespace WinPlus
             "compress" => Compress(),
             "archive" => Archive(),
             "video" => Video(),
-            "transfer" => Transfer(),
             "capture" => Capture(),
             "volume" => Volume(),
             "specs" => Specs(),
@@ -636,25 +635,6 @@ namespace WinPlus
                       a.Rect(112, 34, 36, 30, Panel, 18);
                       a.Center(130, 86, "🔒", 22, Ink, false);
                       a.Text(70, 128, "cookies.dat (DPAPI)", 10, Muted);
-                  }),
-            });
-
-        private static HelpPage Transfer() => new(L("إرسال الملفات", "Send files"),
-            L("ترسل أي ملف لأي أحد عبر الإنترنت.", "Send any file to anyone over the internet."),
-            new[]
-            {
-                I("من جهاز لجهاز مباشرة", "Straight from PC to PC",
-                  "تختار الملف ويطلع لك رمز، ترسله للشخص ويحطه عنده وينزل الملف مباشرة من جهازك.",
-                  "Pick the file and get a code; the other person enters it and the file comes straight from your PC.",
-                  "بدون حد للحجم ولا رفع على مواقع، والملف ما يمر على أحد.",
-                  "No size limit, no uploading to websites, and the file doesn't pass through anyone.",
-                  a =>
-                  {
-                      a.Monitor(14, 30);
-                      a.Monitor(166, 30);
-                      a.Arrow(100, 56, 160, 56, Green);
-                      a.Rect(88, 104, 84, 22, Panel, 6, 255, Line);
-                      a.Center(130, 115, "blob-42-sun", 10, Ink, true);
                   }),
             });
 
