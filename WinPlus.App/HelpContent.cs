@@ -1100,6 +1100,19 @@ namespace WinPlus
                       a.Rect(74, 58, 100, 6, Ink, 3, 0x80);
                       a.Rect(74, 78, 60, 18, Blue, 5);
                   }),
+                I("صندوق الاقتراحات والشكاوى", "Suggestions and complaints box",
+                  "في الإعدادات العامة ← صندوق الاقتراحات، اختر النوع (اقتراح، شكوى، أو مشكلة في البرنامج)، اكتب رسالتك واضغط \"أرسل\". توصل للمطوّر بس، وما ينرسل معها اسمك ولا اسم جهازك ولا أي ملف: بس رقم نسخة Wibn واللغة. رسالة وحدة كل دقيقة. Wibn ما فيه أي كلمة سر أو رابط سري: الرسالة تروح لوسيط عند المطوّر هو اللي يوصلها، ويمنع السبام، والروابط اللي فيها ما تنضغط.",
+                  "On the General page → Suggestion box, pick the kind (suggestion, complaint or bug in the app), write your message and press \"Send\". Only the developer gets it, and your name, your PC's name and no files go with it: just Wibn's version and the language. One message a minute. Wibn holds no password or secret link: the message goes to a relay of the developer's that passes it on, stops spam, and makes links in it unclickable.",
+                  "صوتك يوصل للمطوّر مباشرة، بدون حساب وبدون ما تكشف نفسك.",
+                  "Your voice reaches the developer directly, with no account and without giving yourself away.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(50, 26, 160, 90, Panel, 10, 0xE0);
+                      a.Rect(62, 38, 60, 14, Line, 4);
+                      a.Rect(62, 58, 136, 30, Ink, 4, 0x30);
+                      a.Rect(62, 94, 44, 16, Blue, 5);
+                  }),
                 I("يشتغل مع ويندوز", "Starts with Windows",
                   "البرنامج يشتغل لحاله جنب الساعة أول ما يقلع الجهاز، وإغلاق النافذة يخليه يشتغل في الخلفية.",
                   "The app starts by the clock as soon as the PC starts, and closing the window keeps it running in the background.",

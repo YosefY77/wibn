@@ -36,6 +36,7 @@ namespace WinPlus
             InfoBarHost.Content = new InfoBarPage();
 
             VersionText.Text = "Wibn " + UpdateChecker.CurrentText;
+            if (!Suggestions.Ready) SuggestionSection.Visibility = SuggestionRow.Visibility = Visibility.Collapsed;
             BuildFeatureList();
             SetupSideMenu();
 
@@ -471,6 +472,29 @@ namespace WinPlus
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(SupportUrl) { UseShellExecute = true }); }
             catch (Exception ex) { CrashLog.Write("support link", ex); }
+        }
+
+        private async void OnSendSuggestion(object sender, RoutedEventArgs e)
+        {
+            SuggestionSend.IsEnabled = false;
+            SuggestionStatus.Text = Lang.T("يرسل…");
+            try
+            {
+                var kind = SuggestionKind.SelectedIndex switch
+                {
+                    1 => Suggestions.Kind.Complaint,
+                    2 => Suggestions.Kind.Bug,
+                    _ => Suggestions.Kind.Suggestion,
+                };
+                string? problem = await Suggestions.Send(SuggestionBox.Text, kind);
+                if (problem == null)
+                {
+                    SuggestionBox.Clear();
+                    SuggestionStatus.Text = Lang.T("وصلت رسالتك، شكرًا!");
+                }
+                else SuggestionStatus.Text = problem;
+            }
+            finally { SuggestionSend.IsEnabled = true; }
         }
 
         private void OnExportSettings(object sender, RoutedEventArgs e)

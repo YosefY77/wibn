@@ -22,3 +22,6 @@ installer/
 
 # Discord webhook for the suggestion box (kept out of the public repo)
 WinPlus.App/suggestions.webhook
+
+# Cloudflare Worker build cache
+feedback-worker/.wrangler/

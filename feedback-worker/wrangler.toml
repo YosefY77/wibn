@@ -1,0 +1,19 @@
+name = "wibn-feedback"
+main = "worker.js"
+compatibility_date = "2025-06-01"
+
+# Don't log requests (no IPs or messages kept in Cloudflare's logs).
+[observability]
+enabled = false
+
+# One message per 60 seconds per sender, enforced here, not in the app.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 1
+  period = 60
+
+# The Discord webhook is a secret, never in this file:
+#   npx wrangler secret put DISCORD_WEBHOOK
