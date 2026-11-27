@@ -44,6 +44,13 @@ namespace WinPlus
                 return;
             }
 
+            // Uninstalling Wibn: every "Lighten Windows" setting goes back to what it was, then exit (no window).
+            if (e.Args.Length == 1 && e.Args[0] == "--undo-lighten")
+            {
+                Shutdown(WindowsLighten.UndoAll() ? 0 : 1);
+                return;
+            }
+
             // Copies the screen behind the taskbar's glass without Wibn's windows (they stay in screen shares).
             if (e.Args.Length == 3 && e.Args[0] == "--glass-copy")
             {
@@ -147,6 +154,7 @@ namespace WinPlus
 
             _window = new MainWindow();
             _window.Hidden += (_, _) => TrimMemory();
+            WindowPin.KeepNormal(_window);   // a normal window, never above the others unless pinned
 
             var menu = new Forms.ContextMenuStrip { RightToLeft = Lang.English ? Forms.RightToLeft.No : Forms.RightToLeft.Yes };
             menu.Items.Add(Lang.T("فتح الإعدادات"), null, (_, _) => ShowWindow());
@@ -248,7 +256,8 @@ namespace WinPlus
             if (starting) GameBoost.RecoverAtStart(); else GameBoost.Refresh();   // game booster: watches for games
 
             DragSpaceHook.Refresh();  // Space / R / C while dragging a file → convert / resize / compress
-            MinimizeAnim.Refresh();   // Wibn's own minimize animation (genie…), if chosen
+            MinimizeAnim.Refresh();   // Wibn's own minimize animation (genie…)
+            WindowPin.Refresh();      // the pin button beside the windows' own buttons, if on
         }
 
         /// <summary>The installer of a new version was started: get out of its way.</summary>
@@ -392,6 +401,7 @@ namespace WinPlus
             GlassCopy.Shutdown();   // the glass's screen-copy helper goes too
             GameBoost.Shutdown();   // services and apps back as they were
             MinimizeAnim.Stop();    // Windows' own minimize animation back
+            WindowPin.Stop();       // the pin button goes (pinned windows stay pinned)
 
             if (_tray != null)
             {

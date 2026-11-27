@@ -617,9 +617,28 @@ namespace WinPlus
         /// <summary>A big frame of a video (for Windows' own wallpaper), or null.</summary>
         private static string? VideoFrame(string path)
         {
+            // The video's own first frame, when it has been played once (what it starts from).
+            string firstFile = CacheFile(path, "first");
+            if (File.Exists(firstFile)) return firstFile;
             string out_ = CacheFile(path, "frame");
             if (File.Exists(out_)) return out_;
             return Sta.Run(() => ShellPicture(path, 1920, 1080, out_)).GetAwaiter().GetResult() ? out_ : null;
+        }
+
+        /// <summary>Keeps the video's first frame on disk, for Windows' own wallpaper (see VideoFrame).</summary>
+        private static void SaveFirstFrame(string path, System.Windows.Media.Imaging.BitmapSource frame)
+        {
+            try
+            {
+                string file = CacheFile(path, "first");
+                if (File.Exists(file)) return;
+                var enc = new System.Windows.Media.Imaging.JpegBitmapEncoder { QualityLevel = 92 };
+                enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(frame));
+                string tmp = file + ".tmp";
+                using (var fs = File.Create(tmp)) enc.Save(fs);
+                File.Move(tmp, file, true);
+            }
+            catch (Exception ex) { CrashLog.Write("video first frame", ex); }
         }
 
         // ---- Thumbnails ------------------------------------------------------------------------------
@@ -839,6 +858,10 @@ namespace WinPlus
                     player = new VideoWallpaper(path, maxW, maxH, FrameRate);
                     to = await player.FirstFrame;
                     if (to == null) { player.Dispose(); return false; }
+                    // Windows' own wallpaper becomes this same first frame (it shows for a moment while Windows
+                    // fades its wallpaper in; a frame from the middle of the video showed then).
+                    var first = to;
+                    await Task.Run(() => SaveFirstFrame(path, first));
                 }
                 else
                 {

@@ -64,7 +64,7 @@ namespace WinPlus
             // ---- Trim before downloading
             var trim = new Button { Style = St("AccentButton"), Content = Lang.T("✂  قص مقطع"), Padding = new Thickness(18, 6, 18, 6) };
             trim.Click += (_, _) => VideoTrimWindow.ShowWindow(Window.GetWindow(this));
-            Children.Add(Row(trim, "", Lang.T("قص مقطع قبل التحميل"),
+            Children.Add(Row(trim, "\uE8C6", Lang.T("قص مقطع قبل التحميل"),
                 Lang.T("الصق رابط يوتيوب وحدّد من وين يبدأ ووين ينتهي، ويتحمّل الجزء اللي تبيه بس"), 0));
 
             // ---- Settings (two columns)
@@ -117,12 +117,21 @@ namespace WinPlus
             var pickCookies = new Button { Style = St("FlatButton"), Content = Lang.T("ملف…"), Padding = new Thickness(14, 5, 14, 5), ToolTip = Lang.T("أو اختر ملف cookies.txt صدّرته بنفسك") };
             pickCookies.Click += (_, _) => PickCookies();
             _cookiesRemove = new Button { Style = St("FlatButton"), Content = Lang.T("إزالة"), Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(0, 0, 8, 0) };
-            _cookiesRemove.Click += (_, _) => { SignInWindow.SignOut(); VideoDownloader.CookiesFile = null; UpdateCookies(); };
+            _cookiesRemove.Click += (_, _) => { SignInWindow.SignOut(); UpdateCookies(); };
             var cookieButtons = new StackPanel { Orientation = Orientation.Horizontal };
             cookieButtons.Children.Add(_cookiesRemove);
             cookieButtons.Children.Add(signIn);
             cookieButtons.Children.Add(pickCookies);
             Children.Add(Row(cookieButtons, "", Lang.T("تسجيل الدخول"), _cookiesText, 0));
+
+            // ---- The default browser's sign-ins: only if the user says so (it reads the browser's sessions)
+            if (VideoDownloader.DefaultBrowser is { } browser)
+            {
+                var ff = new CheckBox { Style = St("Switch"), IsChecked = VideoDownloader.UseBrowser };
+                ff.Click += (_, _) => VideoDownloader.UseBrowser = ff.IsChecked == true;
+                Children.Add(Row(ff, "",Lang.F("استخدم تسجيل دخول متصفحك ({0})", browser.Name),
+                    Lang.T("لو الموقع يطلب تسجيل دخول، ياخذ جلستك من متصفحك الافتراضي. طافي إلا لو شغّلته أنت، لأنه يقرأ تسجيل دخولك في المتصفح. كروم وإيدج ممكن يقفلونه، وقتها استخدم \"سجّل دخول\"."), 0));
+            }
 
             // ---- Sites
             Children.Add(new TextBlock { Text = Lang.T("المواقع"), Style = St("Section"), FontSize = 18, Margin = new Thickness(2, 24, 0, 8) });
@@ -143,12 +152,12 @@ namespace WinPlus
 
         private void UpdateCookies()
         {
-            string? file = VideoDownloader.CookiesFile;
-            _cookiesText.Text = file != null
+            bool signedIn = VideoDownloader.HasSignIn;
+            _cookiesText.Text = signedIn
                 ? Lang.T("مسجّل. يستخدم تسجيل دخولك بس لما الموقع يطلبه (مثل كل صور بوست انستقرام، وريديت). لو وقف يشتغل اضغط \"سجّل دخول\" مرة ثانية.")
                 : Lang.T("انستقرام وريديت أحيانًا ما يعطون إلا للمسجّل. اضغط \"سجّل دخول\"، سجّل في المواقع اللي تبيها، وخلاص.");
             _cookiesRemove.ToolTip = Lang.T("تسجيل خروج: يمسح تسجيل الدخول من Wibn");
-            _cookiesRemove.Visibility = file != null ? Visibility.Visible : Visibility.Collapsed;
+            _cookiesRemove.Visibility = signedIn ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void PickCookies()
@@ -160,16 +169,21 @@ namespace WinPlus
             };
             if (dlg.ShowDialog(Window.GetWindow(this)) != true) return;
             // A Netscape cookie file (what the tools read): has this header, or tab-separated rows.
-            string head = "";
-            try { head = string.Join("\n", System.IO.File.ReadLines(dlg.FileName).Take(20)); } catch { }
+            string text = "";
+            try { text = System.IO.File.ReadAllText(dlg.FileName); } catch { }
+            string head = string.Join("\n", text.Split('\n').Take(20));
             if (!head.Contains("Netscape HTTP Cookie File") && !head.Contains('\t'))
             {
                 MessageBox.Show(Lang.T("هذا مو ملف cookies.txt. صدّره بصيغة Netscape (الإضافة تسويها كذا)."), "Wibn",
                                 MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.OK, Lang.MsgOptions);
                 return;
             }
-            VideoDownloader.CookiesFile = dlg.FileName;
+            // Kept encrypted inside Wibn; the original is a plain copy of the sign-in.
+            CookieVault.Save(text);
             UpdateCookies();
+            if (MessageBox.Show(Lang.T("انحفظ تسجيل الدخول مشفّر داخل Wibn. ملف cookies.txt الأصلي مو مشفّر، وأي أحد ياخذه يقدر يدخل حسابك. تبي Wibn يحذفه الحين؟"), "Wibn",
+                                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes, Lang.MsgOptions) == MessageBoxResult.Yes)
+                Converter.TryDelete(dlg.FileName);
         }
 
         // ---- Shortcut ------------------------------------------------------------------------

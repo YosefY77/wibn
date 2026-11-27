@@ -53,6 +53,12 @@ namespace WinPlus
             {
                 GetWindowThreadProcessId(w.Hwnd, out uint pid);
                 if (pid != 0) pids.Add(pid);
+                // A Store app's window belongs to ApplicationFrameHost; the app itself (its sound) is its inner window's process.
+                if (w.Uwp && FindWindowEx(w.Hwnd, IntPtr.Zero, "Windows.UI.Core.CoreWindow", null) is var inner && inner != IntPtr.Zero)
+                {
+                    GetWindowThreadProcessId(inner, out uint ipid);
+                    if (ipid != 0) pids.Add(ipid);
+                }
                 if (!string.IsNullOrEmpty(w.Exe) && !w.Exe.EndsWith("applicationframehost.exe", StringComparison.OrdinalIgnoreCase)) paths.Add(w.Exe);
             }
             if (g.Pin?.Target is { Length: > 0 } t) paths.Add(t);
@@ -114,5 +120,6 @@ namespace WinPlus
         }
 
         [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string? cls, string? title);
     }
 }

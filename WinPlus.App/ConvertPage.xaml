@@ -62,25 +62,34 @@
         <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'الصيغ'}" Margin="2,24,0,8" FontSize="18"/>
         <UniformGrid Columns="3" Margin="-3,0">
             <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                <DockPanel>
+                    <TextBlock Style="{StaticResource RowIcon}" Text="&#xEB9F;"/>
                 <StackPanel>
                     <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'الصور'}" FontWeight="SemiBold"/>
                     <TextBlock Style="{StaticResource RowDesc}" FlowDirection="LeftToRight" HorizontalAlignment="Right"
                                Text="PNG · JPG · WEBP · AVIF · PDF · ICO · BMP · TIFF · GIF"/>
                 </StackPanel>
+                </DockPanel>
             </Border>
             <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                <DockPanel>
+                    <TextBlock Style="{StaticResource RowIcon}" Text="&#xE714;"/>
                 <StackPanel>
                     <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'المقاطع'}" FontWeight="SemiBold"/>
                     <TextBlock Style="{StaticResource RowDesc}" FlowDirection="LeftToRight" HorizontalAlignment="Right"
                                Text="MP4 · WEBM · MKV · MOV · AVI · GIF · MP3 · WAV"/>
                 </StackPanel>
+                </DockPanel>
             </Border>
             <Border Style="{StaticResource Row}" Margin="3,0,3,6">
+                <DockPanel>
+                    <TextBlock Style="{StaticResource RowIcon}" Text="&#xE8D6;"/>
                 <StackPanel>
                     <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'الصوت'}" FontWeight="SemiBold"/>
                     <TextBlock Style="{StaticResource RowDesc}" FlowDirection="LeftToRight" HorizontalAlignment="Right"
                                Text="MP3 · WAV · FLAC · M4A · OGG · OPUS"/>
                 </StackPanel>
+                </DockPanel>
             </Border>
         </UniformGrid>
     </StackPanel>

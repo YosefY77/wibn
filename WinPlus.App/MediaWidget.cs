@@ -1,5 +1,7 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -120,7 +122,7 @@ namespace WinPlus
             _buttons.Children.Add(_play);
             _buttons.Children.Add(_next);
 
-            _info.Children.Add(_title);
+            _info.Children.Add(new Marquee(_title));   // a long title slides to show all of it
             _info.Children.Add(_artist);
             _info.Children.Add(_app);
             _info.Children.Add(_seekRow);
@@ -144,7 +146,7 @@ namespace WinPlus
             _timer.Tick += (_, _) =>
             {
                 ShowPosition();
-                if (++_ticks % 4 == 0) PickSession();   // every 2 s: is something else playing now?
+                if (++_ticks % 2 == 0) PickSession();   // every second: is something else playing now (and long enough)?
             };
         }
 
@@ -177,10 +179,12 @@ namespace WinPlus
             row.Children.Add(cover);
             if (!l.Vertical)
             {
+                // A long title slides from its start to its end (and again), so it's read whole.
                 var title = BarText(l, _title);
-                title.MaxWidth = 170;
-                title.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _artist });
-                row.Children.Add(title);
+                var line = new Marquee(title) { MaxWidth = 170, Margin = title.Margin, VerticalAlignment = VerticalAlignment.Center };
+                title.Margin = new Thickness(0);
+                line.SetBinding(ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = _artist });
+                row.Children.Add(line);
                 row.Children.Add(BarButton(l, BarGlyph(l, GPrev, l.Font), () => Do(s => s.TrySkipPreviousAsync().AsTask()), Lang.T("السابق")));
             }
             var play = BarGlyph(l, GPlay, l.Font + 2);
@@ -208,23 +212,46 @@ namespace WinPlus
         private void OnCurrentSessionChanged(GlobalSystemMediaTransportControlsSessionManager m, CurrentSessionChangedEventArgs e) =>
             Dispatcher.BeginInvoke(() => { if (_running) PickSession(); });
 
+        // Since when each app has been playing without a stop, and the apps that played long enough to count
+        // (a video that plays by itself for a moment, a preview under the mouse, a short ad: never shown).
+        private readonly Dictionary<string, DateTime> _playingSince = new();
+        private readonly HashSet<string> _played = new();
+        private static readonly TimeSpan PlayedEnough = TimeSpan.FromSeconds(2.5);
+
         /// <summary>
-        /// What to show: Windows' current one if it's playing, else whatever is playing,
-        /// else Windows' current one (paused). Windows sometimes keeps a paused browser
-        /// tab as "current" while music plays in another app.
+        /// What to show: only what was really played, at least a couple of seconds without a stop. Windows' current
+        /// one if it's playing, else whatever is playing, else the one shown (or Windows' current one) paused, if it
+        /// was played before. Windows sometimes keeps a paused browser tab as "current" while music plays in another
+        /// app, or makes a page that only loaded a video "current" without anything having played.
         /// </summary>
         private void PickSession()
         {
             if (_manager == null || !_running) return;
             try
             {
-                var current = _manager.GetCurrentSession();
-                GlobalSystemMediaTransportControlsSession? pick = current;
-                if (current == null || !IsPlaying(current))
+                var now = DateTime.UtcNow;
+                var sessions = _manager.GetSessions();
+                var playing = new List<GlobalSystemMediaTransportControlsSession>();
+                var seen = new HashSet<string>();
+                foreach (var s in sessions)
                 {
-                    foreach (var s in _manager.GetSessions())
-                        if (IsPlaying(s)) { pick = s; break; }
+                    string sid = s.SourceAppUserModelId ?? "";
+                    seen.Add(sid);
+                    if (!IsPlaying(s)) { _playingSince.Remove(sid); continue; }
+                    if (!_playingSince.TryGetValue(sid, out var since)) _playingSince[sid] = since = now;
+                    if (now - since >= PlayedEnough) _played.Add(sid);
+                    if (_played.Contains(sid)) playing.Add(s);
                 }
+                foreach (var gone in _playingSince.Keys.Where(k => !seen.Contains(k)).ToList()) _playingSince.Remove(gone);
+                _played.RemoveWhere(k => !seen.Contains(k));   // the app closed: it has to be played again to count
+
+                var current = _manager.GetCurrentSession();
+                bool Counts(GlobalSystemMediaTransportControlsSession? s) => s != null && _played.Contains(s.SourceAppUserModelId ?? "");
+                GlobalSystemMediaTransportControlsSession? pick =
+                    current != null && playing.Any(p => p.SourceAppUserModelId == current.SourceAppUserModelId) ? current
+                    : playing.FirstOrDefault()
+                    ?? (_session != null && seen.Contains(_sessionId) && _played.Contains(_sessionId) ? _session : null)
+                    ?? (Counts(current) ? current : null);
                 string id = pick?.SourceAppUserModelId ?? "";
                 if (pick != null && _session != null && id == _sessionId) return;   // the same one
                 if (pick == null && _session == null) return;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -41,20 +41,16 @@ namespace WinPlus
             SetWindowPos(_hwnd, new IntPtr(-1) /* TOPMOST */, r.Left, r.Top, r.Width, r.Height, 0x0010 /* NOACTIVATE */);
         }
 
-        /// <summary>The edge of the screen under this point that's nearest to it, and the bar's strip there
-        /// (0 = bottom, 1 = top, 2 = left, 3 = right, like <see cref="CustomTaskbar.Edge"/>).</summary>
+        /// <summary>The edge of the screen under this point that's nearer to it, the bottom or the top, and the bar's
+        /// strip there (0 = bottom, 1 = top, like <see cref="CustomTaskbar.Edge"/>: the bar doesn't go on the sides).</summary>
         public static (int Edge, CustomTaskbar.RECT Strip) NearestEdge(int x, int y, IntPtr barWindow)
         {
             IntPtr mon = MonitorFromPoint(new POINT { X = x, Y = y }, 2 /* NEAREST */);
             var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             GetMonitorInfo(mon, ref mi);
             var m = mi.rcMonitor;
-            // How far the mouse is from each edge, as a part of the screen's size (so a wide screen
-            // doesn't make the sides harder to reach).
-            double w = Math.Max(1, m.Right - m.Left), h = Math.Max(1, m.Bottom - m.Top);
-            var d = new[] { (m.Bottom - y) / h, (y - m.Top) / h, (x - m.Left) / w, (m.Right - x) / w };
-            int edge = 0;
-            for (int i = 1; i < 4; i++) if (d[i] < d[edge]) edge = i;
+            // The top half of the screen: the top; else the bottom.
+            int edge = y < (m.Top + m.Bottom) / 2 ? 1 : 0;
             return (edge, CustomTaskbar.EdgeStrip(m, barWindow, edge));
         }
 

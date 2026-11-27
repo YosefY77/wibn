@@ -40,3 +40,7 @@
 **Updates:** Wibn tells you when a new version is out, and you update with one click.
 
 **Requires:** Windows 11.
+
+## License
+
+Wibn is open source under the [MIT License](LICENSE).

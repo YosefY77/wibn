@@ -37,7 +37,12 @@ namespace WinPlus
         private readonly Window? _opener;
         private readonly Grid _host;
         private readonly Border _card;
-        private readonly WrapPanel _tiles = new();
+        private readonly StackPanel _tiles = new();   // a title and its tiles for each kind, in the user's order
+        private readonly List<WrapPanel> _wraps = new();
+        private double _itemWidth = double.NaN;
+        private readonly SolidColorBrush _sheet = new(Color.FromArgb(0xF4, 0x26, 0x27, 0x2B));
+        private Grid? _arrange;   // the "ترتيب" sheet, while open
+        private Grid? _body;
         private readonly TextBlock _empty, _count, _placeholder;
         private readonly TextBox _search;
         private readonly Border _pinButton;
@@ -79,10 +84,15 @@ namespace WinPlus
             _pinGlyph = Glyph("", 14);
             _pinButton = IconButton(_pinGlyph, "");
             _pinButton.MouseLeftButtonUp += (_, e) => { e.Handled = true; ShowPinned(!_pinned); PinChanged?.Invoke(_pinned); };
+            // The kinds' order: programs, games, folders, files… dragged into the order wanted.
+            var sort = IconButton(Glyph("\uE8CB", 14), Lang.T("ترتيب الأنواع"));
+            sort.MouseLeftButtonUp += (_, e) => { e.Handled = true; if (_arrange == null) ShowArrange(); else CloseArrange(); };
             DockPanel.SetDock(close, Dock.Right);
             DockPanel.SetDock(_pinButton, Dock.Right);
+            DockPanel.SetDock(sort, Dock.Right);
             header.Children.Add(close);
             header.Children.Add(_pinButton);
+            header.Children.Add(sort);
 
             _search = new TextBox
             {
@@ -125,6 +135,7 @@ namespace WinPlus
             var body = new Grid();
             body.Children.Add(scroll);
             body.Children.Add(_empty);
+            _body = body;
 
             var root = new DockPanel();
             DockPanel.SetDock(header, Dock.Top);
@@ -261,11 +272,29 @@ namespace WinPlus
         {
             string q = _search.Text.Trim();
             var shown = q.Length == 0 ? _items : _items.Where(p => DesktopCorner.DisplayName(p).Contains(q, StringComparison.CurrentCultureIgnoreCase)).ToList();
+            foreach (var w in _wraps) w.Children.Clear();
             _tiles.Children.Clear();
-            foreach (var path in shown)
+            _wraps.Clear();
+            // Grouped by kind, in the order the user put the kinds in; a kind with nothing in it doesn't show.
+            var kindOf = shown.Distinct(StringComparer.OrdinalIgnoreCase).ToDictionary(p => p, DesktopKinds.Of, StringComparer.OrdinalIgnoreCase);
+            foreach (var kind in DesktopKinds.Order)
             {
-                if (!_tileCache.TryGetValue(path, out var tile)) _tileCache[path] = tile = Tile(path);
-                _tiles.Children.Add(tile);
+                var mine = shown.Where(p => kindOf[p] == kind.Id).ToList();
+                if (mine.Count == 0) continue;
+                var title = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, _tiles.Children.Count == 0 ? 0 : 10, 0, 2) };
+                title.Children.Add(new TextBlock { Text = kind.Icon, FontFamily = IconFont, FontSize = 12, Foreground = _muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                title.Children.Add(new TextBlock { Text = Lang.T(kind.Name), FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = _muted, VerticalAlignment = VerticalAlignment.Center });
+                title.Children.Add(new TextBlock { Text = mine.Count.ToString(), FontSize = 11.5, Foreground = _muted, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+                _tiles.Children.Add(title);
+                var wrap = new WrapPanel { ItemWidth = _itemWidth };
+                foreach (var path in mine)
+                {
+                    if (!_tileCache.TryGetValue(path, out var tile)) _tileCache[path] = tile = Tile(path);
+                    if (tile.Parent is Panel old) old.Children.Remove(tile);
+                    wrap.Children.Add(tile);
+                }
+                _wraps.Add(wrap);
+                _tiles.Children.Add(wrap);
             }
             _count.Text = Lang.F("{0} عنصر", _items.Count);
             _empty.Text = _items.Count == 0 ? Lang.T("سطح المكتب فاضي") : Lang.T("ما فيه شي بهالاسم");
@@ -279,7 +308,9 @@ namespace WinPlus
             if (room < MinTile) return;
             int columns = Math.Max(1, (int)(room / MinTile));
             double width = Math.Floor(room / columns);
-            if (double.IsNaN(_tiles.ItemWidth) || Math.Abs(_tiles.ItemWidth - width) > 0.5) _tiles.ItemWidth = width;
+            if (!double.IsNaN(_itemWidth) && Math.Abs(_itemWidth - width) <= 0.5) return;
+            _itemWidth = width;
+            foreach (var w in _wraps) w.ItemWidth = width;
         }
 
         // ---- Liquid glass (the widgets' settings and color) ----------------------------------------
@@ -330,6 +361,107 @@ namespace WinPlus
             To(_hover, light ? Color.FromArgb(0x16, 0x00, 0x00, 0x00) : Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF));
             To(_pressed, light ? Color.FromArgb(0x26, 0x00, 0x00, 0x00) : Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
             To(_field, light ? Color.FromArgb(0x18, 0x00, 0x00, 0x00) : Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF));
+            To(_sheet, light ? Color.FromArgb(0xF4, 0xF6, 0xF6, 0xF8) : Color.FromArgb(0xF4, 0x26, 0x27, 0x2B));
+        }
+
+        // ---- The kinds' order ---------------------------------------------------------------------
+
+        /// <summary>The sheet over the files: the kinds as rows, dragged up and down into the order wanted.</summary>
+        private void ShowArrange()
+        {
+            if (_body == null) return;
+            var list = new StackPanel();
+            foreach (var kind in DesktopKinds.Order) list.Children.Add(KindRow(kind, list));
+
+            var done = new Border
+            {
+                CornerRadius = new CornerRadius(8), Background = _accent, Padding = new Thickness(18, 6, 18, 6), Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12, 0, 0),
+                Child = new TextBlock { Text = Lang.T("تم"), Foreground = Brushes.White, FontSize = 13 },
+            };
+            done.MouseLeftButtonDown += (_, e) => e.Handled = true;
+            done.MouseLeftButtonUp += (_, e) => { e.Handled = true; CloseArrange(); };
+
+            var content = new StackPanel();
+            content.Children.Add(new TextBlock { Text = Lang.T("رتّب الأنواع"), FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = _fg });
+            content.Children.Add(new TextBlock
+            {
+                Text = Lang.T("اسحبها وحطها بالترتيب اللي تبيه، وقائمة سطح المكتب تعرض ملفاتك كذا"),
+                FontSize = 12, Foreground = _muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 12),
+            });
+            content.Children.Add(list);
+            content.Children.Add(done);
+            var sheet = new Border
+            {
+                Width = 300, CornerRadius = new CornerRadius(14), Background = _sheet, Padding = new Thickness(18, 16, 18, 16),
+                BorderBrush = PlainEdge, BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = content,
+            };
+            sheet.MouseLeftButtonDown += (_, e) => e.Handled = true;   // not a drag of the window, not a close
+
+            // Dimmed files behind; a click on them closes the sheet.
+            var dim = new Grid { Background = new SolidColorBrush(Color.FromArgb(0x40, 0x00, 0x00, 0x00)) };
+            dim.MouseLeftButtonDown += (_, e) => { e.Handled = true; CloseArrange(); };
+            dim.Children.Add(sheet);
+            _arrange = dim;
+            _body.Children.Add(dim);
+            dim.Opacity = 0;
+            dim.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(140)));
+        }
+
+        private void CloseArrange()
+        {
+            if (_arrange == null || _body == null) return;
+            var gone = _arrange;
+            _arrange = null;
+            var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(120));
+            fade.Completed += (_, _) => _body.Children.Remove(gone);
+            gone.BeginAnimation(OpacityProperty, fade);
+        }
+
+        /// <summary>One kind: grab it anywhere and drag it up or down; the others make room as it goes.</summary>
+        private Border KindRow(DesktopKinds.Kind kind, StackPanel list)
+        {
+            var dock = new DockPanel();
+            var grip = new TextBlock { Text = "\uE76F", FontFamily = IconFont, FontSize = 13, Foreground = _muted, VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(grip, Dock.Right);
+            dock.Children.Add(grip);
+            dock.Children.Add(new TextBlock { Text = kind.Icon, FontFamily = IconFont, FontSize = 15, Foreground = _fg, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) });
+            dock.Children.Add(new TextBlock { Text = Lang.T(kind.Name), FontSize = 13.5, Foreground = _fg, VerticalAlignment = VerticalAlignment.Center });
+            var row = new Border
+            {
+                CornerRadius = new CornerRadius(8), Background = _field, Padding = new Thickness(12, 9, 12, 9), Margin = new Thickness(0, 0, 0, 6),
+                Child = dock, Cursor = Cursors.SizeNS, Tag = kind,
+            };
+            bool dragging = false;
+            row.MouseLeftButtonDown += (_, e) => { e.Handled = true; dragging = true; row.Background = _pressed; row.CaptureMouse(); };
+            row.MouseMove += (_, e) =>
+            {
+                if (!dragging || e.LeftButton != MouseButtonState.Pressed) return;
+                // Where the mouse is in the list: the place the row goes to.
+                double y = e.GetPosition(list).Y;
+                double step = row.ActualHeight + row.Margin.Bottom;
+                int to = Math.Clamp((int)(y / Math.Max(1, step)), 0, list.Children.Count - 1);
+                int from = list.Children.IndexOf(row);
+                if (to == from) return;
+                list.Children.RemoveAt(from);
+                list.Children.Insert(to, row);
+                row.CaptureMouse();   // (moving it in the list lets go of the mouse)
+            };
+            void Drop()
+            {
+                if (!dragging) return;
+                dragging = false;
+                row.ReleaseMouseCapture();
+                row.Background = row.IsMouseOver ? _hover : _field;
+                var order = list.Children.OfType<Border>().Select(b => (DesktopKinds.Kind)b.Tag).ToList();
+                if (!order.SequenceEqual(DesktopKinds.Order)) { DesktopKinds.Order = order; Fill(); }
+            }
+            row.MouseLeftButtonUp += (_, e) => { e.Handled = true; Drop(); };
+            row.LostMouseCapture += (_, _) => { if (dragging && Mouse.LeftButton != MouseButtonState.Pressed) Drop(); };
+            row.MouseEnter += (_, _) => { if (!dragging) row.Background = _hover; };
+            row.MouseLeave += (_, _) => { if (!dragging) row.Background = _field; };
+            return row;
         }
 
         // ---- One file ----------------------------------------------------------------------------
@@ -400,6 +532,22 @@ namespace WinPlus
             string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
             if (CustomTaskbar.Enabled && (ext is ".lnk" or ".exe" or ".url" || System.IO.Directory.Exists(path)))
                 menu.Items.Add(Item("ثبّته في التاسك بار", () => TaskbarApps.AddPin(path)));
+
+            // Its kind by hand, when the guess is wrong (a game in a folder of its own…): it moves to that section.
+            var kindMenu = new MenuItem { Header = Lang.T("تصنيف كـ…") };
+            foreach (var (id, text) in new[] { ("games", "لعبة"), ("programs", "برنامج"), ("files", "ملف") })
+            {
+                var choice = new MenuItem { Header = Lang.T(text), Tag = id, IsCheckable = false };
+                choice.Click += (_, _) => { DesktopKinds.SetKind(path, id); Fill(); };
+                kindMenu.Items.Add(choice);
+            }
+            menu.Items.Add(kindMenu);
+            menu.Opened += (_, _) =>
+            {
+                string now = DesktopKinds.Of(path);
+                foreach (var c in kindMenu.Items.OfType<MenuItem>()) c.IsChecked = (string)c.Tag == now;
+            };
+
             menu.Items.Add(new Separator());
             menu.Items.Add(Item("قص", () => ToClipboard(path, cut: true)));
             menu.Items.Add(Item("انسخ", () => ToClipboard(path, cut: false)));

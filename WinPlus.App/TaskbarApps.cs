@@ -153,7 +153,10 @@ namespace WinPlus
                 }
                 // What Windows has now counts as seen (so the follow-up below doesn't take it in twice).
                 using (var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(Key))
+                {
                     k.SetValue("SeenWindowsPins", current.ToArray(), Microsoft.Win32.RegistryValueKind.MultiString);
+                    k.SetValue("SeenHasImplicit", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                }
                 if (added > 0) { SavePins(); CrashLog.Note($"taskbar pins: {added} taken in from Windows' taskbar"); }
             }
             catch (Exception ex) { CrashLog.Write("take in windows pins", ex); }
@@ -251,8 +254,13 @@ namespace WinPlus
                 using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(Key);
                 var seen = k.GetValue("SeenWindowsPins") as string[];
                 k.SetValue("SeenWindowsPins", current.ToArray(), Microsoft.Win32.RegistryValueKind.MultiString);
+                bool hadImplicit = k.GetValue("SeenHasImplicit") is int;
+                k.SetValue("SeenHasImplicit", 1, Microsoft.Win32.RegistryValueKind.DWord);
                 if (seen == null) return;   // the first time: what's there was already taken in
                 var seenSet = new HashSet<string>(seen, StringComparer.OrdinalIgnoreCase);
+                // Versions before 2.7 didn't count the implicit pins (Steam games…) as seen: the first time after the
+                // update they count as seen now, not as new pins (one taken off Wibn's bar on purpose stays off).
+                if (!hadImplicit) foreach (var path in current) if (IsImplicitPin(path)) seenSet.Add(path);
                 var curSet = new HashSet<string>(current, StringComparer.OrdinalIgnoreCase);
 
                 bool changed = false;

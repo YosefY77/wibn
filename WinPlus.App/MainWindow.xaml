@@ -451,6 +451,18 @@
 
                     <Border Style="{StaticResource Row}">
                         <DockPanel>
+                            <CheckBox x:Name="WindowPinBox" DockPanel.Dock="Right" Style="{StaticResource Switch}"
+                                      Checked="OnWindowPinChanged" Unchecked="OnWindowPinChanged"/>
+                            <TextBlock Style="{StaticResource RowIcon}" Text="&#xE718;"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'خيار التثبيت في قائمة النافذة'}"/>
+                                <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'كليك يمين على شريط عنوان أي نافذة وتلقى فيه &quot;Pin on top&quot;: تختاره وتصير النافذة فوق كل النوافذ، وتختاره مرة ثانية وترجع عادية'}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Row}">
+                        <DockPanel>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button Style="{StaticResource FlatButton}" Content="{local:Tr 'احفظ في ملف'}" Click="OnExportSettings" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button Style="{StaticResource FlatButton}" Content="{local:Tr 'جيب من ملف'}" Click="OnImportSettings" VerticalAlignment="Center" Margin="0"/>
@@ -479,27 +491,17 @@
                         </DockPanel>
                     </Border>
 
-                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'صندوق الاقتراحات'}"/>
+                    <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'ادعم Wibn'}"/>
                     <Border Style="{StaticResource Row}">
-                        <StackPanel>
-                            <DockPanel>
-                                <TextBlock Style="{StaticResource RowIcon}" Text="&#xE82F;"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'عندك فكرة أو شي ناقص؟'}"/>
-                                    <TextBlock Style="{StaticResource RowDesc}" Text="{local:Tr 'اكتب اقتراحك ويوصل للمطوّر بس. ما ينرسل معه اسمك ولا أي شي عن جهازك'}"/>
-                                </StackPanel>
-                            </DockPanel>
-                            <Border CornerRadius="6" Background="#1E1F22" BorderBrush="#3F4147" BorderThickness="1" Margin="0,12,0,0">
-                                <TextBox x:Name="SuggestionBox" Background="Transparent" BorderThickness="0" Foreground="{StaticResource Fg}"
-                                         CaretBrush="{StaticResource Fg}" Padding="8,6" MinHeight="80" MaxHeight="200"
-                                         TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" MaxLength="1500"/>
-                            </Border>
-                            <DockPanel Margin="0,10,0,0">
-                                <Button x:Name="SuggestionSend" DockPanel.Dock="Left" Style="{StaticResource AccentButton}"
-                                        Content="{local:Tr 'أرسل'}" Click="OnSendSuggestion" Margin="0"/>
-                                <TextBlock x:Name="SuggestionStatus" Style="{StaticResource RowDesc}" VerticalAlignment="Center" Margin="12,0,0,0"/>
-                            </DockPanel>
-                        </StackPanel>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource AccentButton}" VerticalAlignment="Center"
+                                    Content="Buy me a coffee ☕" FlowDirection="LeftToRight" Click="OnSupport" Margin="12,0,0,0"/>
+                            <TextBlock Style="{StaticResource RowIcon}" Text="&#xEB51;"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource RowTitle}" Text="{local:Tr 'يعجبك Wibn؟'}"/>
+                                <TextBlock Style="{StaticResource RowDesc}" TextWrapping="Wrap" Text="{local:Tr 'Wibn مجاني. لو حاب تدعم المطوّر وتساعده يكمل، تقدر تتبرع عن طريق PayPal'}"/>
+                            </StackPanel>
+                        </DockPanel>
                     </Border>
 
                     <TextBlock Style="{StaticResource Section}" Text="{local:Tr 'المزايا'}"/>

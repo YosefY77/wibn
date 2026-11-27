@@ -148,6 +148,9 @@ namespace WinPlus
         /// on its own when the mouse goes to its edge. Null = with the bar.</param>
         public void Place(CustomTaskbar.RECT strip, CustomTaskbar.RECT monitor, bool visible, CustomTaskbar.RECT windowsTray, bool slide = false, bool overFullscreen = false, bool? clockVisible = null)
         {
+            // Being dragged to another edge: it stays exactly as it is until it's let go (hiding or moving it
+            // now would take the mouse away from the drag and drop it somewhere it wasn't meant to go).
+            if (_movingBar) return;
             UpdateAppBar(windowsTray, monitor);
             bool vertical = strip.Height > strip.Width;
             bool top = !vertical && strip.Top <= monitor.Top + 1;
@@ -240,6 +243,8 @@ namespace WinPlus
                 i.IsChecked = CustomTaskbar.ClockAlign == value;
                 place.Items.Add(i);
             }
+            menu.Items.Add(LockToggle());
+            place.IsEnabled = !CustomTaskbar.Locked;   // locked: the clock stays where it is
             menu.Items.Add(place);
             if (ClockApart)
             {
@@ -253,6 +258,7 @@ namespace WinPlus
                     i.IsChecked = CustomTaskbar.ClockSide == value;
                     side.Items.Add(i);
                 }
+                side.IsEnabled = !CustomTaskbar.Locked;
                 menu.Items.Add(side);
             }
             menu.Items.Add(CoverToggle());
@@ -268,7 +274,7 @@ namespace WinPlus
         /// <summary>Which piece's end is under the mouse (screen pixels), and which end.</summary>
         private (Border? Piece, int Side) PieceEndAt(Window w, Point screen)
         {
-            if (!SplitOn || _appsCard == null || _trayCard == null) return (null, 0);
+            if (!SplitOn || _appsCard == null || _trayCard == null || CustomTaskbar.Locked) return (null, 0);
             double zone = EndZone * _scale;
             bool center = CustomTaskbar.Align == 0;
             foreach (var piece in new[] { _appsCard, _trayCard })
@@ -752,7 +758,7 @@ namespace WinPlus
             return (int)Math.Round(Math.Clamp(want, 0, max));
         }
 
-        private bool CanResize => ShapeNow != 2 && !_vertical && _placed.Width > 0;
+        private bool CanResize => ShapeNow != 2 && !_vertical && _placed.Width > 0 && !CustomTaskbar.Locked;   // locked: as long as it is
 
         /// <summary>Which end the mouse is at (screen pixels): -1 left, 1 right, 0 neither.</summary>
         private int EndAt(double screenX)
@@ -838,6 +844,7 @@ namespace WinPlus
             PreviewMouseLeftButtonDown += (_, e) =>
             {
                 if (e.Handled || !IsEmptySpot(e.OriginalSource)) return;
+                if (CustomTaskbar.Locked) return;   // locked: it stays on its edge
                 if (EndAt(ScreenX(e)) != 0) return;   // the ends make it shorter instead
                 _movePending = true;
                 _moveClock = SplitOn && Within(e.OriginalSource, _trayCard);   // the clock's piece: only the clock moves
@@ -845,7 +852,14 @@ namespace WinPlus
             };
             PreviewMouseMove += (_, e) =>
             {
-                if (!_movePending || e.LeftButton != MouseButtonState.Pressed) { _movePending = false; return; }
+                if (e.LeftButton != MouseButtonState.Pressed)
+                {
+                    // The button was let go without the bar hearing it: the drag ends here (where it was let go).
+                    if (_movingBar) { UpdateMoveTarget(CursorNow()); EndMove(apply: true); }
+                    _movePending = false;
+                    return;
+                }
+                if (!_movePending && !_movingBar) return;
                 var now = PointToScreen(e.GetPosition(this));
                 if (!_movingBar)
                 {
@@ -855,19 +869,9 @@ namespace WinPlus
                     CloseFlyout();
                     CaptureMouse();
                     _edgePreview ??= new EdgePreview();
+                    _moveWatch.Start();
                 }
-                if (_moveClock)
-                {
-                    _moveEdge = ClockTarget(now);
-                    _moveSide = CustomTaskbar.ClockSide;   // it keeps the end it was at (right-click → its side to change it)
-                    _edgePreview?.ShowAt(ClockPreview(_moveEdge, _moveSide), Accent.Color);
-                }
-                else
-                {
-                    var (edge, strip) = EdgePreview.NearestEdge((int)now.X, (int)now.Y, _hwnd);
-                    _moveEdge = edge;
-                    _edgePreview?.ShowAt(strip, Accent.Color);
-                }
+                UpdateMoveTarget(now);
                 e.Handled = true;
             };
             PreviewMouseLeftButtonUp += (_, e) =>
@@ -875,20 +879,68 @@ namespace WinPlus
                 _movePending = false;
                 if (!_movingBar) return;
                 e.Handled = true;
+                UpdateMoveTarget(CursorNow());
                 EndMove(apply: true);
             };
-            LostMouseCapture += (_, _) => { if (_movingBar) EndMove(apply: true); };
+            // The mouse was taken away (another window, the bar hidden): nothing moves, the highlight goes.
+            LostMouseCapture += (_, _) => { if (_movingBar) EndMove(apply: false); };
             KeyDown += (_, e) => { if (_movingBar && e.Key == Key.Escape) EndMove(apply: false); };
+            Closed += (_, _) => { if (_movingBar || _edgePreview != null) EndMove(apply: false); };
+            IsVisibleChanged += (_, _) => { if (!IsVisible && (_movingBar || _edgePreview != null)) EndMove(apply: false); };
+            // A watch while it's dragged: the button let go anywhere (even where the bar can't hear it)
+            // ends the drag, so the highlight never stays behind.
+            _moveWatch.Tick += (_, _) =>
+            {
+                try
+                {
+                    if (!_movingBar) { _moveWatch.Stop(); return; }
+                    var p = CursorNow();
+                    if ((GetAsyncKeyState(0x01 /* VK_LBUTTON */) & 0x8000) == 0) { UpdateMoveTarget(p); EndMove(apply: true); }
+                    else UpdateMoveTarget(p);
+                }
+                catch (Exception ex) { CrashLog.Write("taskbar move watch", ex); EndMove(apply: false); }
+            };
         }
+
+        private readonly DispatcherTimer _moveWatch = new(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(40) };
+
+        /// <summary>Where the bar (or the clock) would go with the mouse here, and the highlight there.</summary>
+        private void UpdateMoveTarget(Point now)
+        {
+            if (_moveClock)
+            {
+                _moveEdge = ClockTarget(now);
+                _moveSide = CustomTaskbar.ClockSide;   // it keeps the end it was at (right-click → its side to change it)
+                _edgePreview?.ShowAt(ClockPreview(_moveEdge, _moveSide), Accent.Color);
+            }
+            else
+            {
+                var (edge, strip) = EdgePreview.NearestEdge((int)now.X, (int)now.Y, _hwnd);
+                _moveEdge = edge;
+                _edgePreview?.ShowAt(strip, Accent.Color);
+            }
+        }
+
+        private static Point CursorNow()
+        {
+            GetCursorPos(out var p);
+            return new Point(p.X, p.Y);
+        }
+
+        [StructLayout(LayoutKind.Sequential)] private struct MovePoint { public int X, Y; }
+        [DllImport("user32.dll")] private static extern bool GetCursorPos(out MovePoint p);
+        [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
 
         private void EndMove(bool apply)
         {
+            bool was = _movingBar;
             _movingBar = false;
             _movePending = false;
+            _moveWatch.Stop();
             if (IsMouseCaptured) ReleaseMouseCapture();
             _edgePreview?.Close();
             _edgePreview = null;
-            if (!apply) return;
+            if (!apply || !was) return;
             if (_moveClock) SetClockEdge(_moveEdge, _moveSide);
             else CustomTaskbar.Edge = _moveEdge;   // every bar goes there; the windows and widgets make room
         }
@@ -1490,6 +1542,15 @@ namespace WinPlus
             return i;
         }
 
+        /// <summary>"Lock", on or off (every bar's menu): while it's on, no bar can be dragged to another place or resized.</summary>
+        internal static MenuItem LockToggle()
+        {
+            var i = Item(Lang.T("تثبيت"), () => CustomTaskbar.Locked = !CustomTaskbar.Locked, "");
+            i.IsCheckable = true;
+            i.IsChecked = CustomTaskbar.Locked;
+            return i;
+        }
+
         /// <summary>"Show in streams", on or off (the bar's, the clock's and the info bars' menus).</summary>
         internal static MenuItem StreamsToggle()
         {
@@ -1502,6 +1563,7 @@ namespace WinPlus
         private void BarMenu()
         {
             var menu = NewMenu();
+            menu.Items.Add(LockToggle());
             menu.Items.Add(CoverToggle());
             menu.Items.Add(StreamsToggle());
             menu.Items.Add(new Separator());

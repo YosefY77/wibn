@@ -16,7 +16,7 @@ namespace WinPlus
     /// <summary>
     /// The quick actions bar: a thin bar, across or down, of one-click buttons. A button is a
     /// program, folder or file (dropped on it or picked), one of Wibn's actions (a screenshot,
-    /// muting the mic, muting yourself in Discord, locking the PC…) or any keyboard shortcut.
+    /// muting the mic, locking the PC…) or any keyboard shortcut.
     /// Saved in the widget's options, one per line: a path, "a:&lt;action&gt;" or "k:&lt;mods&gt;:&lt;key&gt;".
     /// </summary>
     internal sealed class QuickBarWidget : WidgetContent
@@ -35,8 +35,6 @@ namespace WinPlus
             ("play_pause", "", "تشغيل / إيقاف", "الصوت"),
             ("prev_track", "", "المقطع السابق", "الصوت"),
             ("next_track", "", "المقطع التالي", "الصوت"),
-            ("discord_mute", "", "ديسكورد: اكتم المايك", "ديسكورد"),
-            ("discord_deafen", "", "ديسكورد: اكتم الصوت", "ديسكورد"),
             ("show_desktop", "", "اعرض سطح المكتب", "الجهاز"),
             ("lock", "", "قفل الجهاز", "الجهاز"),
             ("monitor_off", "", "إطفاء الشاشة", "الجهاز"),
@@ -48,10 +46,7 @@ namespace WinPlus
             ("show_winplus", "", "فتح Wibn", "الجهاز"),
         };
 
-        private static readonly string[] Groups = { "تصوير الشاشة", "الصوت", "ديسكورد", "الجهاز" };
-
-        // Discord's own shortcuts for "Toggle Mute" / "Toggle Deafen" (changeable from the button's menu).
-        private const uint DefaultMods = HotkeyManager.MOD_CONTROL | HotkeyManager.MOD_SHIFT;
+        private static readonly string[] Groups = { "تصوير الشاشة", "الصوت", "الجهاز" };
 
         private readonly SolidColorBrush _ink = new(Color.FromRgb(0xF2, 0xF3, 0xF5));
         private readonly SolidColorBrush _inkMuted = new(Color.FromRgb(0xA0, 0xA3, 0xAA));
@@ -166,7 +161,8 @@ namespace WinPlus
 
         private List<string> Items =>
             (Info?.Options.TryGetValue("items", out var s) == true ? s : "")
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(e => e is not ("a:discord_mute" or "a:discord_deafen")).ToList();   // (Discord buttons were removed)
 
         private void SaveItems(List<string> items)
         {
@@ -323,19 +319,6 @@ namespace WinPlus
             menu.Items.Add(Item("شغّله", () => Run(entry)));
             bool isPath = ActionOf(entry) == null && !TryKeys(entry, out _, out _);
             if (isPath) menu.Items.Add(Item("افتح مكانه", () => Reveal(entry)));
-            if (entry is "a:discord_mute" or "a:discord_deafen")
-            {
-                string id = entry[2..];
-                menu.Items.Add(Item("غيّر اختصار ديسكورد…", () =>
-                {
-                    var (m, k) = DiscordKeys(id);
-                    if (KeyRecorder.Ask(Lang.T("اضغط نفس الاختصار اللي في ديسكورد ← الإعدادات ← Keybinds"), m, k) is { } keys && Info != null)
-                    {
-                        Info.Options["keys:" + id] = $"{keys.Mods}:{keys.Vk}";
-                        Widgets.Save();
-                    }
-                }));
-            }
             menu.Items.Add(new Separator());
             int at = Items.FindIndex(p => string.Equals(p, entry, StringComparison.OrdinalIgnoreCase));
             var before = Item("قدّمه", () => Shift(entry, -1));
@@ -384,11 +367,6 @@ namespace WinPlus
                 case "mute" or "play_pause" or "prev_track" or "next_track" or "lock" or "monitor_off" or "show_winplus":
                     HotkeyManager.Run(new HotkeyItem { Action = id });
                     break;
-                case "discord_mute" or "discord_deafen":
-                    var (m, k) = DiscordKeys(id);
-                    SendKeys(m, k);
-                    DiscordTipOnce();
-                    break;
                 case "show_desktop": SendKeys(HotkeyManager.MOD_WIN, 0x44 /* D */); break;
                 case "sleep": SetSuspendState(false, false, false); break;
                 case "task_manager": Start("taskmgr.exe"); break;
@@ -396,32 +374,6 @@ namespace WinPlus
                 case "calculator": Start("calc.exe"); break;
                 case "empty_bin": SHEmptyRecycleBin(IntPtr.Zero, null, 0); break;   // Windows asks first
             }
-        }
-
-        /// <summary>
-        /// The Discord buttons press a shortcut that Discord answers only once it's added in Discord's own settings
-        /// (Keybinds), and that setting stays in Discord on each PC. The first press on a PC says so, once.
-        /// </summary>
-        private void DiscordTipOnce()
-        {
-            try
-            {
-                using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\WinPlus\Widgets");
-                if (key.GetValue("DiscordTipShown") is int shown && shown == 1) return;
-                key.SetValue("DiscordTipShown", 1);
-                var (mm, mk) = DiscordKeys("discord_mute");
-                var (dm, dk) = DiscordKeys("discord_deafen");
-                CaptureToast.Show(Lang.T("ما اشتغل في ديسكورد؟"),
-                    Lang.F("أضف الاختصار في ديسكورد ← الإعدادات ← Keybinds: Toggle Mute = {0}، وToggle Deafen = {1}. مرة وحدة على كل جهاز.",
-                           HotkeyManager.KeyText(mm, mk), HotkeyManager.KeyText(dm, dk)));
-            }
-            catch { }
-        }
-
-        private (uint Mods, uint Vk) DiscordKeys(string id)
-        {
-            if (Info?.Options.TryGetValue("keys:" + id, out var s) == true && TryKeys("k:" + s, out var m, out var k)) return (m, k);
-            return (DefaultMods, id == "discord_deafen" ? 0x44u /* D */ : 0x4Du /* M */);
         }
 
         private static void Start(string target) => Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });

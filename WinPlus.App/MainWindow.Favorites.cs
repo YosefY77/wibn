@@ -12,7 +12,7 @@ namespace WinPlus
 {
     /// <summary>
     /// Right-click on a side-menu page or on an option inside a page: add it to the favorites
-    /// (shown first in the side menu, under "خيارات مفضلة") or hide it. Hidden ones come back from
+    /// (a shortcut shown first in the side menu, under "خيارات مفضلة"; it stays in its own place too) or hide it. Hidden ones come back from
     /// the same right-click menu, under "الخيارات المخفية".
     /// A page is kept by its key ("taskbar"); an option inside a page as "page|its title".
     /// </summary>
@@ -115,16 +115,10 @@ namespace WinPlus
         /// <summary>Favorites first under their own title, then every page in its own place.</summary>
         private void ArrangeSideList()
         {
-            var navs = new Dictionary<string, RadioButton>();
-            foreach (var r in _navOrder.OfType<RadioButton>())
-                if (r.CommandParameter is string k) navs[k] = r;
-
+            // A favorite is a shortcut: the page or option stays in its own place too.
             var favs = new List<RadioButton>();
             foreach (var k in SidePrefs.Favorites)
-            {
-                if (IsRowId(k)) favs.Add(RowFavItem(k));
-                else if (navs.TryGetValue(k, out var r)) favs.Add(r);
-            }
+                if (IsRowId(k) || NavOf(k) != null) favs.Add(FavItem(k));
 
             SideList.Children.Clear();
             if (favs.Count > 0 && _favHeader != null)
@@ -132,25 +126,25 @@ namespace WinPlus
                 SideList.Children.Add(_favHeader);
                 foreach (var r in favs) SideList.Children.Add(r);
             }
-            foreach (var el in _navOrder)
-                if (!(el is RadioButton r && favs.Contains(r))) SideList.Children.Add(el);
+            foreach (var el in _navOrder) SideList.Children.Add(el);
             ApplyHidden();
         }
 
-        /// <summary>The side-menu entry of a favorite option: opens its page and shows it.</summary>
-        private RadioButton RowFavItem(string id)
+        /// <summary>The side-menu shortcut of a favorite (a page, or an option inside one): opens it.</summary>
+        private RadioButton FavItem(string id)
         {
             if (_rowFavItems.TryGetValue(id, out var item)) return item;
             string page = RowPage(id);
+            bool row = IsRowId(id);
             item = new RadioButton
             {
                 Style = (Style)FindResource("SideItem"),
                 Tag = PageGlyph(page),
-                Content = RowTitle(id),
+                Content = row ? RowTitle(id) : PageName(page),
                 DataContext = id,
-                ToolTip = PageName(page),
+                ToolTip = row ? PageName(page) : null,
             };
-            item.Click += (_, _) => OpenRow(id);
+            item.Click += (_, _) => { if (row) OpenRow(id); else OpenPage(id); };
             item.MouseRightButtonUp += (_, e) => { e.Handled = true; ShowFavMenu(id); };
             _rowFavItems[id] = item;
             return item;
@@ -172,17 +166,24 @@ namespace WinPlus
         }
 
         /// <summary>A short accent border, so the eye finds the option on its page.</summary>
+        // A row lit up now: its own border (to put back) and its timer. A second flash just starts the time again,
+        // so the border it puts back is always the row's own (not the light).
+        private readonly System.Collections.Generic.Dictionary<Border, (object Local, DispatcherTimer Timer)> _flashing = new();
+
         private void Flash(Border row)
         {
+            if (_flashing.TryGetValue(row, out var on)) { on.Timer.Stop(); on.Timer.Start(); return; }
             var local = row.ReadLocalValue(Border.BorderBrushProperty);
             row.BorderBrush = (Brush)FindResource("Accent");
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1400) };
             timer.Tick += (_, _) =>
             {
                 timer.Stop();
+                _flashing.Remove(row);
                 if (local == DependencyProperty.UnsetValue) row.ClearValue(Border.BorderBrushProperty);
                 else row.BorderBrush = local as Brush;
             };
+            _flashing[row] = (local, timer);
             timer.Start();
         }
 

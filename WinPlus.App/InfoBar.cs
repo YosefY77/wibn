@@ -496,6 +496,8 @@ namespace WinPlus
         /// <summary>The strip kept for it (its room), in screen pixels.</summary>
         public CustomTaskbar.RECT Strip => _strip;
         public int PlacedEdge => _edge;
+        /// <summary>Where it is at its full length (shortening it doesn't move the widgets), in screen pixels; for the widgets' grid.</summary>
+        internal CustomTaskbar.RECT GridRect => _full.Width > 0 && _full.Height > 0 ? _full : _placed;
         /// <summary>Its room is kept (also while it's slid away for a full-screen app, so the windows don't jump).</summary>
         public bool Reserving => _appBar;
 
@@ -775,15 +777,24 @@ namespace WinPlus
         {
             _list.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             double now = Vertical ? _list.DesiredSize.Height : _list.DesiredSize.Width;
-            if (now > _widest) _widest = now;
+            long t = Environment.TickCount64;
+            if (now > _widest) { _widest = now; _shorterSince = 0; }
+            else if (now < _widest - 40)
+            {
+                // Clearly shorter (a long text that's gone): back to its length once it has stayed so for a while.
+                if (_shorterSince == 0) _shorterSince = t;
+                else if (t - _shorterSince > 8000) { _widest = now; _shorterSince = 0; }
+            }
+            else _shorterSince = 0;
             return _widest;
         }
 
-        private double _widest;   // see ContentLength (cleared when the chips are built again)
+        private double _widest;      // see ContentLength (cleared when the chips are built again)
+        private long _shorterSince;  // since when what's on it has been clearly shorter (0 = it isn't)
 
         private void BuildChips()
         {
-            _widest = 0;
+            _widest = 0; _shorterSince = 0;
             _list.Children.Clear();
             _chips.Clear();
             _list.Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal;
@@ -1744,7 +1755,11 @@ namespace WinPlus
                 full.Click += (_, _) => { if (_share != null) S.ShareLength = 0; else S.Inset = 0; };
                 where.Items.Add(full);
             }
+            where.IsEnabled = !CustomTaskbar.Locked;   // locked: it stays where it is
             menu.Items.Add(where);
+            var locked = new MenuItem { Header = Lang.T("تثبيت"), IsCheckable = true, IsChecked = CustomTaskbar.Locked };
+            locked.Click += (_, _) => CustomTaskbar.Locked = locked.IsChecked;
+            menu.Items.Insert(0, locked);
             var cover = new MenuItem { Header = Lang.T("يختفي لما تكون نافذة تحته"), IsCheckable = true, IsChecked = CustomTaskbar.HideOverWindow };
             cover.Click += (_, _) => CustomTaskbar.HideOverWindow = cover.IsChecked;
             menu.Items.Add(cover);
@@ -1799,7 +1814,7 @@ namespace WinPlus
             return (int)Math.Round(Math.Clamp(want, 0, max));
         }
 
-        private bool CanResize => (_share != null || Shape != 2) && _placed.Width > 0;
+        private bool CanResize => (_share != null || Shape != 2) && _placed.Width > 0 && !CustomTaskbar.Locked;   // locked: as long as it is
         private double Along(Point screen) => Vertical ? screen.Y : screen.X;
 
         /// <summary>Which end the mouse is at: -1 start, 1 end, 0 neither.</summary>
@@ -1902,6 +1917,7 @@ namespace WinPlus
             PreviewMouseLeftButtonDown += (_, e) =>
             {
                 if (e.Handled) return;   // an end: that makes it shorter instead
+                if (CustomTaskbar.Locked) return;   // locked: it stays where it is
                 _movePending = true;
                 _moveFrom = ScreenAt(e);
             };

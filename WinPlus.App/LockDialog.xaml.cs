@@ -21,6 +21,8 @@ namespace WinPlus
         public LockDialog(string path)
         {
             InitializeComponent();
+            // Comes in front of everything when it opens (from a right-click in Explorer), then it's a normal window.
+            ContentRendered += (_, _) => Dispatcher.BeginInvoke(() => Topmost = false, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             _path = path;
             _lock = !FileLocker.IsLocked(path);
             bool folder = Directory.Exists(path);

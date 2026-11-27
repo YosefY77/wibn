@@ -371,7 +371,7 @@ namespace WinPlus
             return set;
         }
 
-        private static bool LooksLikeGame(string path) =>
+        internal static bool LooksLikeGame(string path) =>
             path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
             && LibraryParts.Any(l => path.Contains(l, StringComparison.OrdinalIgnoreCase))
             && !IsNotGame(path);

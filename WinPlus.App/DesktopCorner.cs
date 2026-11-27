@@ -189,7 +189,7 @@ namespace WinPlus
             new[] { Environment.SpecialFolder.DesktopDirectory, Environment.SpecialFolder.CommonDesktopDirectory }
                 .Select(Environment.GetFolderPath).Where(d => d.Length > 0 && Directory.Exists(d)).Distinct(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>What the desktop shows: folders first, then files, by name; no hidden or system ones.</summary>
+        /// <summary>What the desktop shows: by kind in the user's order (programs, games, folders, files…), then by name; no hidden or system ones.</summary>
         internal static List<string> Items()
         {
             var list = new List<string>();
@@ -211,7 +211,7 @@ namespace WinPlus
                 catch { }
             }
             return list
-                .OrderBy(p => Directory.Exists(p) ? 0 : 1)
+                .OrderBy(DesktopKinds.Rank)
                 .ThenBy(DisplayName, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
         }

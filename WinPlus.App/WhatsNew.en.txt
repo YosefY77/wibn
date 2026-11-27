@@ -1,14 +1,21 @@
 # What's new, one line per change (English). Lines starting with # are skipped.
-- Trim before downloading: on the Download videos page press "Trim", paste a YouTube link, pick the start and end, and only that part is downloaded
-- On an extra taskbar: Discord notifications now use the Discord logo, with a red dot on it whenever there is any notification
-- Fixed the glass showing the wallpaper mirrored on the extra bars and widgets
-- In the desktop corner panel: right-click a program or shortcut to pin it to the taskbar
-- Fixed the glass blinking on some taskbars
-- The glass shows the windows behind it even with "Show in streams" on
-- The info bar keeps its size instead of growing and shrinking as the numbers and text on it change
-- A suggestion box on the General page: write your idea and it goes straight to the developer
-- Fixed some apps pinned to Windows' taskbar (like Steam) missing from Wibn's taskbar
-- Right-click any page in the side menu, or any option inside a page, to add it to "Favorites" at the top or hide it; Taskbar and Desktop are now under "Interface"
-- Each group in the side menu has an arrow: click it to fold or open its pages
-- Scroll the mouse wheel on the sound waves on a taskbar to change the device's volume, or on an app's icon to change just that app's volume
-- New minimize animations: a Mac-like genie, shrink into the icon, fade, fall down or zoom away. Turn it on from the Animations page
+- Much less memory used with "Show in streams" on
+- Fixed the mouse pointer hitching on a click with the minimize animation on
+- Fixed a glass that could freeze on an old frame of the video wallpaper
+- Apps you removed from Wibn's bar (like Steam games) no longer come back after the update
+- The info bar goes back to its length after a long text on it is gone
+- The mouse wheel on Store apps on the taskbar now changes their volume
+- The suggestion box is gone; a button to support the developer is on the General page
+- Switching to a video wallpaper no longer flashes a random frame of it at the start
+- The minimize animation is always one of Wibn's now; Windows' usual animation option is gone
+- Adding a page to favorites puts a shortcut to it at the top; it stays in its own place too
+- A long title on the playback bar and the Now playing widget slides to show all of it, then starts again
+- Every setting that had no icon has one now
+- Wibn's window is a normal window now and no longer stays above the others
+- New: "Pin on top" in any window's title-bar menu (turn it on in the General page)
+- Fixed titles with both Arabic and English showing reversed on the playback bar
+- New: the desktop panel groups your files into programs, games, folders and files, with an arrange button to drag the groups into the order you want
+- New: right-click any item in the desktop panel → "Classify as…" to make it a game, a program or a file
+- The playback bar no longer shows videos you didn't play (ones that play by themselves for a moment, or pages with a paused video)
+- Wibn's hidden taskbar comes back only when the mouse is at its own spot on the edge, not anywhere along it
+- The sign-in for downloading videos is now saved encrypted with your Windows account, Wibn paces its requests to protect your account, and it checks the download tools' fingerprint before running them

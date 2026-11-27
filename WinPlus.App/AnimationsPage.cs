@@ -82,23 +82,20 @@ namespace WinPlus
             // ---- Windows minimizing ----
             Children.Add(Section(Lang.T("تصغير النوافذ")));
             var style = new ComboBox { Width = 200, VerticalAlignment = VerticalAlignment.Center };
-            style.Items.Add(new ComboBoxItem { Content = Lang.T("حركة ويندوز العادية"), Tag = 0 });
             foreach (var (id, name) in MinimizeAnim.Styles) style.Items.Add(new ComboBoxItem { Content = Lang.T(name), Tag = id });
             style.SelectedIndex = style.Items.Cast<ComboBoxItem>().ToList().FindIndex(i => (int)i.Tag == MinimizeAnim.Style);
-            Children.Add(Row(style, "", Lang.T("حركة التصغير"),
+            Children.Add(Row(style, "\uE921", Lang.T("حركة التصغير"),
                 Lang.T("لما تصغّر أي نافذة، تنسحب لأيقونتها في التاسك بار بالحركة اللي تختارها، مثل حركة الجيني في الماك")));
 
             var minOptions = new StackPanel();
-            minOptions.Children.Add(SliderRow("", Lang.T("مدة حركة التصغير"), Lang.T("كم تاخذ النافذة لين تختفي. أقل = أسرع"),
+            minOptions.Children.Add(SliderRow("\uE916", Lang.T("مدة حركة التصغير"), Lang.T("كم تاخذ النافذة لين تختفي. أقل = أسرع"),
                 100, 1000, MinimizeAnim.Ms, v => MinimizeAnim.Ms = v, Seconds).Row);
             var tryMin = new Button { Style = Res<Style>("FlatButton"), Content = Lang.T("جرّبها على نافذة Wibn"), Padding = new Thickness(16, 7, 16, 7), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(2, 4, 0, 0) };
             tryMin.Click += (_, _) => MinimizeAnim.Try();
             minOptions.Children.Add(tryMin);
             Children.Add(minOptions);
 
-            void ShowMinOptions() { minOptions.IsEnabled = MinimizeAnim.Style != 0; minOptions.Opacity = minOptions.IsEnabled ? 1 : 0.45; }
-            style.SelectionChanged += (_, _) => { if (style.SelectedItem is ComboBoxItem i) MinimizeAnim.Style = (int)i.Tag; ShowMinOptions(); };
-            ShowMinOptions();
+            style.SelectionChanged += (_, _) => { if (style.SelectedItem is ComboBoxItem i) MinimizeAnim.Style = (int)i.Tag; };
 
             // ---- Windows opening ----
             Children.Add(Section(Lang.T("فتح النوافذ")));

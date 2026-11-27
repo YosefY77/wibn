@@ -77,14 +77,15 @@ namespace WinPlus
         public static bool WhiteIcons { get => Get("WhiteIcons", 0) != 0; set { Set("WhiteIcons", value ? 1 : 0); Restyle(); } }
         /// <summary>0 = like Windows (48), 1 = thicker (56), 2 = thickest (64).</summary>
         public static int Thickness { get => Get("Thickness", 1); set { Set("Thickness", value); Restyle(); } }
-        /// <summary>Where Wibn's bar is: 0 = where Windows' taskbar is (the bottom), 1 = top, 2 = left, 3 = right. Set by dragging the bar.</summary>
+        /// <summary>Where Wibn's bar is: 0 = where Windows' taskbar is (the bottom), 1 = top. Set by dragging the bar.
+        /// (It used to go on the left or right too: a bar saved there comes back to the bottom.)</summary>
         public static int Edge
         {
-            get => Math.Clamp(Get("Edge", 0), 0, 3);
+            get => Get("Edge", 0) == 1 ? 1 : 0;   // only the bottom or the top
             set
             {
                 if (value == Edge) return;
-                Set("Edge", Math.Clamp(value, 0, 3));
+                Set("Edge", value == 1 ? 1 : 0);
                 _workAreaSetAt.Clear();   // the work area changes right away
                 Restyle();
                 WidgetsFollowSoon();
@@ -214,6 +215,13 @@ namespace WinPlus
         public static bool TaskViewButton { get => Get("TaskView", 0) != 0; set { Set("TaskView", value ? 1 : 0); Restyle(); } }
         public static bool Seconds { get => Get("Seconds", 0) != 0; set { Set("Seconds", value ? 1 : 0); Restyle(); InfoBar.RebuildAll(); } }   // the info bars' clocks too
         public static bool ShowDate { get => Get("Date", 1) != 0; set { Set("Date", value ? 1 : 0); Restyle(); } }
+        /// <summary>
+        /// "Lock" (right-click on any of Wibn's bars): every bar stays where it is and as long as it is. Dragging
+        /// doesn't move them to another edge or make them shorter or longer until it's turned off again.
+        /// </summary>
+        public static bool Locked { get => Get("Locked", 0) != 0; set => Set("Locked", value ? 1 : 0); }
+        /// <summary>The mouse kept on a window's picture over the taskbar for a moment shows that window where it is, see-through and blurred.</summary>
+        public static bool PeekWindows { get => Get("PeekWindows", 1) != 0; set { Set("PeekWindows", value ? 1 : 0); if (!value) WindowPeek.Hide(); } }
         public static bool DesktopCorner { get => Get("DesktopCorner", 1) != 0; set { Set("DesktopCorner", value ? 1 : 0); Restyle(); } }
 
         /// <summary>
@@ -531,8 +539,10 @@ namespace WinPlus
                 // The window in front is under the bar (not full screen): only this bar goes; the mouse at the edge
                 // over it (not anywhere along the edge) brings it back.
                 bool appsCovered = !fullscreen && !startOpen && front.Rect is { } fr && Covers(fr, bar.AppsSpot);
-                bool hidden = (fullscreen && HideInFullscreen && !startOpen && (game || !Revealed(_revealUntil, tray, strip, mi.rcMonitor, cursor)))
-                              || (appsCovered && !Revealed(_revealUntil, tray, strip, mi.rcMonitor, cursor, Along(bar.AppsSpot)));
+                // The mouse at the edge brings it back only where the bar is (its pieces), not anywhere along the edge.
+                var barSpan = BarSpan(bar);
+                bool hidden = (fullscreen && HideInFullscreen && !startOpen && (game || !Revealed(_revealUntil, tray, strip, mi.rcMonitor, cursor, barSpan)))
+                              || (appsCovered && !Revealed(_revealUntil, tray, strip, mi.rcMonitor, cursor, barSpan));
                 if ((!fullscreen && !appsCovered) || game) _revealUntil.Remove(tray);
                 bool visible = dragging && !_peeking ? bar.Showing : !hidden && !_peeking;
                 if (!dragging) bar.CoverHidden = appsCovered;
@@ -740,6 +750,27 @@ namespace WinPlus
         /// The clock's own bar along its edge (screen pixels), with the info bar when it sits beside it: the mouse
         /// at the edge brings them down only over there. Null = not placed yet (anywhere along the edge then).
         /// </summary>
+        private static List<(int A, int B)>? BarSpan(TaskbarBar bar)
+        {
+            // The pieces on the apps' edge (a split bar's two pieces, not the clock's own bar on another edge), and
+            // the info bars beside them: the mouse at the edge brings the bar only there, not along the whole edge.
+            var apps = bar.AppsSpot;
+            if (apps.Width <= 0) return null;   // not placed yet: anywhere along the edge
+            bool across = apps.Width >= apps.Height;
+            var spans = new List<(int A, int B)>();
+            foreach (var (r, _) in bar.ScreenPieces())
+            {
+                if (r.Width <= 0) continue;
+                bool onEdge = across ? r.Top < apps.Bottom && apps.Top < r.Bottom : r.Left < apps.Right && apps.Left < r.Right;
+                if (onEdge) spans.Add(across ? (r.Left, r.Right) : (r.Top, r.Bottom));
+            }
+            if (spans.Count == 0) spans.Add(across ? (apps.Left, apps.Right) : (apps.Top, apps.Bottom));
+            foreach (var s in InfoBar.SharedRects)
+                if (s.Width > 0 && (across ? s.Top < apps.Bottom && apps.Top < s.Bottom : s.Left < apps.Right && apps.Left < s.Right))
+                    spans.Add(across ? (s.Left, s.Right) : (s.Top, s.Bottom));
+            return spans;
+        }
+
         private static List<(int A, int B)>? ClockSpan(TaskbarBar bar)
         {
             var spot = bar.ClockSpot;

@@ -80,7 +80,7 @@ namespace WinPlus
             // (The clock's own bar's side is in its right-click menu, and it keeps it when moved.)
             // Seconds: with Wibn's taskbar on, its switch on the Taskbar page is for both clocks; here only without it.
             var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(-3, 4, -3, 0) };
-            grid.Children.Add(Toggle(Lang.T("الثواني في الساعة"), Lang.T("مثل 10:42:07"), InfoBar.Seconds, v => InfoBar.Seconds = v));
+            grid.Children.Add(Toggle("\uE916", Lang.T("الثواني في الساعة"), Lang.T("مثل 10:42:07"), InfoBar.Seconds, v => InfoBar.Seconds = v));
             grid.Visibility = CustomTaskbar.Enabled ? Visibility.Collapsed : Visibility.Visible;
             _options.Children.Add(grid);
             CustomTaskbar.Changed += () => Dispatcher.BeginInvoke(() => grid.Visibility = CustomTaskbar.Enabled ? Visibility.Collapsed : Visibility.Visible);
@@ -148,7 +148,7 @@ namespace WinPlus
             _barOptions.Children.Clear();
             _edges.Clear();
             _sides.Clear();
-            _barOptions.Children.Add(Choice(Lang.T("مكانه"), new[] { Lang.T("تحت"), Lang.T("فوق"), Lang.T("يسار"), Lang.T("يمين") },
+            _barOptions.Children.Add(Choice("\uE81D", Lang.T("مكانه"), new[] { Lang.T("تحت"), Lang.T("فوق"), Lang.T("يسار"), Lang.T("يمين") },
                 bar.Edge, v =>
                 {
                     if (bar.MoveTo(v, bar.ScreenPoint ?? default, bar.Side)) return;
@@ -161,7 +161,7 @@ namespace WinPlus
                     });
                 }, _edges));
             // Beside a piece of Wibn's taskbar (e.g. the clock's own bar): left or right. Both on the same side = side by side.
-            _barOptions.Children.Add(Choice(Lang.T("جهته جنب التاسك بار"), new[] { Lang.T("يسار"), Lang.T("يمين") },
+            _barOptions.Children.Add(Choice("\uE8AB", Lang.T("جهته جنب التاسك بار"), new[] { Lang.T("يسار"), Lang.T("يمين") },
                 bar.Side, v => bar.Side = v, _sides));
 
             // What it shows
@@ -170,7 +170,7 @@ namespace WinPlus
             foreach (var item in InfoBar.Items)
             {
                 var it = item;
-                grid.Children.Add(Toggle(Lang.T(it.Name), Lang.T(it.Description), bar.Shows(it.Id), v => bar.SetShows(it.Id, v)));
+                grid.Children.Add(Toggle(ItemIcon(it.Id), Lang.T(it.Name), Lang.T(it.Description), bar.Shows(it.Id), v => bar.SetShows(it.Id, v)));
             }
             _barOptions.Children.Add(grid);
 
@@ -181,13 +181,21 @@ namespace WinPlus
             foreach (var kind in InfoBar.WidgetKinds)
             {
                 var k = kind;
-                widgets.Children.Add(Toggle(k.Name, k.Description, bar.HasWidget(k.Type), v => bar.SetWidget(k.Type, v)));
+                widgets.Children.Add(Toggle(k.Icon, k.Name, k.Description, bar.HasWidget(k.Type), v => bar.SetWidget(k.Type, v)));
             }
             _barOptions.Children.Add(widgets);
             _loading = was;
         }
 
-        private UIElement Choice(string title, string[] names, int selected, Action<int> set,
+        /// <summary>The icon of each thing a bar can show.</summary>
+        private static string ItemIcon(string id) => id switch
+        {
+            "clock" => "\uE917", "date" => "\uE787", "hijri" => "\uE8BF", "prayer" => "\uE916",
+            "cpu" => "\uE9D9", "cputemp" or "gputemp" => "\uE9CA", "gpu" => "\uE7F4", "ram" => "\uE964",
+            "net" => "\uE774", "disk" => "\uEDA2", _ => "\uE713",
+        };
+
+        private UIElement Choice(string icon, string title, string[] names, int selected, Action<int> set,
                                  System.Collections.Generic.Dictionary<int, RadioButton>? keep = null)
         {
             var bar = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -204,15 +212,16 @@ namespace WinPlus
             DockPanel.SetDock(bg, Dock.Right);
             var dock = new DockPanel();
             dock.Children.Add(bg);
+            dock.Children.Add(new TextBlock { Text = icon, Style = Res<Style>("RowIcon") });
             dock.Children.Add(new TextBlock { Text = title, Style = Res<Style>("RowTitle"), VerticalAlignment = VerticalAlignment.Center });
             return new Border { Style = Res<Style>("Row"), Child = dock, Margin = new Thickness(0, 0, 0, 6) };
         }
 
-        private Border Toggle(string title, string desc, bool on, Action<bool> set)
+        private Border Toggle(string icon, string title, string desc, bool on, Action<bool> set)
         {
             var box = new CheckBox { Style = Res<Style>("Switch"), IsChecked = on };
             box.Click += (_, _) => set(box.IsChecked == true);
-            var row = Row(box, "", title, desc);
+            var row = Row(box, icon, title, desc);
             row.Margin = new Thickness(3, 0, 3, 6);
             return row;
         }

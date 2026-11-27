@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -88,6 +88,46 @@ namespace WinPlus
             var notify = new CheckBox { Style = Res<Style>("Switch"), IsChecked = GameBoost.Notify };
             notify.Click += (_, _) => GameBoost.Notify = notify.IsChecked == true;
             Children.Add(Row(notify, "", Lang.T("تنبيه لما يشتغل ويوقف"), Lang.T("رسالة صغيرة عند التاسك بار")));
+
+            // ---- Lighten Windows (stays on, not only while playing) ----
+            Children.Add(Section(Lang.T("خفّف ويندوز")));
+            Children.Add(Note(Lang.T("إعدادات تخلي ويندوز أخف دايم، مو بس وقت اللعب. كلها من إعداداتك أنت بس: ما يلمس ملفات النظام ولا يحذف شي ولا يحتاج صلاحية المسؤول، وكل خيار تطفيه يرجّع اللي كان بالضبط.")));
+            var lighten = new UniformGrid { Columns = 2, Margin = new Thickness(-3, 0, -3, 0) };
+            var boxes = new System.Collections.Generic.List<(CheckBox Box, WindowsLighten.Tweak Tweak)>();
+            foreach (var t in WindowsLighten.All)
+            {
+                var box = new CheckBox { Style = Res<Style>("Switch"), IsChecked = WindowsLighten.IsOn(t) };
+                var tweak = t;
+                box.Click += (_, _) =>
+                {
+                    bool on = box.IsChecked == true;
+                    if (!WindowsLighten.Set(tweak, on))
+                    {
+                        box.IsChecked = WindowsLighten.IsOn(tweak);
+                        MessageBox.Show(Lang.T("ما قدرت أغيّر هالإعداد في جهازك."), "Wibn", MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.OK, Lang.MsgOptions);
+                    }
+                };
+                boxes.Add((box, t));
+                var row = Row(box, t.Icon, t.Label, t.Description);
+                row.Margin = new Thickness(3, 0, 3, 6);
+                lighten.Children.Add(row);
+            }
+            Children.Add(lighten);
+            var lightButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            var lightAll = new Button { Style = Res<Style>("FlatButton"), Content = Lang.T("خفّف بالمقترح"), Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(0, 0, 8, 0) };
+            lightAll.Click += (_, _) =>
+            {
+                foreach (var (box, t) in boxes) if (t.Recommended) { WindowsLighten.Set(t, true); box.IsChecked = WindowsLighten.IsOn(t); }
+            };
+            var lightUndo = new Button { Style = Res<Style>("FlatButton"), Content = Lang.T("رجّع ويندوز مثل ما كان"), Padding = new Thickness(14, 6, 14, 6) };
+            lightUndo.Click += (_, _) =>
+            {
+                WindowsLighten.UndoAll();
+                foreach (var (box, t) in boxes) box.IsChecked = WindowsLighten.IsOn(t);
+            };
+            lightButtons.Children.Add(lightAll);
+            lightButtons.Children.Add(lightUndo);
+            Children.Add(lightButtons);
 
             // ---- Games ----
             Children.Add(Section(Lang.T("ألعابك")));

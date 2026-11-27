@@ -88,22 +88,49 @@ namespace WinPlus
         }
 
         /// <summary>
-        /// A cookies.txt the user exported from their own browser (signed in to Instagram,
-        /// Reddit, X…). Used only when a site wants a sign-in. Chrome and Edge lock their
-        /// sign-ins, so the tools can't read them straight from the browser.
+        /// Signed in (Wibn's sign-in window, or a cookies.txt the user picked), kept encrypted
+        /// in <see cref="CookieVault"/>. Used only when a site wants a sign-in.
         /// </summary>
-        public static string? CookiesFile
+        public static bool HasSignIn => CookieVault.HasSignIn;
+
+        /// <summary>
+        /// Also try the default browser's sign-ins when a site wants one. Off unless the user
+        /// turns it on: it reads the browser's own sessions.
+        /// </summary>
+        public static bool UseBrowser
+        {
+            get => GetInt("UseBrowser", 0) != 0;
+            set => SetInt("UseBrowser", value ? 1 : 0);
+        }
+
+        /// <summary>
+        /// The PC's default browser, as the tools name it ("firefox", "chrome"…) and as people
+        /// know it, or null when it's one they can't read. Chromium browsers (Chrome, Edge,
+        /// Brave…) lock their sign-ins with "app-bound" encryption, so reading them can fail;
+        /// <see cref="Explain"/> then points to Wibn's own sign-in.
+        /// </summary>
+        public static (string Tool, string Name)? DefaultBrowser
         {
             get
             {
-                using var key = Registry.CurrentUser.OpenSubKey(OurKey);
-                return key?.GetValue("CookiesFile") is string f && File.Exists(f) ? f : null;
-            }
-            set
-            {
-                using var key = Registry.CurrentUser.CreateSubKey(OurKey);
-                if (string.IsNullOrEmpty(value)) key.DeleteValue("CookiesFile", false);
-                else key.SetValue("CookiesFile", value);
+                string progId = "";
+                try
+                {
+                    using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice");
+                    progId = key?.GetValue("ProgId") as string ?? "";
+                }
+                catch { }
+                string p = progId.ToLowerInvariant();
+                if (p.StartsWith("firefoxurl")) return ("firefox", "Firefox");
+                if (p.StartsWith("msedgehtm")) return ("edge", "Microsoft Edge");
+                if (p.StartsWith("chromehtml")) return ("chrome", "Google Chrome");
+                if (p.StartsWith("bravehtml")) return ("brave", "Brave");
+                if (p.StartsWith("opera gx")) return ("opera", "Opera GX");
+                if (p.StartsWith("opera")) return ("opera", "Opera");
+                if (p.StartsWith("vivaldihtm")) return ("vivaldi", "Vivaldi");
+                if (p.StartsWith("whalehtml")) return ("whale", "Naver Whale");
+                if (p.StartsWith("chromiumhtm")) return ("chromium", "Chromium");
+                return null;
             }
         }
 
@@ -328,7 +355,7 @@ namespace WinPlus
             foreach (var cookies in new string?[] { null }.Concat(Browsers()))
             {
                 var args = new List<string> { "-J", "--no-playlist", "--no-warnings", "--encoding", "utf-8" };
-                AddCookies(args, cookies);
+                using var jar = await AddCookiesAsync(args, cookies, "yt-dlp");
                 args.Add("--");
                 args.Add(uri.ToString());
                 var json = new StringBuilder();
@@ -352,7 +379,7 @@ namespace WinPlus
                                          thumb.Length > 0 ? thumb : null, yt);
                 }
                 error += err;
-                if (!NeedsLogin(err)) break;
+                if (!NeedsLogin(err) || AccountChallenged(err)) break;
             }
             CrashLog.Write("video info", new Exception(error));
             throw new UserMessage(Explain(error));
@@ -403,15 +430,19 @@ namespace WinPlus
             }
 
             // Wants a sign-in (or is rate limited): use the browser's, like being on the site.
+            // Each try is paced (see PaceSignedInAsync), and once the site starts asking the
+            // account to prove it's a person, stop: more tries only make it worse.
             if (NeedsLogin(errors.ToString()))
             {
                 foreach (var browser in Browsers())
                     foreach (var step in order)
                     {
+                        if (AccountChallenged(errors.ToString())) goto signedInDone;
                         var got = await step(browser);
                         if (got.Count > 0) return (got, null);
                     }
             }
+            signedInDone:
 
             if (site == "Instagram" && !audio && cut == null)
             {
@@ -571,15 +602,31 @@ namespace WinPlus
                 || e.Contains("rate-limit") || e.Contains("rate limit") || e.Contains("401") || e.Contains("403");
         }
 
-        /// <summary>Sign-ins the tools can use: the user's cookies.txt first, then Firefox.</summary>
+        /// <summary>
+        /// The site is holding the account back (Instagram's "checkpoint" / "challenge",
+        /// "please wait a few minutes", a suspension): trying again signed in can get it locked.
+        /// </summary>
+        private static bool AccountChallenged(string error)
+        {
+            string e = error.ToLowerInvariant();
+            // Exact phrases only: plain "challenge" is also in yt-dlp's YouTube warnings ("n challenge").
+            return e.Contains("checkpoint_required") || e.Contains("challenge_required") || e.Contains("feedback_required")
+                || e.Contains("please wait a few minutes") || e.Contains("account has been suspended") || e.Contains("account has been disabled");
+        }
+
+        /// <summary>Sign-ins the tools can use: Wibn's own (encrypted) first, then the default browser's if the user allowed it.</summary>
         private static IEnumerable<string> Browsers()
         {
-            if (CookiesFile is string file) yield return "file:" + file;
-            string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (Directory.Exists(Path.Combine(roaming, "Mozilla", "Firefox", "Profiles"))) yield return "firefox";
-            // Chrome, Edge, Brave and Opera lock and encrypt their sign-ins now (the tools
-            // fail with "Could not copy" / "DPAPI"), so trying them only wastes time.
+            if (HasSignIn) yield return "vault";
+            if (UseBrowser && DefaultBrowser is { } b) yield return b.Tool;
+        }
+
+        /// <summary>The tool couldn't open the browser's sign-ins (locked while it's open, or app-bound encryption).</summary>
+        private static bool BrowserLocked(string error)
+        {
+            string e = error.ToLowerInvariant();
+            return e.Contains("could not copy") || e.Contains("app-bound") || e.Contains("app bound") || e.Contains("dpapi")
+                || e.Contains("failed to decrypt") || e.Contains("cookie database");
         }
 
         /// <summary>"1.05" for 65 s, "1.02.03" past an hour (file names can't have ":").</summary>
@@ -597,8 +644,12 @@ namespace WinPlus
         private static string Explain(string? error)
         {
             string e = (error ?? "").ToLowerInvariant();
+            if (AccountChallenged(e))
+                return Lang.T("الموقع وقّف حسابك مؤقت عشان يتأكد إنه أنت. افتح الموقع من المتصفح أو الجوال وأكّد، وانتظر شوي قبل تحمّل مرة ثانية.");
+            if (BrowserLocked(e) && !HasSignIn)
+                return Lang.T("ما قدرت أقرأ تسجيل دخولك من المتصفح (كروم وإيدج وأغلب المتصفحات يقفلونه). اضغط \"سجّل دخول\" في Wibn ← تحميل المقاطع، أو سكّر المتصفح وجرّب مرة ثانية.");
             if (e.Contains("private") || NeedsLogin(e))
-                return CookiesFile == null
+                return !HasSignIn
                     ? Lang.T("الموقع يبي تسجيل دخول. اضغط \"سجّل دخول\" في Wibn ← تحميل المقاطع وجرّب مرة ثانية.")
                     : Lang.T("المنشور خاص أو حسابك ما يقدر يشوفه، أو تسجيل الدخول انتهى: اضغط \"سجّل دخول\" مرة ثانية.");
             if (e.Contains("unable to download") || e.Contains("timed out") || e.Contains("getaddrinfo") || e.Contains("connection"))
@@ -638,7 +689,7 @@ namespace WinPlus
             if (site == "YouTube") args.Add("--no-playlist");
             else args.AddRange(new[] { "--yes-playlist", "-I", "1:30" });
             if (site == "TikTok") args.AddRange(new[] { "--impersonate", "chrome" });   // TikTok blocks plain requests
-            AddCookies(args, cookies);
+            using var jar = await AddCookiesAsync(args, cookies, "yt-dlp");
             if (cut is Cut part)
             {
                 // Only that part is downloaded, cut on the exact second (the edges get re-encoded).
@@ -695,7 +746,7 @@ namespace WinPlus
                 catch (Exception ex) { return (new List<string>(), "gallery-dl install: " + ex.Message); }
             }
             var args = new List<string> { "-D", temp, "--no-part", "--no-mtime", "--range", "1-50" };
-            AddCookies(args, cookies);
+            using var jar = await AddCookiesAsync(args, cookies, "gallery-dl");
             args.Add("--");
             args.Add(target);
             var (exit, error) = await RunToolAsync(GalleryPath, args, temp, null);
@@ -703,12 +754,41 @@ namespace WinPlus
             return (files, files.Count == 0 ? "gallery-dl: " + error : null);
         }
 
-        /// <summary>"file:&lt;path&gt;" = the user's cookies.txt; otherwise a browser name. Same flags in both tools.</summary>
-        private static void AddCookies(List<string> args, string? cookies)
+        /// <summary>
+        /// "vault" = Wibn's own sign-in (written to a short-lived cookies.txt: dispose the
+        /// returned jar after the run); otherwise a browser name. Signed-in runs are paced
+        /// and ask the tool to go slower, so the site doesn't take the account for a bot.
+        /// </summary>
+        private static async Task<CookieVault.Jar?> AddCookiesAsync(List<string> args, string? cookies, string tool)
         {
-            if (cookies == null) return;
-            if (cookies.StartsWith("file:")) args.AddRange(new[] { "--cookies", cookies.Substring(5) });
+            if (cookies == null) return null;
+            CookieVault.Jar? jar = null;
+            if (cookies == "vault")
+            {
+                jar = CookieVault.Open();
+                if (jar == null) return null;
+                args.AddRange(new[] { "--cookies", jar.Path });
+            }
             else args.AddRange(new[] { "--cookies-from-browser", cookies });
+            args.AddRange(tool == "gallery-dl" ? new[] { "--sleep-request", "1-2" } : new[] { "--sleep-requests", "1" });
+            await PaceSignedInAsync();
+            return jar;
+        }
+
+        private static readonly SemaphoreSlim SignedInTurn = new(1, 1);
+        private static DateTime _lastSignedIn = DateTime.MinValue;
+
+        /// <summary>At least a few seconds between two signed-in runs, however many downloads are going.</summary>
+        private static async Task PaceSignedInAsync()
+        {
+            await SignedInTurn.WaitAsync();
+            try
+            {
+                var wait = _lastSignedIn.AddSeconds(4) - DateTime.UtcNow;
+                if (wait > TimeSpan.Zero) await Task.Delay(wait);
+                _lastSignedIn = DateTime.UtcNow;
+            }
+            finally { SignedInTurn.Release(); }
         }
 
         /// <summary>Runs a tool hidden; returns its exit code and what it said on stderr.</summary>
@@ -964,40 +1044,73 @@ namespace WinPlus
             http.DefaultRequestHeaders.UserAgent.ParseAdd("Wibn");
             string json = await http.GetStringAsync(api, cancel);
             using var doc = JsonDocument.Parse(json);
-            string? url = null;
+            string? url = null, fileName = null, sha256 = null, sumsUrl = null;
             var names = new List<string>();
             foreach (var release in doc.RootElement.EnumerateArray())
             {
                 if (release.TryGetProperty("prerelease", out var pre) && pre.ValueKind == JsonValueKind.True) continue;
                 if (!release.TryGetProperty("assets", out var assets)) continue;
+                sumsUrl = null;
                 foreach (var a in assets.EnumerateArray())
                 {
                     string name = a.GetProperty("name").GetString() ?? "";
                     names.Add(name);
-                    if (wanted(name)) { url = a.GetProperty("browser_download_url").GetString(); break; }
+                    if (name.Equals("SHA2-256SUMS", StringComparison.OrdinalIgnoreCase) || name.Equals("SHA256SUMS", StringComparison.OrdinalIgnoreCase))
+                        sumsUrl = a.GetProperty("browser_download_url").GetString();
+                    if (url == null && wanted(name))
+                    {
+                        url = a.GetProperty("browser_download_url").GetString();
+                        fileName = name;
+                        // GitHub lists each file's SHA-256 ("sha256:…") since 2025.
+                        if (a.TryGetProperty("digest", out var dg) && dg.GetString() is string d && d.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                            sha256 = d.Substring(7);
+                    }
                 }
                 if (url != null) break;
             }
             if (string.IsNullOrEmpty(url))
                 throw new InvalidOperationException("no matching file at " + api + " (files: " + string.Join(", ", names.Take(20)) + ")");
 
+            // Without a digest, the release's own checksum list (yt-dlp publishes SHA2-256SUMS).
+            if (sha256 == null && sumsUrl != null)
+            {
+                string sums = await http.GetStringAsync(sumsUrl, cancel);
+                foreach (var line in sums.Split('\n'))
+                {
+                    var parts = line.Trim().Split(new[] { ' ', '\t', '*' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length == 2 && parts[1] == fileName) { sha256 = parts[0]; break; }
+                }
+            }
+            // A program that gets the user's sign-in is never run unchecked.
+            if (sha256 == null || !Regex.IsMatch(sha256, "^[0-9a-fA-F]{64}$"))
+                throw new InvalidOperationException("no SHA-256 for " + fileName + " at " + api);
+
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             string download = path + ".download";
+            string got;
             using (var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancel))
             {
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? 0;
                 using var input = await resp.Content.ReadAsStreamAsync(cancel);
                 using var file = File.Create(download);
+                using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
                 byte[] buffer = new byte[1 << 16];
                 long done = 0, lastReport = 0;
                 int n;
                 while ((n = await input.ReadAsync(buffer, cancel)) > 0)
                 {
                     await file.WriteAsync(buffer.AsMemory(0, n), cancel);
+                    hash.AppendData(buffer, 0, n);
                     done += n;
                     if (total > 0 && done - lastReport > total / 50) { lastReport = done; progress?.Report((double)done / total); }
                 }
+                got = System.Convert.ToHexString(hash.GetHashAndReset());
+            }
+            if (!got.Equals(sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                Converter.TryDelete(download);
+                throw new InvalidOperationException($"{fileName}: SHA-256 mismatch (expected {sha256}, got {got})");
             }
             File.Move(download, path, true);
         }

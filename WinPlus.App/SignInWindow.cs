@@ -33,9 +33,6 @@ namespace WinPlus
         private static string Root => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinPlus");
 
-        /// <summary>Where the saved sign-ins go.</summary>
-        public static string CookiesPath => Path.Combine(Root, "cookies.txt");
-
         private readonly WebView2 _web = new();
         private readonly TextBlock _status;
         private bool _saved;
@@ -71,11 +68,20 @@ namespace WinPlus
                 Text = Lang.T("سجّل دخولك في المواقع اللي تبي تحمّل منها، وبعدين اضغط \"خلصت، احفظ\". تسجيل الدخول يبقى في Wibn بس، وما يتشارك مع أي أحد."),
             };
 
+            var warning = new TextBlock
+            {
+                Margin = new Thickness(14, 0, 14, 10), TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xB3, 0x40)),
+                Text = Lang.T("⚠ تسجيل دخولك ينحفظ مشفّر بحساب ويندوز حقك. بس انتبه: انستقرام وغيره ممكن يطلبون تأكيد إنه أنت أو يوقفون حسابك شوي لو حمّلت كثير ورا بعض. Wibn يتمهّل بين الطلبات عشان يحمي حسابك، ولو تحمّل كثير الأفضل تستخدم حساب ثانوي."),
+            };
+
             var layout = new DockPanel();
             DockPanel.SetDock(bar, Dock.Top);
             DockPanel.SetDock(_status, Dock.Top);
+            DockPanel.SetDock(warning, Dock.Top);
             layout.Children.Add(bar);
             layout.Children.Add(_status);
+            layout.Children.Add(warning);
             layout.Children.Add(_web);
             Content = layout;
 
@@ -138,9 +144,8 @@ namespace WinPlus
                         count++;
                     }
                 }
-                Directory.CreateDirectory(Root);
-                await File.WriteAllTextAsync(CookiesPath, sb.ToString(), new UTF8Encoding(false));
-                VideoDownloader.CookiesFile = CookiesPath;
+                if (count == 0) return;   // signed in nowhere: keep what was there
+                CookieVault.Save(sb.ToString());   // encrypted, never a plain file
                 CrashLog.Note($"sign-in window: saved {count} cookies");
             }
             catch (Exception ex)
@@ -152,10 +157,8 @@ namespace WinPlus
         /// <summary>Forget everything signed in here (the window's profile and the saved file).</summary>
         public static void SignOut()
         {
-            Converter.TryDelete(CookiesPath);
+            CookieVault.Delete();
             try { Directory.Delete(Path.Combine(Root, "signin"), true); } catch { }
-            if (VideoDownloader.CookiesFile == null || string.Equals(VideoDownloader.CookiesFile, CookiesPath, StringComparison.OrdinalIgnoreCase))
-                VideoDownloader.CookiesFile = null;
         }
     }
 }

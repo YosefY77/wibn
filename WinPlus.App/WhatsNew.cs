@@ -74,6 +74,7 @@ namespace WinPlus
             if (owner != null && owner.IsVisible) { w.Owner = owner; w.WindowStartupLocation = WindowStartupLocation.CenterOwner; }
             w.Show();
             w.Activate();
+            w.Topmost = false;   // it came in front; after that it's a normal window like the others
         }
 
         private sealed class WhatsNewWindow : Window

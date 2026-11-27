@@ -210,14 +210,12 @@ namespace WinPlus
                 4, 2, () => new AdhkarWidget()),
             new("speed", "", Lang.T("سرعة الإنترنت"), Lang.T("سرعة التحميل والرفع والبنق. اضغط عليه عشان يقيس، ويقدر يقيس لحاله كل ساعة (من كليك يمين)"),
                 3, 3, () => new SpeedWidget()),
-            new("quickbar", "", Lang.T("شريط الإجراءات السريعة"), Lang.T("شريط أفقي أو عمودي فيه أزرار بكليك وحدة: برامج وملفات، لقطة شاشة، كتم المايك أو كتم نفسك في ديسكورد، قفل الجهاز وغيرها. كليك يمين عليه ← أضف"),
+            new("quickbar", "", Lang.T("شريط الإجراءات السريعة"), Lang.T("شريط أفقي أو عمودي فيه أزرار بكليك وحدة: برامج وملفات، لقطة شاشة، كتم المايك، قفل الجهاز وغيرها. كليك يمين عليه ← أضف"),
                 5, 1, () => new QuickBarWidget()),
             new("waves", "", Lang.T("موجات الصوت"), Lang.T("موجات تتحرك مع الصوت اللي يطلع من السماعة أو لما تتكلم في المايك. كليك يمين عليه عشان تختار الجهاز والشكل"),
                 4, 2, () => new AudioWavesWidget()),
             new("calendar", "", Lang.T("التقويم"), Lang.T("تاريخ اليوم بالميلادي أو الهجري ومواعيدك الجاية بألوانها. اضغط عليه يفتح التقويم في نص الشاشة وتضيف مواعيد مع تنبيه"),
                 3, 3, () => new CalendarWidget()),
-            new("discord", "", Lang.T("إشعارات ديسكورد"), Lang.T("كم إشعار عندك في ديسكورد، ومين أرسل وش قال. اضغط على إشعار يفتح ديسكورد. على التاسك بار الإضافي يطلع العدد وآخر إشعار جنبه"),
-                3, 3, () => new DiscordWidget()),
         };
 
         public static Kind? KindOf(string type) => Kinds.FirstOrDefault(k => k.Type == type);
@@ -702,6 +700,7 @@ namespace WinPlus
             int cell = Math.Max(sx, sy);
 
             var wa = WorkArea(0, 0);
+            var mon = MonitorArea(0, 0);
             int cx = (wa.Left + wa.Right) / 2, cy = (wa.Top + wa.Bottom) / 2;
             int inset = (int)Math.Round(4 * GetDpiForSystem() / 96.0);   // the cards sit 4 px inside their windows
             double fx = 0, fy = 0;
@@ -716,20 +715,38 @@ namespace WinPlus
                 fx = span / (double)n;
             }
 
-            // Wibn's taskbar on the main screen: the rows stop as far from it as the widgets are from
-            // each other (two card insets), stretched a hair so they still fill the screen evenly.
-            var barNow = CustomTaskbar.BarOn(cx, cy);
-            var clockNow = CustomTaskbar.ClockOn(cx, cy);   // the clock's own bar (split, on the other edge)
-            if (barNow != null || clockNow != null)
+            // Every bar on the main screen (Wibn's taskbar, the clock's own bar, its side bar, and the extra
+            // taskbars): the rows and columns stop as far from them as the widgets are from each other (two card
+            // insets), stretched a hair so they fill the room between them evenly. So the widgets' outer edges
+            // line up with the bars' edges.
+            var across = new List<RECT>();   // along the top or bottom
+            var down = new List<RECT>();     // along the left or right
+            void Add(CustomTaskbar.RECT r)
+            {
+                if (r.Right - r.Left <= 0 || r.Bottom - r.Top <= 0) return;
+                if (r.Right <= mon.Left || r.Left >= mon.Right || r.Bottom <= mon.Top || r.Top >= mon.Bottom) return;   // another screen
+                var rr = new RECT { Left = r.Left, Top = r.Top, Right = r.Right, Bottom = r.Bottom };
+                if (r.Bottom - r.Top > r.Right - r.Left) down.Add(rr); else across.Add(rr);
+            }
+            if (CustomTaskbar.BarOn(cx, cy) is { } barNow) Add(barNow);
+            if (CustomTaskbar.ClockOn(cx, cy) is { } clockNow) Add(clockNow);
+            if (CustomTaskbar.SideBarOn(cx, cy) is { } sideNow) Add(sideNow);
+            foreach (var ib in InfoBar.Windows)
+            {
+                try { Add(ib.GridRect); } catch { }
+            }
+
+            if (across.Count > 0)
             {
                 int first = oy + (int)Math.Ceiling((wa.Top - oy) / (double)cell) * cell;   // the first icon row
-                int top = first, bottom = wa.Bottom;
-                foreach (var b in new[] { barNow, clockNow })
+                int top = int.MinValue, bottom = int.MaxValue;
+                foreach (var r in across)
                 {
-                    if (b is not { } r) continue;
-                    if (r.Top + r.Bottom < wa.Top + wa.Bottom) top = r.Bottom + inset;   // at the top
-                    else bottom = r.Top - inset;                                          // at the bottom
+                    if (r.Top + r.Bottom < mon.Top + mon.Bottom) top = Math.Max(top, r.Bottom + inset);   // at the top
+                    else bottom = Math.Min(bottom, r.Top - inset);                                       // at the bottom
                 }
+                if (top == int.MinValue) top = first;
+                if (bottom == int.MaxValue) bottom = wa.Bottom;
                 int span = bottom - top;
                 if (span > cell)
                 {
@@ -739,14 +756,19 @@ namespace WinPlus
                     rowsTop = top; rowsBottom = bottom;
                 }
             }
-            // Wibn's bar on a side of the main screen: the columns stop as far from it as the widgets are
-            // from each other, stretched a hair so they fill the rest of the screen evenly.
             int colsLeft = 0, colsRight = 0;
-            if (CustomTaskbar.SideBarOn(cx, cy) is { } side)
+            if (down.Count > 0)
             {
-                bool atLeft = side.Left + side.Right < wa.Left + wa.Right;
-                int left = atLeft ? side.Right + inset : wa.Left;
-                int right = atLeft ? wa.Right : side.Left - inset;
+                int left = int.MinValue, right = int.MaxValue;
+                foreach (var r in down)
+                {
+                    if (r.Left + r.Right < mon.Left + mon.Right) left = Math.Max(left, r.Right + inset);   // at the left
+                    else right = Math.Min(right, r.Left - inset);                                         // at the right
+                }
+                // The side without a bar: the floating taskbar's end there, else the screen's edge.
+                var fl = CustomTaskbar.FloatingEnds(cx, cy);
+                if (left == int.MinValue) left = fl is { } e1 ? Math.Max(wa.Left, e1.Left - inset) : wa.Left;
+                if (right == int.MaxValue) right = fl is { } e2 ? Math.Min(wa.Right, e2.Right + inset) : wa.Right;
                 int span = right - left;
                 if (span > cell)
                 {
@@ -807,6 +829,14 @@ namespace WinPlus
                 }
             }
             return (x0, y0);
+        }
+
+        private static RECT MonitorArea(int x, int y)
+        {
+            using var _ = new ScreenCapture.DpiScope();
+            IntPtr m = MonitorFromPoint(new POINT { X = x, Y = y }, 2 /* NEAREST */);
+            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            return GetMonitorInfo(m, ref mi) ? mi.rcMonitor : new RECT { Right = 1920, Bottom = 1080 };
         }
 
         private static RECT WorkArea(int x, int y)

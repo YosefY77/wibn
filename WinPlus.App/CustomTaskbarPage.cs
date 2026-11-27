@@ -31,13 +31,13 @@ namespace WinPlus
             _options.Children.Add(Note(Lang.T("اسحب برنامج أو اختصار على التاسك بار عشان تثبّته، واسحب الأيقونات المثبتة عشان ترتبها.")));
 
             // Shape
-            _options.Children.Add(Choice(Lang.T("الشكل"), new[] { Lang.T("كامل"), Lang.T("عائم"), Lang.T("دوك بالنص") },
+            _options.Children.Add(Choice("\uE771", Lang.T("الشكل"), new[] { Lang.T("كامل"), Lang.T("عائم"), Lang.T("دوك بالنص") },
                 CustomTaskbar.Shape, v => CustomTaskbar.Shape = v));
-            _options.Children.Add(Choice(Lang.T("مكان الأيقونات"), new[] { Lang.T("بالنص"), Lang.T("بالبداية") },
+            _options.Children.Add(Choice("\uE8E3", Lang.T("مكان الأيقونات"), new[] { Lang.T("بالنص"), Lang.T("بالبداية") },
                 CustomTaskbar.Align, v => CustomTaskbar.Align = v));
-            _options.Children.Add(Choice(Lang.T("السماكة"), new[] { Lang.T("مثل ويندوز"), Lang.T("أمتن"), Lang.T("أمتن أكثر") },
+            _options.Children.Add(Choice("\uE7C4", Lang.T("السماكة"), new[] { Lang.T("مثل ويندوز"), Lang.T("أمتن"), Lang.T("أمتن أكثر") },
                 CustomTaskbar.Thickness, v => CustomTaskbar.Thickness = v));
-            _options.Children.Add(Choice(Lang.T("حجم الأيقونات"), new[] { Lang.T("صغير"), Lang.T("وسط"), Lang.T("كبير") },
+            _options.Children.Add(Choice("\uE8A3", Lang.T("حجم الأيقونات"), new[] { Lang.T("صغير"), Lang.T("وسط"), Lang.T("كبير") },
                 CustomTaskbar.IconSize, v => CustomTaskbar.IconSize = v));
             Border? glassRow = null;
             FrameworkElement? strengthRow = null;
@@ -47,7 +47,7 @@ namespace WinPlus
                 if (strengthRow != null) strengthRow.Visibility = look == 2 ? Visibility.Visible : Visibility.Collapsed;
                 if (glassRow != null) glassRow.Visibility = look == 0 ? Visibility.Visible : Visibility.Collapsed;
             }
-            _options.Children.Add(Choice(Lang.T("الخلفية"), new[] { Lang.T("زجاج"), Lang.T("لون"), Lang.T("شفاف") },
+            _options.Children.Add(Choice("\uE790", Lang.T("الخلفية"), new[] { Lang.T("زجاج"), Lang.T("لون"), Lang.T("شفاف") },
                 CustomTaskbar.Look, v => { CustomTaskbar.Look = v; ShowFor(v); }));
 
             // Glass: its look comes from the Liquid Glass page, like everywhere else in Wibn.
@@ -79,7 +79,7 @@ namespace WinPlus
             strength.Children.Add(slider);
             strength.Children.Add(percent);
             var colorBox = new StackPanel();
-            colorBox.Children.Add(new TextBlock { Text = Lang.T("لون التاسك بار"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 10, 0, 0) });
+            colorBox.Children.Add(IconTitle("\uE790", Lang.T("لون التاسك بار"), new Thickness(2, 10, 0, 0)));
             colorBox.Children.Add(picker);
             colorBox.Children.Add(strength);
             strengthRow = strength;
@@ -98,6 +98,7 @@ namespace WinPlus
             var look = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(-3, 2, -3, 0) };
             look.Children.Add(Toggle("", Lang.T("أسماء البرامج"), Lang.T("اسم النافذة جنب أيقونتها"), CustomTaskbar.Labels, v => CustomTaskbar.Labels = v));
             look.Children.Add(Toggle("", Lang.T("أيقونات بيضاء"), Lang.T("كل الأيقونات بالأبيض وشفافة شوي، شكل موحّد وهادي"), CustomTaskbar.WhiteIcons, v => CustomTaskbar.WhiteIcons = v));
+            look.Children.Add(Toggle("", Lang.T("تعرف النافذة قبل تضغط"), Lang.T("وقف بالماوس لحظة على صورة نافذة فوق التاسك بار، وتطلع النافذة بمكانها شفافة ومنوّرة"), CustomTaskbar.PeekWindows, v => CustomTaskbar.PeekWindows = v));
             look.Children.Add(Toggle("", Lang.T("التاريخ تحت الساعة"), Lang.T("بنفس صيغة ويندوز"), CustomTaskbar.ShowDate, v => CustomTaskbar.ShowDate = v));
             look.Children.Add(Toggle("", Lang.T("الثواني في الساعة"), Lang.T("مثل 10:42:07، في الساعة وفي التاسك بار الإضافي"), CustomTaskbar.Seconds, v => CustomTaskbar.Seconds = v));
             look.Children.Add(Toggle("\uE8A0", Lang.T("الساعة في تاسك بار منفصل"), Lang.T("البرامج في تاسك بار، والساعة واللي حولها في تاسك بار ثاني لحاله"), CustomTaskbar.Split, v => CustomTaskbar.Split = v));
@@ -144,7 +145,7 @@ namespace WinPlus
             buttons.Children.Add(reset);
             box.Children.Add(buttons);
 
-            box.Children.Add(new TextBlock { Text = Lang.T("لون الأيقونة"), Style = Res<Style>("RowTitle"), Margin = new Thickness(2, 12, 0, 0) });
+            box.Children.Add(IconTitle("\uE790", Lang.T("لون الأيقونة"), new Thickness(2, 12, 0, 0)));
             var picker = new ColorPicker { Width = 320, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(2, 4, 0, 0) };
             int color = CustomTaskbar.StartColor;
             picker.Color = 0xFF000000u | (uint)(color < 0 ? 0x0078D4 : color);
@@ -233,7 +234,7 @@ namespace WinPlus
             }
         }
 
-        private UIElement Choice(string title, string[] names, int selected, Action<int> set)
+        private UIElement Choice(string icon, string title, string[] names, int selected, Action<int> set)
         {
             var bar = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             string group = "ct_" + title;
@@ -248,6 +249,7 @@ namespace WinPlus
             DockPanel.SetDock(bg, Dock.Right);
             var dock = new DockPanel();
             dock.Children.Add(bg);
+            dock.Children.Add(new TextBlock { Text = icon, Style = Res<Style>("RowIcon") });
             dock.Children.Add(new TextBlock { Text = title, Style = Res<Style>("RowTitle"), VerticalAlignment = VerticalAlignment.Center });
             return new Border { Style = Res<Style>("Row"), Child = dock, Margin = new Thickness(0, 0, 0, 6) };
         }
@@ -266,6 +268,15 @@ namespace WinPlus
 
         private static TextBlock Note(string text) =>
             new() { Text = text, Style = Res<Style>("RowDesc"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(2, 2, 0, 8) };
+
+        /// <summary>A title with its icon before it (for rows that hold a picker under their title).</summary>
+        private static StackPanel IconTitle(string icon, string title, Thickness margin)
+        {
+            var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = margin };
+            line.Children.Add(new TextBlock { Text = icon, Style = Res<Style>("RowIcon"), Margin = new Thickness(0, 0, 12, 0) });
+            line.Children.Add(new TextBlock { Text = title, Style = Res<Style>("RowTitle"), VerticalAlignment = VerticalAlignment.Center });
+            return line;
+        }
 
         private static Border Row(UIElement control, string icon, string title, string desc)
         {

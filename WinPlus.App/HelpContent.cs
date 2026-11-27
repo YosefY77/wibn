@@ -62,8 +62,8 @@ namespace WinPlus
             new[]
             {
                 I("تاسك بار Wibn", "Wibn taskbar",
-                  "يخفي تاسك بار ويندوز ويحط بداله تاسك بار من Wibn: ستارت والبحث، برامجك المثبتة والمفتوحة (كليك يفتحها أو يصغّرها، وقف عليها بالماوس وتشوف صورة حية لنوافذها واضغط على الصورة عشان تروح لهالنافذة بالذات. ولو البرنامج فيه أكثر من نافذة، كليك عليه يطلّع كل نوافذه وكليك ثاني يخفيها كلها. وحرّك عجلة الماوس على أيقونة برنامج عشان ترفع أو توطّي صوته هو بس)، ولغة الكيبورد (كليك عليها يغيّرها)، والنت والصوت (حرّك عجلة الماوس عليه عشان ترفع أو تنزّل الصوت) والساعة. تختار شكله: كامل أو عائم (الويدجتات اللي على الأطراف تتحاذى معه، وبينه وبين الويدجتات نفس المسافة اللي بين الويدجتات) أو دوك بالنص، وسماكته، وينزل ويختفي لما تكبّر نافذة أو يكون برنامج أو لعبة بملء الشاشة (النافذة المكبّرة تاخذ الشاشة كلها) (ودّ الماوس لآخر الشاشة تحت ويطلع، وشيل الماوس عنه وينزل، ولما تضغط زر ويندوز وتنفتح قائمة ابدأ أو البحث يطلع معها، وتقدر تطفي هالشي)، والخلفية زجاج (بإعدادات صفحة Liquid Glass، يوريك اللي وراه على طول مثل الفيديو والنوافذ، وتطلع في السكرين شوت (PrintScreen وWin+Shift+S وتصوير Wibn)، وفي البث والتسجيل مثل ديسكورد وOBS تطلع مع خيار \"يظهر في البث\"، ويصير لحاله مع OBS) أو لون أو شفاف، وحجم الأيقونات ومكانها. اسحب أي برنامج عليه عشان تثبّته، واسحب المثبتة عشان ترتبها. ولو تبيه أقصر، اسحبه من طرفه اليمين أو اليسار لجوّا (الطرفين يتحركون مع بعض ويبقى بالنص)، ودبل كليك على الطرف يرجّعه بطوله الكامل. تصغيره ما يحرّك الويدجتات. وتقدر تنقله لأي طرف: امسكه من مكان فاضي فيه واسحبه لفوق أو يمين أو يسار أو تحت، يطلع لك مكانه الجديد ملوّن، وأول ما تفلته ينتقل (يمين أو يسار يصير عمودي). النوافذ المكبّرة والويدجتات يفسحون له مكان ويتوزعون من جديد، وEsc يلغي السحب. ولو تبي الساعة واللي حولها في تاسك بار لحالها، شغّل \"الساعة في تاسك بار منفصل\" من صفحة التاسك بار: البرامج تصير في قطعة والساعة في قطعة ثانية، وكل وحدة لها زجاجها. ولو تبي الساعة فوق والبرامج تحت (أو العكس)، امسك قطعة الساعة من مكان فاضي واسحبها لفوق (تروح لنفس الجهة اللي كانت فيها آخر مرة، يمين أو يسار، وتغيّرها من كليك يمين عليها ← جهة تاسك بار الساعة)، واسحبها لنفس طرف البرامج عشان ترجع جنبها. النوافذ والويدجتات يفسحون لها مكان. وتقدر تطوّل أي قطعة: اسحب طرف قطعة البرامج (الطرفين لو هي بالنص) أو طرف قطعة الساعة الداخلي (اللي جهة النص) لبرّا عشان تطول، ولجوّا عشان تقصر، ودبل كليك على الطرف يرجّعها على قد اللي فيها. ولو الساعة في تاسك بار لحالها، اضغط Shift وإنت تسحب طرفها، ويتوازن مع أقرب ويدجت فوقه (أو تحته) ويصيرون بنفس العرض. وكليك يمين على مكان فاضي في التاسك بار يطلّع القائمة عند الماوس. ولو طوّلت قطعة الساعة، كليك يمين عليها ← مكان الساعة في التاسك بار عشان تختار يمين أو يسار أو الوسط. وأيقونات البرامج اللي جنب الساعة (ديسكورد، ستيم…) تطلع فيه نفسه: تختار من صفحة التاسك بار أيها يبان، والباقي تحت السهم. كليك وكليك يمين عليها مثل ويندوز بالضبط.",
-                  "Hides Windows' taskbar and puts Wibn's in its place: Start and search, your pinned and open apps (click to open or minimize; hover to see live pictures of their windows and click a picture to go to that window. An app with several windows: a click brings them all up, another click minimizes them all. Scroll the mouse wheel on an app's icon to turn just that app's volume up or down), the keyboard language (click it to switch), network and sound (scroll the mouse wheel on it to change the volume) and the clock. Pick its shape: full, floating (the widgets at the far sides line up with it, and it sits as far from the widgets as they are from each other) or a centered dock, and its thickness; it slides down out of sight when a window is maximized (it then takes the whole screen) or an app or game is full screen (move the mouse to the bottom edge to slide it up, move away and it slides down; it also comes up when you press the Windows key and Start or search opens; and you can turn this off); a glass (with the Liquid Glass page's settings; it shows what's behind it live, videos and windows too, and the bars show in screenshots (PrintScreen, Win+Shift+S, Wibn's capture), and in streams and recordings like Discord and OBS with \"Show in streams\", which turns on by itself with OBS), color or see-through background; and the icons' size and position. Drag any app onto it to pin it, and drag pinned ones to reorder them. To make it shorter, drag its right or left end inward (both ends move together and it stays centered); double-click an end to make it full length again. Shortening it doesn't move the widgets. You can also move it to any edge: hold an empty spot on it and drag it up, right, left or down; its new place lights up, and it moves there when you let go (right or left makes it vertical). Maximized windows and the widgets make room for it and spread out again; Esc cancels the drag. To have the clock and what's around it on a taskbar of their own, turn on \"Clock on a separate taskbar\" on the Taskbar page: the apps go on one piece and the clock on another, each with its own glass. To have the clock at the top and the apps at the bottom (or the other way round), hold an empty spot of the clock's piece and drag it up (it goes to the same side, right or left, it was on last time; change it with right-click → Clock bar side); drag it to the apps' edge to put it back beside them. Windows and widgets make room for it. You can make either piece longer: drag the end of the apps' piece (either end when it's in the middle) or the inner end of the clock's piece (the one toward the middle) outward to lengthen it, inward to shorten it; double-click the end to make it just as long as what's on it again. With the clock on a bar of its own, hold Shift while dragging its end and it lines up with the nearest widget over (or under) it, so they're just as wide. Right-clicking an empty spot of the taskbar opens its menu right at the mouse. If you lengthen the clock's piece, right-click it → Clock position in its bar to pick right, left or middle. The icons next to the clock (Discord, Steam…) show on it too: choose on the Taskbar page which ones show, the rest go under the arrow. Click and right-click them just like on Windows.",
+                  "يخفي تاسك بار ويندوز ويحط بداله تاسك بار من Wibn: ستارت والبحث، برامجك المثبتة والمفتوحة (كليك يفتحها أو يصغّرها، وقف عليها بالماوس وتشوف صورة حية لنوافذها واضغط على الصورة عشان تروح لهالنافذة بالذات. ولو البرنامج فيه أكثر من نافذة، كليك عليه يطلّع كل نوافذه وكليك ثاني يخفيها كلها. وحرّك عجلة الماوس على أيقونة برنامج عشان ترفع أو توطّي صوته هو بس)، ولغة الكيبورد (كليك عليها يغيّرها)، والنت والصوت (حرّك عجلة الماوس عليه عشان ترفع أو تنزّل الصوت) والساعة. تختار شكله: كامل أو عائم (الويدجتات اللي على الأطراف تتحاذى معه، وبينه وبين الويدجتات نفس المسافة اللي بين الويدجتات) أو دوك بالنص، وسماكته، وينزل ويختفي لما تكبّر نافذة أو يكون برنامج أو لعبة بملء الشاشة (النافذة المكبّرة تاخذ الشاشة كلها) (ودّ الماوس لآخر الشاشة تحت ويطلع، وشيل الماوس عنه وينزل، ولما تضغط زر ويندوز وتنفتح قائمة ابدأ أو البحث يطلع معها، وتقدر تطفي هالشي)، والخلفية زجاج (بإعدادات صفحة Liquid Glass، يوريك اللي وراه على طول مثل الفيديو والنوافذ، وتطلع في السكرين شوت (PrintScreen وWin+Shift+S وتصوير Wibn)، وفي البث والتسجيل مثل ديسكورد وOBS تطلع مع خيار \"يظهر في البث\"، ويصير لحاله مع OBS) أو لون أو شفاف، وحجم الأيقونات ومكانها. اسحب أي برنامج عليه عشان تثبّته، واسحب المثبتة عشان ترتبها. ولو تبيه أقصر، اسحبه من طرفه اليمين أو اليسار لجوّا (الطرفين يتحركون مع بعض ويبقى بالنص)، ودبل كليك على الطرف يرجّعه بطوله الكامل. تصغيره ما يحرّك الويدجتات. وتقدر تنقله لفوق أو تحت: امسكه من مكان فاضي فيه واسحبه لفوق أو تحت، يطلع لك مكانه الجديد ملوّن، وأول ما تفلته ينتقل. النوافذ المكبّرة والويدجتات يفسحون له مكان ويتوزعون من جديد، وEsc يلغي السحب. ولو تبي الساعة واللي حولها في تاسك بار لحالها، شغّل \"الساعة في تاسك بار منفصل\" من صفحة التاسك بار: البرامج تصير في قطعة والساعة في قطعة ثانية، وكل وحدة لها زجاجها. ولو تبي الساعة فوق والبرامج تحت (أو العكس)، امسك قطعة الساعة من مكان فاضي واسحبها لفوق (تروح لنفس الجهة اللي كانت فيها آخر مرة، يمين أو يسار، وتغيّرها من كليك يمين عليها ← جهة تاسك بار الساعة)، واسحبها لنفس طرف البرامج عشان ترجع جنبها. النوافذ والويدجتات يفسحون لها مكان. وتقدر تطوّل أي قطعة: اسحب طرف قطعة البرامج (الطرفين لو هي بالنص) أو طرف قطعة الساعة الداخلي (اللي جهة النص) لبرّا عشان تطول، ولجوّا عشان تقصر، ودبل كليك على الطرف يرجّعها على قد اللي فيها. ولو الساعة في تاسك بار لحالها، اضغط Shift وإنت تسحب طرفها، ويتوازن مع أقرب ويدجت فوقه (أو تحته) ويصيرون بنفس العرض. وكليك يمين على مكان فاضي في التاسك بار يطلّع القائمة عند الماوس. ولو طوّلت قطعة الساعة، كليك يمين عليها ← مكان الساعة في التاسك بار عشان تختار يمين أو يسار أو الوسط. وأيقونات البرامج اللي جنب الساعة (ديسكورد، ستيم…) تطلع فيه نفسه: تختار من صفحة التاسك بار أيها يبان، والباقي تحت السهم. كليك وكليك يمين عليها مثل ويندوز بالضبط.",
+                  "Hides Windows' taskbar and puts Wibn's in its place: Start and search, your pinned and open apps (click to open or minimize; hover to see live pictures of their windows and click a picture to go to that window. An app with several windows: a click brings them all up, another click minimizes them all. Scroll the mouse wheel on an app's icon to turn just that app's volume up or down), the keyboard language (click it to switch), network and sound (scroll the mouse wheel on it to change the volume) and the clock. Pick its shape: full, floating (the widgets at the far sides line up with it, and it sits as far from the widgets as they are from each other) or a centered dock, and its thickness; it slides down out of sight when a window is maximized (it then takes the whole screen) or an app or game is full screen (move the mouse to the bottom edge to slide it up, move away and it slides down; it also comes up when you press the Windows key and Start or search opens; and you can turn this off); a glass (with the Liquid Glass page's settings; it shows what's behind it live, videos and windows too, and the bars show in screenshots (PrintScreen, Win+Shift+S, Wibn's capture), and in streams and recordings like Discord and OBS with \"Show in streams\", which turns on by itself with OBS), color or see-through background; and the icons' size and position. Drag any app onto it to pin it, and drag pinned ones to reorder them. To make it shorter, drag its right or left end inward (both ends move together and it stays centered); double-click an end to make it full length again. Shortening it doesn't move the widgets. You can also move it to the top or bottom: hold an empty spot on it and drag it up or down; its new place lights up, and it moves there when you let go. Maximized windows and the widgets make room for it and spread out again; Esc cancels the drag. To have the clock and what's around it on a taskbar of their own, turn on \"Clock on a separate taskbar\" on the Taskbar page: the apps go on one piece and the clock on another, each with its own glass. To have the clock at the top and the apps at the bottom (or the other way round), hold an empty spot of the clock's piece and drag it up (it goes to the same side, right or left, it was on last time; change it with right-click → Clock bar side); drag it to the apps' edge to put it back beside them. Windows and widgets make room for it. You can make either piece longer: drag the end of the apps' piece (either end when it's in the middle) or the inner end of the clock's piece (the one toward the middle) outward to lengthen it, inward to shorten it; double-click the end to make it just as long as what's on it again. With the clock on a bar of its own, hold Shift while dragging its end and it lines up with the nearest widget over (or under) it, so they're just as wide. Right-clicking an empty spot of the taskbar opens its menu right at the mouse. If you lengthen the clock's piece, right-click it → Clock position in its bar to pick right, left or middle. The icons next to the clock (Discord, Steam…) show on it too: choose on the Taskbar page which ones show, the rest go under the arrow. Click and right-click them just like on Windows.",
                   "تاسك بار على ذوقك بدون ما تلمس ويندوز. لو صار أي خطأ أو تسكّر Wibn، تاسك بار ويندوز يرجع لحاله.",
                   "A taskbar to your taste without touching Windows. If anything goes wrong or Wibn closes, Windows' taskbar comes right back.",
                   a =>
@@ -77,6 +77,20 @@ namespace WinPlus
                       a.Rect(91, H - 15, 5, 2, Muted, 1);
                       a.Rect(109, H - 15, 12, 2, Blue, 1);
                       a.Text(174, H - 32, "10:42", 9, Ink);
+                  }),
+                I("تثبيت التاسك بارات", "Lock the taskbars",
+                  "كليك يمين على أي تاسك بار (تاسك بار Wibn، قطعة الساعة، أو أي تاسك بار إضافي) واختر \"تثبيت\": كل التاسك بارات تثبت بمكانها وطولها. السحب ما ينقلها لطرف ثاني ولا يقصّرها ولا يطوّلها، وخيارات المكان في القائمة تتعطل. ترجع تقدر تحركها لما تشيل علامة \"تثبيت\" من نفس القائمة.",
+                  "Right-click any taskbar (Wibn's taskbar, the clock's piece, or any extra bar) and pick \"Lock\": every bar stays in its place and at its length. Dragging won't move them to another edge or make them shorter or longer, and the menu's place options are turned off. Untick \"Lock\" in the same menu to move them again.",
+                  "ما تتحرك بالغلط وإنت تسحب شي أو تضغط بسرعة.",
+                  "They never move by accident while you drag something or click in a hurry.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(30, H - 40, 200, 30, Panel, 10, 0xE8);
+                      for (int i = 0; i < 4; i++) a.Rect(70 + i * 22, H - 33, 15, 15, Apps[i], 4);
+                      a.Rect(150, 40, 90, 26, Panel, 6);
+                      a.Glyph(162, 53, "\uE72E", 12, Blue);
+                      a.Text(176, 45, "Lock", 10, Ink);
                   }),
                 I("تاسك بار المعلومات (إضافي)", "Info bar (extra)",
                   "شريط إضافي تشغّله من صفحة التاسك بار ← تاسك بار المعلومات، وتحطه يمين أو يسار أو فوق أو تحت على أي شاشة. يعرض الساعة والتاريخ (والهجري لو تبي)، وكم باقي على الصلاة الجاية، واستهلاك المعالج وكرت الشاشة وحرارتهم، والرام، وسرعة النت ومساحة القرص. شغّل أو طفّ أي معلومة من الصفحة أو بكليك يمين على الشريط. شكله نفس تاسك بار Wibn بالضبط (الشكل والخلفية واللون والسماكة من إعداداته). اسحب طرفه عشان تقصّره أو تطوّله، ودبل كليك على الطرف يرجّعه كامل. وعشان تنقله: اضغط عليه واسحبه للطرف اللي تبيه، ويطلع لك وين بينحط. ولو الطرف فيه قطعة من تاسك بار Wibn (مثل الساعة لحالها فوق يمين) ينحط جنبها على نفس الخط، في الجهة اللي تفلته فيها (يسار أو يمين)، ويطلع وينزل معها. وتقدر تختار جهته (يسار أو يمين) وجهة تاسك بار الساعة من الصفحة أو بكليك يمين عليهم، ولو حطيتهم الثنين بنفس الجهة يجون جنب بعض. النوافذ المكبّرة توقف عنده وما تغطيه، وينزلق لبرّا مع الألعاب والمقاطع بملء الشاشة، وودّ الماوس لطرف الشاشة ويرجع. حرارة كرت الشاشة من ويندوز نفسه؛ أما حرارة المعالج فأغلب الأجهزة المكتبية ما تعطيها لويندوز، فشغّل برنامج LibreHardwareMonitor (مجاني) وتطلع لحالها. وتقدر تضيف تاسك بارات إضافية بالعدد اللي تبيه (من الصفحة ← أضف تاسك بار، أو كليك يمين على الشريط)، كل واحد بمكانه وباللي يعرضه، بشرط تبقى نص الشاشة للنوافذ (واللي جنب بعض على نفس الخط ما ياخذون منها)، وتبدّل ترتيبهم بالأسهم في الصفحة أو بكليك يمين ← مكانه ← قدّمه أو أخّره (اللي قبل يصير أقرب لطرف الشاشة)؛ ولو ما في مكان يقولك. وتقدر تحط فيها الويدجتس (الطقس، اللي يشتغل الحين، الأصوات، التقويم وغيرها): كل ويدجت تطلع على الشريط نفسه بشكل صغير يناسب سماكته (مثل الحرارة، أو الأغنية مع أزرار التشغيل، أو أيقونات الاختصارات) وتتحدث لحالها، وكليك يمين عليها لخياراتها ولونها (مثل لون موجات الصوت، أو نفس لون كتابة التاسك بار).",
@@ -144,6 +158,21 @@ namespace WinPlus
                       a.Rect(30, H - 40, 200, 30, Panel, 10, 0xE8);
                       for (int i = 0; i < 5; i++) a.Rect(56 + i * 26, H - 33, 15, 15, Colors.White, 4, 0xC0);
                       a.Rect(119, H - 37, 8, 8, Red, 4);
+                  }),
+                I("تعرف النافذة قبل تضغط", "Spot the window before you click",
+                  "وقف بالماوس على أيقونة برنامج في تاسك بار Wibn وتطلع صور نوافذه، وخلّ الماوس على صورة نافذة (أو اسمها) لحظة: تطلع النافذة نفسها بمكانها وبحجمها على الشاشة، شفافة ومنوّرة ووراها ضباب، عشان تعرف أي وحدة هي. شيل الماوس عن الصورة وتختفي، واضغط عليها وتروح لها. ولو النافذة مصغّرة تطلع في المكان اللي بترجع له، ولو هي ظاهرة قدامك أصلاً ما تطلع. تطفيها من صفحة التاسك بار ← \"تعرف النافذة قبل تضغط\".",
+                  "Hover an app's icon on Wibn's taskbar to see its windows' pictures, then keep the mouse on one picture (or its name) for a moment: the window itself shows in its own place and size on the screen, see-through and lit up over a blur, so you know which one it is. Move off the picture and it goes; click it to go to that window. A minimized window shows where it'll come back to; one that's already in plain sight doesn't show. Turn it off on the Taskbar page → \"Spot the window before you click\".",
+                  "لما يكون عندك كذا نافذة لنفس البرنامج، تعرف اللي تبيها بدون ما تفتحهم وحدة وحدة.",
+                  "With several windows of the same app, you find the one you want without opening them one by one.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(40, 14, 180, 80, Colors.White, 8, 0x40);
+                      a.Rect(40, 14, 180, 12, Colors.White, 8, 0x60);
+                      a.Rect(90, H - 78, 80, 40, Panel, 8, 0xF0);
+                      a.Rect(98, H - 72, 64, 28, Blue, 4, 0xC0);
+                      a.Rect(30, H - 32, 200, 26, Panel, 10, 0xE8);
+                      for (int i = 0; i < 4; i++) a.Rect(76 + i * 26, H - 27, 15, 15, Apps[i], 4);
                   }),
                 I("تكبير الأيقونات تحت الماوس", "Magnify under the mouse",
                   "الأيقونة اللي تحت الماوس تكبر، واللي جنبها تكبر شوي.",
@@ -595,6 +624,19 @@ namespace WinPlus
                       a.Rect(80, 112, 100, 22, Blue, 6);
                       a.Center(130, 123, "✂", 12, Colors.White, true);
                   }),
+                I("تسجيل الدخول وحماية حسابك", "Signing in, and keeping your account safe",
+                  "\"سجّل دخول\" في صفحة تحميل المقاطع يفتح نافذة داخل Wibn، تسجّل فيها دخولك في انستقرام أو ريديت أو X أو تيك توك أو فيسبوك. كلمة السر ما تمر على Wibn، والجلسة تنحفظ مشفّرة بحساب ويندوز حقك، فلو أحد نسخ الملف لجهاز ثاني ما يقدر يقرأه. وقت التحميل بس تنكتب نسخة مؤقتة لأداة التحميل وتنحذف على طول. Wibn يتمهّل بين الطلبات، ولو الموقع طلب تأكيد إنه أنت يوقف ويقولك. تقدر تختار ملف cookies.txt بنفسك (وWibn يعرض يحذف الأصلي)، و\"استخدم تسجيل دخول متصفحك\" (المتصفح الافتراضي في جهازك) طافي إلا لو شغّلته. \"إزالة\" يمسح كل شي. أدوات التحميل تنزل من GitHub ويتأكد Wibn من بصمتها (SHA-256) قبل يشغّلها.",
+                  "\"Sign in\" on the Download videos page opens a window inside Wibn where you sign in to Instagram, Reddit, X, TikTok or Facebook. Your password never passes through Wibn, and the session is saved encrypted with your Windows account, so a copy of the file on another PC can't be read. Only while downloading is a short-lived copy written for the download tool, and it's deleted right after. Wibn waits between requests, and if the site asks to confirm it's you, it stops and tells you. You can pick a cookies.txt yourself (Wibn offers to delete the original), and \"Use your browser's sign-in\" (your default browser) is off unless you turn it on. \"Remove\" wipes it all. The download tools come from GitHub, and Wibn checks their fingerprint (SHA-256) before running them.",
+                  "حسابك ما يطلع من جهازك، وما ينسرق لو أحد أخذ ملفاته.",
+                  "Your account stays on your PC, and can't be stolen by someone taking its files.",
+                  a =>
+                  {
+                      a.Rect(80, 50, 100, 70, Panel, 10, 255, Line);
+                      a.Rect(100, 22, 60, 40, Line, 30);
+                      a.Rect(112, 34, 36, 30, Panel, 18);
+                      a.Center(130, 86, "🔒", 22, Ink, false);
+                      a.Text(70, 128, "cookies.dat (DPAPI)", 10, Muted);
+                  }),
             });
 
         private static HelpPage Transfer() => new(L("إرسال الملفات", "Send files"),
@@ -718,6 +760,24 @@ namespace WinPlus
                       a.Text(170, 86, "OneDrive", 10, Muted);
                       a.Glyph(236, 93, "", 10, Red);
                   }),
+                I("خفّف ويندوز", "Lighten Windows",
+                  "من صفحة وضع الألعاب ← خفّف ويندوز، تختار اللي تبيه: توقيف تسجيل الألعاب في الخلفية (اللي ياخذ من كرت الشاشة طول الوقت)، تشغيل وضع اللعب حق ويندوز، وضع الطاقة \"أفضل أداء\"، توقيف الحركات والظلال الصغيرة، توقيف شفافية ويندوز، توقيف الإعلانات والبرامج اللي ويندوز ينزّلها من نفسه، وتوقيف برامج المتجر في الخلفية. زر \"خفّف بالمقترح\" يشغّل الأهم مرة وحدة، و\"رجّع ويندوز مثل ما كان\" يرجّع كل شي. كله من إعداداتك أنت: ما يلمس ملفات النظام ولا يحذف شي ولا يحتاج صلاحية المسؤول، وWibn يحفظ اللي كان قبل كل تغيير ويرجّعه بالضبط، ولو حذفت Wibn يرجّعها كلها لحالها.",
+                  "On the Game mode page → Lighten Windows, pick what you want: turn off background game recording (which costs graphics card all the time), turn on Windows' Game Mode, set the power mode to \"Best performance\", turn off small animations and shadows, turn off Windows' transparency, stop ads and apps Windows installs by itself, and stop Store apps running in the background. \"Apply recommended\" turns on the main ones at once, and \"Put Windows back as it was\" undoes it all. It's all your own settings: nothing touches system files, nothing is deleted, no admin rights needed, and Wibn keeps what was there before each change and puts it back exactly; uninstalling Wibn puts it all back by itself.",
+                  "جهاز يعلّق حتى مع أقل إعدادات بالقرافكس غالبًا السبب ويندوز نفسه في الخلفية. هنا تخففه بضغطة، وترجّعه بضغطة.",
+                  "A PC that stutters even on the lowest graphics settings is often Windows itself working in the background. Here you lighten it with one click, and undo it with one click.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(30, 20, 200, 26, Panel, 6);
+                      a.Text(40, 25, "Game DVR", 10, Muted);
+                      a.Glyph(218, 33, "\uE73E", 10, Green);
+                      a.Rect(30, 52, 200, 26, Panel, 6);
+                      a.Text(40, 57, "Animations", 10, Muted);
+                      a.Glyph(218, 65, "\uE73E", 10, Green);
+                      a.Rect(30, 84, 200, 26, Panel, 6);
+                      a.Text(40, 89, "Best performance", 10, Muted);
+                      a.Glyph(218, 97, "\uE73E", 10, Green);
+                  }),
             });
 
         private static HelpPage WidgetsHelp() => new("Widgets",
@@ -776,8 +836,8 @@ namespace WinPlus
                       a.Arrow(122, 72, 138, 72, Ink, 1.5);
                   }),
                 I("شريط الإجراءات السريعة", "Quick actions bar",
-                  "شريط على سطح المكتب تخليه أفقي أو عمودي (كليك يمين ← الاتجاه). تضيف فيه برامج وملفات (اسحبها عليه)، أو من كليك يمين ← أضف: لقطة شاشة، تسجيل الشاشة، كتم المايك، كتم نفسك في ديسكورد، قفل الجهاز، أو أي اختصار كيبورد. زر المايك يصير أحمر لما يكون مكتوم. لديسكورد: حط نفس الاختصار (Ctrl+Shift+M للمايك و Ctrl+Shift+D للصوت) في ديسكورد ← الإعدادات ← Keybinds عشان يشتغل وديسكورد بالخلفية.",
-                  "A bar on your desktop, horizontal or vertical (right-click → Direction). Add apps and files (drag them onto it), or from right-click → Add: a screenshot, screen recording, muting the mic, muting yourself in Discord, locking the PC, or any keyboard shortcut. The mic button turns red while muted. For Discord: set the same shortcut (Ctrl+Shift+M for the mic, Ctrl+Shift+D for sound) in Discord → Settings → Keybinds so it works while Discord is in the background.",
+                  "شريط على سطح المكتب تخليه أفقي أو عمودي (كليك يمين ← الاتجاه). تضيف فيه برامج وملفات (اسحبها عليه)، أو من كليك يمين ← أضف: لقطة شاشة، تسجيل الشاشة، كتم المايك، قفل الجهاز، أو أي اختصار كيبورد. زر المايك يصير أحمر لما يكون مكتوم.",
+                  "A bar on your desktop, horizontal or vertical (right-click → Direction). Add apps and files (drag them onto it), or from right-click → Add: a screenshot, screen recording, muting the mic, locking the PC, or any keyboard shortcut. The mic button turns red while muted.",
                   "اللي تسويه كل يوم بكليك وحدة، بدون ما تحفظ اختصارات.",
                   "What you do every day in one click, with no shortcuts to remember.",
                   a =>
@@ -807,21 +867,6 @@ namespace WinPlus
                           a.Rect(52 + i * 11, 100 - bh, 7, bh, Blue, 3.5);
                       }
                       a.Glyph(232, 30, "", 16, Ink);
-                  }),
-                I("إشعارات ديسكورد", "Discord notifications",
-                  "ويدجت يعرض كم إشعار عندك من ديسكورد، وتحته آخر الإشعارات: مين أرسل، ووش قال، وقبل كم. اضغط على إشعار يفتح ديسكورد ويشيله من القائمة، وكليك يمين ← امسح الإشعارات يشيلها كلها. وتقدر تحطه على التاسك بار الإضافي (كليك يمين عليه ← الويدجتس فيه): يطلع العدد وجنبه آخر إشعار مثل \"أحمد: وينك؟\". ياخذها من إشعارات ويندوز، فلازم إشعارات ديسكورد تكون شغّالة في ويندوز، وأول مرة ويندوز يسألك تسمح لـ Wibn يقرأ الإشعارات. ما يرسل شي لأي مكان.",
-                  "A widget that shows how many Discord notifications you have, and the latest ones under it: who sent each, what they said, and when. Click one to open Discord and take it off the list; right-click → Clear notifications takes them all off. You can put it on an extra taskbar too (right-click it → Widgets on it): the count shows with the latest one beside it, like \"Ahmed: where are you?\". It reads them from Windows' notifications, so Discord's notifications must be on in Windows, and the first time Windows asks you to let Wibn read notifications. Nothing is sent anywhere.",
-                  "تعرف مين كلمك بنظرة، بدون ما تفتح ديسكورد.",
-                  "See who messaged you at a glance, without opening Discord.",
-                  a =>
-                  {
-                      a.Screen();
-                      a.Rect(40, 24, 180, 90, Panel, 10, 0xE0);
-                      a.Rect(196, 32, 18, 14, Blue, 7);
-                      a.Rect(52, 52, 90, 8, Ink, 3, 0xC0);
-                      a.Rect(52, 64, 140, 6, Muted, 3, 0x90);
-                      a.Rect(52, 82, 70, 8, Ink, 3, 0xC0);
-                      a.Rect(52, 94, 120, 6, Muted, 3, 0x90);
                   }),
                 I("التقويم والمواعيد", "Calendar and appointments",
                   "ويدجت يبين تاريخ اليوم بالميلادي أو الهجري (أم القرى) ومواعيدك الجاية بألوانها. اضغط عليه ويفتح التقويم في نص الشاشة: اختر يوم، واكتب اسم الموعد ووقته (أو طول اليوم)، واختر لونه، وهل تبي تنبيه من الويندوز وقته أو قبله بـ 10 أو 30 دقيقة أو ساعة أو يوم (موعد طول اليوم ينبهك الساعة 8 الصبح). اضغط على أي موعد عشان تعدّله، وزر الحذف يطلع لما تمر عليه. تبدّل بين ميلادي وهجري من فوق التقويم أو من كليك يمين على الويدجت، ومن كليك يمين ← يبين تختار: اسم اليوم، السنة، التاريخ الثاني، المواعيد الجاية، والأرقام العربية ١٢٣. التنبيه يشتغل بس وWibn شغّال.",
@@ -881,6 +926,20 @@ namespace WinPlus
                       for (int i = 0; i < 4; i++) a.Folder(92 + i * 38, 50, 18);
                       for (int i = 0; i < 3; i++) a.Icon(82 + i * 38, 80, Apps[i]);
                   }),
+                I("ترتيب الأنواع في قائمة سطح المكتب", "Arranging the kinds in the desktop panel",
+                  "قائمة سطح المكتب تقسّم ملفاتك لأقسام: برامج، ألعاب، مجلدات، ملفات، وكل قسم بعنوانه. اضغط زر الترتيب فوق (جنب الدبوس) ويطلع لك الأقسام، اسحب أي واحد لفوق أو لتحت وحطه بالترتيب اللي تبيه، والقائمة تعرض الأقسام بهالترتيب على طول وتتذكره. اختصارات ألعاب ستيم وإيبك وغيرها تنحسب ألعاب، واختصار المجلد ينحسب مجلد. ولو انحسب شي غلط (مثل لعبة متثبتة بمجلد خاص)، كليك يمين عليه ← \"تصنيف كـ…\" واختر لعبة أو برنامج أو ملف، وينتقل لقسمه على طول ويتذكره Wibn.",
+                  "The desktop panel splits your files into sections: programs, games, folders, files, each under its own title. Click the arrange button at the top (by the pin) to see the sections; drag any of them up or down into the order you want, and the panel shows them in that order right away and remembers it. Shortcuts to Steam, Epic and other games count as games, and a shortcut to a folder counts as a folder. If something lands in the wrong section (like a game installed in a folder of its own), right-click it → \"Classify as…\" and pick game, program or file: it moves to that section right away and Wibn remembers it.",
+                  "تلقى اللي تبيه أول شي: ألعابك فوق لو أنت تلعب، أو برامج الشغل لو تشتغل.",
+                  "What you want comes first: your games on top if you play, your work apps if you work.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(70, 20, 170, 100, Panel, 10, 0xF0);
+                      a.Rect(105, 34, 100, 16, Muted, 5, 0x60);
+                      a.Rect(105, 56, 100, 16, Blue, 5);
+                      a.Rect(105, 78, 100, 16, Muted, 5, 0x60);
+                      a.Cursor(190, 66);
+                  }),
             });
 
         private static HelpPage Glass() => new("Liquid Glass",
@@ -920,8 +979,8 @@ namespace WinPlus
                       a.Arrow(250, 24, 250, 110, Ink, 1.5);
                   }),
                 I("حركة تصغير النوافذ", "Minimize animation",
-                  "من صفحة الحركات ← حركة التصغير اختر كيف تختفي أي نافذة لما تصغّرها: جيني (مثل الماك: النافذة تنثني وتنسحب لأيقونتها في التاسك بار)، أو تصغر للأيقونة، أو تلاشي، أو تطيح لتحت، أو تبعد وتختفي. وتختار مدتها، و\"جرّبها على نافذة Wibn\" يصغّر نافذة Wibn عشان تشوفها. لو تاسك بار Wibn شغّال تروح النافذة لأيقونتها بالضبط، وإلا تروح للتاسك بار تحتها. لما تشغّلها، Wibn يطفي حركة ويندوز للتصغير والتكبير عشان ما تطلع الحركتين مع بعض، ولما ترجع \"حركة ويندوز العادية\" أو تسكّر Wibn ترجع حركة ويندوز. لما ترجّع النافذة من التاسك بار تطلع على طول بدون حركة.",
-                  "On the Animations page → Minimize animation, pick how any window goes away when you minimize it: genie (like the Mac: the window bends and is pulled into its taskbar icon), shrink into the icon, fade, fall down, or zoom away. Pick how long it takes; \"Try it on Wibn's window\" minimizes Wibn's window so you can see it. With Wibn's taskbar on, the window goes right into its icon; otherwise into the taskbar below it. While it's on, Wibn turns off Windows' own minimize and maximize animation so the two don't play together; pick \"Windows' usual animation\" or close Wibn and Windows' animation comes back. Restoring a window from the taskbar shows it at once, with no animation.",
+                  "من صفحة الحركات ← حركة التصغير اختر كيف تختفي أي نافذة لما تصغّرها: جيني (مثل الماك: النافذة تنثني وتنسحب لأيقونتها في التاسك بار)، أو تصغر للأيقونة، أو تلاشي، أو تطيح لتحت، أو تبعد وتختفي. وتختار مدتها، و\"جرّبها على نافذة Wibn\" يصغّر نافذة Wibn عشان تشوفها. لو تاسك بار Wibn شغّال تروح النافذة لأيقونتها بالضبط، وإلا تروح للتاسك بار تحتها. Wibn يطفي حركة ويندوز للتصغير والتكبير وتبقى حركات Wibn بس، ولما تسكّر Wibn ترجع حركة ويندوز. لما ترجّع النافذة من التاسك بار تطلع على طول بدون حركة.",
+                  "On the Animations page → Minimize animation, pick how any window goes away when you minimize it: genie (like the Mac: the window bends and is pulled into its taskbar icon), shrink into the icon, fade, fall down, or zoom away. Pick how long it takes; \"Try it on Wibn's window\" minimizes Wibn's window so you can see it. With Wibn's taskbar on, the window goes right into its icon; otherwise into the taskbar below it. Wibn turns off Windows' own minimize and maximize animation so only Wibn's play; close Wibn and Windows' animation comes back. Restoring a window from the taskbar shows it at once, with no animation.",
                   "نوافذك تختفي بحركة حلوة مثل الماك.",
                   "Your windows go away with a nice Mac-like animation.",
                   a =>
@@ -996,9 +1055,23 @@ namespace WinPlus
                       a.Rect(84, 76, 80, 6, Muted, 3, 0x90);
                       a.Rect(150, 88, 30, 12, Blue, 4);
                   }),
+                I("خيار التثبيت في قائمة النافذة", "Pin option in the window menu",
+                  "شغّل \"خيار التثبيت في قائمة النافذة\" من الإعدادات العامة، وبعدها كليك يمين على شريط عنوان أي نافذة (أو Alt+Space) تطلع قائمتها اللي فيها التصغير والتكبير والإغلاق، وفيها خيار جديد قبل الإغلاق: \"Pin on top\" مع أيقونة دبوس. تختاره وتصير النافذة فوق كل النوافذ حتى لو ضغطت على غيرها، ويطلع جنبه علامة صح. تختاره مرة ثانية وترجع النافذة عادية. يطلع الخيار في النافذة من أول ما تصير قدامك. بعض البرامج اللي تسوي قائمة شريط العنوان بنفسها (مثل كروم) ما يطلع فيها، ونوافذ البرامج اللي تشتغل كمسؤول ما يقدر Wibn يثبّتها. لو طفيت الخيار أو سكّرت Wibn ينشال من القوائم. ونافذة Wibn نفسها ما تبقى فوق النوافذ إلا إذا ثبّتها من قائمتها.",
+                  "Turn on \"Pin option in the window menu\" on the General page; then right-click any window's title bar (or press Alt+Space) and its menu, the one with minimize, maximize and close, has a new item before Close: \"Pin on top\" with a pin icon. Pick it and the window stays above all the others, even when you click another one, with a check mark beside the item. Pick it again and the window is normal again. The item shows in a window once it has been in front. Some apps that draw their own title-bar menu (like Chrome) don't show it, and windows of apps run as admin can't be pinned by Wibn. Turn the option off or close Wibn and the item goes from the menus. Wibn's own window never stays above the others unless you pin it from its menu.",
+                  "تخلي فيديو أو ملاحظة أو حاسبة دايم قدامك وأنت تشتغل على شي ثاني.",
+                  "Keep a video, a note or a calculator always in front while you work on something else.",
+                  a =>
+                  {
+                      a.Screen();
+                      a.Rect(40, 24, 180, 92, Panel, 10, 0xE0);
+                      a.Rect(160, 30, 12, 8, Blue, 3);
+                      a.Rect(178, 30, 36, 8, Muted, 3, 0x90);
+                      a.Rect(52, 50, 120, 8, Ink, 3, 0xC0);
+                      a.Rect(52, 66, 90, 6, Muted, 3, 0x90);
+                  }),
                 I("المفضلة والإخفاء في القائمة", "Favorites and hiding in the menu",
-                  "اضغط كليك يمين على أي صفحة في القائمة الجانبية، أو على أي خيار داخل الصفحات: \"إضافة للمفضلة\" يحطه فوق في القائمة الجانبية تحت \"خيارات مفضلة\" (الخيار يفتح صفحته ويوريك مكانه)، و\"إخفاء\" يشيله. ترجّع المخفية من كليك يمين ← \"الخيارات المخفية\". واضغط على اسم أي تصنيف (أو السهم جنبه) عشان تطوي صفحاته أو تفتحها.",
-                  "Right-click any page in the side menu, or any option inside a page: \"Add to favorites\" puts it at the top of the side menu under \"Favorites\" (an option opens its page and shows where it is), and \"Hide\" takes it away. Bring hidden ones back with right-click → \"Hidden\". Click a group's name (or the arrow by it) to fold or open its pages.",
+                  "اضغط كليك يمين على أي صفحة في القائمة الجانبية، أو على أي خيار داخل الصفحات: \"إضافة للمفضلة\" يحط له اختصار فوق في القائمة الجانبية تحت \"خيارات مفضلة\" ويبقى بمكانه الأصلي بعد (الخيار يفتح صفحته ويوريك مكانه)، و\"إخفاء\" يشيله. ترجّع المخفية من كليك يمين ← \"الخيارات المخفية\". واضغط على اسم أي تصنيف (أو السهم جنبه) عشان تطوي صفحاته أو تفتحها.",
+                  "Right-click any page in the side menu, or any option inside a page: \"Add to favorites\" puts a shortcut to it at the top of the side menu under \"Favorites\", and it stays in its own place too (an option opens its page and shows where it is), and \"Hide\" takes it away. Bring hidden ones back with right-click → \"Hidden\". Click a group's name (or the arrow by it) to fold or open its pages.",
                   "اللي تستخدمه كثير يكون أول شي، واللي ما تحتاجه ما يزحم القائمة.",
                   "What you use most comes first, and what you don't need stays out of the way.",
                   a =>
@@ -1014,19 +1087,18 @@ namespace WinPlus
                       a.Rect(138, 78, 50, 6, Ink, 3, 0xC0);
                       a.Rect(138, 92, 40, 6, Ink, 3, 0xC0);
                   }),
-                I("صندوق الاقتراحات", "Suggestion box",
-                  "في الإعدادات العامة اكتب أي فكرة أو مشكلة أو شي تبيه في Wibn واضغط \"أرسل\". الاقتراح يوصل للمطوّر بس، وما ينرسل معه اسمك ولا أي شي عن جهازك (بس نسخة Wibn ولغته). تقدر ترسل اقتراح كل دقيقة.",
-                  "On the General page, write any idea, problem or something you want in Wibn and press \"Send\". Only the developer gets it, and your name and nothing about your PC is sent with it (just Wibn's version and language). You can send one a minute.",
-                  "كل فكرة توصل على طول وتساعد Wibn يصير أحسن.",
-                  "Every idea arrives right away and helps make Wibn better.",
+                I("ادعم Wibn", "Support Wibn",
+                  "Wibn مجاني. في الإعدادات العامة ← ادعم Wibn، زر \"Buy me a coffee\" يفتح صفحة PayPal في المتصفح، وتقدر تتبرع بالمبلغ اللي تبيه. ما يحتاج حساب في Wibn، وما ينرسل أي شي من جهازك.",
+                  "Wibn is free. On the General page → Support Wibn, the \"Buy me a coffee\" button opens a PayPal page in your browser where you can give any amount. No Wibn account is needed, and nothing is sent from your PC.",
+                  "تساعد Wibn يكمل ويتطور.",
+                  "You help Wibn keep going and get better.",
                   a =>
                   {
                       a.Screen();
-                      a.Rect(60, 26, 140, 84, Panel, 10, 0xE0);
-                      a.Rect(74, 40, 112, 40, Muted, 6, 0x50);
-                      a.Rect(80, 48, 80, 6, Ink, 3, 0xC0);
-                      a.Rect(80, 60, 60, 6, Ink, 3, 0x90);
-                      a.Rect(74, 88, 40, 14, Blue, 4);
+                      a.Rect(60, 30, 140, 76, Panel, 10, 0xE0);
+                      a.Rect(74, 44, 80, 8, Ink, 3, 0xC0);
+                      a.Rect(74, 58, 100, 6, Ink, 3, 0x80);
+                      a.Rect(74, 78, 60, 18, Blue, 5);
                   }),
                 I("يشتغل مع ويندوز", "Starts with Windows",
                   "البرنامج يشتغل لحاله جنب الساعة أول ما يقلع الجهاز، وإغلاق النافذة يخليه يشتغل في الخلفية.",

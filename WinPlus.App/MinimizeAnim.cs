@@ -27,7 +27,7 @@ namespace WinPlus
     /// </summary>
     internal static class MinimizeAnim
     {
-        /// <summary>The animations: 0 = off (Windows' own), then these.</summary>
+        /// <summary>The animations (Windows' own is never used: always one of Wibn's).</summary>
         public static readonly (int Id, string Name)[] Styles =
         {
             (1, "جيني (مثل الماك)"),
@@ -40,7 +40,7 @@ namespace WinPlus
         private const string Key = @"Software\WinPlus\Animations";
         public const int DefaultMs = 300;
 
-        public static int Style { get => Math.Clamp(Get("MinStyle", 0), 0, 5); set { Set("MinStyle", value); Refresh(); } }
+        public static int Style { get => Math.Clamp(Get("MinStyle", 1), 1, 5); set { Set("MinStyle", value); Refresh(); } }
         public static int Ms { get => Math.Clamp(Get("MinMs", DefaultMs), 100, 1000); set => Set("MinMs", value); }
 
         private static IntPtr _hook;
@@ -90,10 +90,9 @@ namespace WinPlus
             _snap = copy; _snapFor = pick; _snapRect = seen; _snapAt = Environment.TickCount64;
         }
 
-        /// <summary>Starts or stops to match the setting (at start-up, and whenever it changes).</summary>
+        /// <summary>Starts (at start-up, and whenever the setting changes).</summary>
         public static void Refresh()
         {
-            if (Style == 0) { Stop(); return; }
             WindowsAnimation(false);
             // All on the animations' thread: Windows tells it right away that a window is going (not through Wibn's
             // own thread, which may be busy), so the window's picture is back in its place before a gap shows.
@@ -111,11 +110,16 @@ namespace WinPlus
                     if (_snap != null && Environment.TickCount64 - _snapAt > 3000) { _snap = null; _snapFor = IntPtr.Zero; MemoryTrim.Soon(); }
                 };
                 _watch.Start();
-                // A press on a window's title bar (where its minimize button is) or on a taskbar: the window's picture
-                // is copied right then, so if it gets minimized the animation starts that very moment.
+            }));
+            // A press on a window's title bar (where its minimize button is) or on a taskbar: the window's picture is
+            // copied right then, so if it gets minimized the animation starts that very moment. The hook has a thread
+            // of its own that does nothing else, so the mouse never waits for an animation or a copy.
+            HookThread().Invoke(() =>
+            {
+                if (_mouse != IntPtr.Zero) return;
                 _mouseProc = OnMouse;
                 _mouse = SetWindowsHookEx(14 /* WH_MOUSE_LL */, _mouseProc, GetModuleHandle(null), 0);
-            }));
+            });
         }
 
         /// <summary>Stops, and gives Windows its own animation back (also when Wibn closes).</summary>
@@ -125,11 +129,11 @@ namespace WinPlus
             {
                 if (_hook != IntPtr.Zero) { UnhookWinEvent(_hook); _hook = IntPtr.Zero; }
                 _watch?.Stop(); _watch = null;
-                if (_mouse != IntPtr.Zero) { UnhookWindowsHookEx(_mouse); _mouse = IntPtr.Zero; }
                 _rects.Clear();
                 _snap = null; _snapFor = IntPtr.Zero;
                 Run.Unprepare();
             });
+            _hooker?.Invoke(() => { if (_mouse != IntPtr.Zero) { UnhookWindowsHookEx(_mouse); _mouse = IntPtr.Zero; } });
             WindowsAnimation(true);
         }
 
@@ -140,20 +144,25 @@ namespace WinPlus
             if (w != null) w.WindowState = WindowState.Minimized;
         }
 
-        private static Dispatcher AnimThread()
+        private static Dispatcher? _hooker;   // the mouse hook's own thread
+
+        private static Dispatcher AnimThread() => _anim ??= NewThread("Wibn minimize");
+        private static Dispatcher HookThread() => _hooker ??= NewThread("Wibn minimize mouse");
+
+        private static Dispatcher NewThread(string name)
         {
-            if (_anim != null) return _anim;
+            Dispatcher? d = null;
             using var ready = new ManualResetEventSlim();
             var t = new Thread(() =>
             {
-                _anim = Dispatcher.CurrentDispatcher;
+                d = Dispatcher.CurrentDispatcher;
                 ready.Set();
                 Dispatcher.Run();
-            }) { IsBackground = true, Name = "Wibn minimize", Priority = ThreadPriority.AboveNormal };
+            }) { IsBackground = true, Name = name, Priority = ThreadPriority.AboveNormal };
             t.SetApartmentState(ApartmentState.STA);
             t.Start();
             ready.Wait();
-            return _anim!;
+            return d!;
         }
 
         // ---- Windows' own animation ------------------------------------------------------------------------
@@ -229,8 +238,9 @@ namespace WinPlus
             // Where it goes is asked of Wibn's thread (its taskbar lives there) while the picture is already up.
             var target = Application.Current.Dispatcher.InvokeAsync(() => Target(h, s), DispatcherPriority.Send);
             _playing.Add(h);
-            try { new Run(h, w, s, MonitorOf(s), target, Style, Ms, (int)GetDpiForWindow(h)).Go(); }
-            catch (Exception e) { Done(h); CrashLog.Write("minimize animation", e); }
+            var run = new Run(h, w, s, MonitorOf(s), target, Style, Ms, (int)GetDpiForWindow(h));
+            try { run.Go(); }
+            catch (Exception e) { run.End(); CrashLog.Write("minimize animation", e); }   // nothing left on screen
         }
 
         /// <summary>An animation finished.</summary>
@@ -504,14 +514,19 @@ namespace WinPlus
                 return host;
             }
 
-            private void End()
+            private bool _ended;
+
+            public void End()
             {
+                if (_ended) return;
+                _ended = true;
                 CompositionTarget.Rendering -= OnRender;
                 if (_thumb != IntPtr.Zero) { DwmUnregisterThumbnail(_thumb); _thumb = IntPtr.Zero; }
                 if (_host != null)
                 {
                     _host.RootVisual = new Border { Background = Brushes.Transparent };
-                    if (_ready == null) { _ready = _host; Park(_ready); }   // small again, ready for the next one
+                    if (_ready == null && _hook != IntPtr.Zero) { _ready = _host; Park(_ready); }   // small again, ready for the next one
+                    // (turned off meanwhile: it goes)
                     else Drop(_host);
                     _host = null;
                 }

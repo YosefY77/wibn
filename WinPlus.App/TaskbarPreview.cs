@@ -308,7 +308,14 @@ namespace WinPlus
             };
             Brush rest = w.Hwnd == TaskbarApps.Foreground() ? _activeBack : Brushes.Transparent;
             cell.Background = rest;
-            hover = () => cell.Background = cell.IsMouseOver || onPicture ? _hover : rest;
+            hover = () =>
+            {
+                bool on = cell.IsMouseOver || onPicture;
+                cell.Background = on ? _hover : rest;
+                // Kept on it a moment: the window itself shows where it is, see-through (WindowPeek).
+                if (_closed) return;
+                if (on) WindowPeek.Hover(w.Hwnd, _hwnd); else WindowPeek.Leave(w.Hwnd);
+            };
             cell.MouseEnter += (_, _) => hover();
             // (Onto its picture: the picture says so right after, so it doesn't blink off in between.)
             cell.MouseLeave += (_, _) => Dispatcher.BeginInvoke(new Action(() => hover()), System.Windows.Threading.DispatcherPriority.Background);
@@ -342,6 +349,7 @@ namespace WinPlus
         {
             if (_closed) return;
             _closed = true;
+            WindowPeek.Hide();
             _glass?.Dispose();
             _glass = null;
             foreach (var (_, host, thumb) in _thumbs)

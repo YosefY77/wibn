@@ -62,6 +62,7 @@ namespace WinPlus
         private RECT _deskRect;
         private bool _sharedRef;                       // desktop mode: uses the shared picture of the desktop
         private bool _videoShown;                      // desktop mode: the glass shows a frame of the video wallpaper
+        private long _videoAt;                         // desktop mode: when it last got one
         private readonly bool _live;                   // live mode: the screen behind, again and again (the taskbar)
         private int[] _last = Array.Empty<int>();      // live mode: the last copy, to skip drawing when nothing changed
         private const int LiveFrameMs = 33;            // live mode: about 30 copies a second
@@ -421,7 +422,7 @@ namespace WinPlus
 
             private const int RefreshMs = 200;    // a window's picture is taken again after this long
             private const int Margin = 120;       // kept around the part behind the bar
-            private static readonly System.Collections.Generic.Dictionary<(IntPtr, int, int, int, int), Shot> Shots = new();
+            private static readonly System.Collections.Generic.Dictionary<(IntPtr, int, int), Shot> Shots = new();
             private static readonly System.Collections.Generic.List<(IntPtr Hwnd, RECT Frame)> Found = new();
             private static readonly EnumProc CollectProc = CollectOne;
             private static RECT _area;
@@ -452,7 +453,7 @@ namespace WinPlus
                         int nl = Math.Max(f.Left, x) - wr.Left, nt = Math.Max(f.Top, y) - wr.Top;
                         int nr = Math.Min(f.Right, x + w) - wr.Left, nb = Math.Min(f.Bottom, y + h) - wr.Top;
                         if (nr <= nl || nb <= nt) continue;
-                        var shot = Take(hwnd, wr, nl, nt, nr, nb, now, (x, y, w, h));
+                        var shot = Take(hwnd, wr, nl, nt, nr, nb, now, (w, h));
                         if (shot == null || !shot.Ok) continue;
                         if (BitBlt(dc, wr.Left + nl - x, wr.Top + nt - y, nr - nl, nb - nt, shot.Dc, nl - shot.X, nt - shot.Y, 0x00CC0020 /* SRCCOPY */)) any = true;
                     }
@@ -483,11 +484,12 @@ namespace WinPlus
             /// The band of the window's picture holding (nl, nt)-(nr, nb): the kept one, or a new one when it's old,
             /// the window's size changed, or it moved so the kept band no longer holds what's needed.
             /// </summary>
-            private static Shot? Take(IntPtr hwnd, RECT wr, int nl, int nt, int nr, int nb, long now, (int, int, int, int) bar)
+            private static Shot? Take(IntPtr hwnd, RECT wr, int nl, int nt, int nr, int nb, long now, (int W, int H) bar)
             {
                 int ww = wr.Right - wr.Left, wh = wr.Bottom - wr.Top;
                 if (ww <= 0 || wh <= 0 || ww > 16384 || wh > 16384) return null;
-                var key = (hwnd, bar.Item1, bar.Item2, bar.Item3, bar.Item4);
+                // Kept per window and bar size (not the bar's place): a bar sliding or dragged keeps its pictures.
+                var key = (hwnd, bar.W, bar.H);
                 if (!Shots.TryGetValue(key, out var shot)) Shots[key] = shot = new Shot();
                 shot.SeenAt = now;
                 bool holds = shot.Dc != IntPtr.Zero && shot.WinW == ww && shot.WinH == wh
@@ -495,11 +497,11 @@ namespace WinPlus
                 if (holds && now - shot.TakenAt < RefreshMs) return shot;
 
                 if (_screen == IntPtr.Zero) _screen = GetDC(IntPtr.Zero);
-                if (!Scratch(ww, wh)) return shot.Ok ? shot : null;
+                if (!Scratch(ww, wh)) return holds && shot.Ok ? shot : null;
                 shot.TakenAt = now;
                 // A window that can't draw itself (some games): it stays out, the wallpaper shows instead. A picture
                 // that didn't work this time keeps the last good one.
-                if (!PrintWindow(hwnd, _scratchDc, 2 /* PW_RENDERFULLCONTENT */)) return shot.Ok ? shot : null;
+                if (!PrintWindow(hwnd, _scratchDc, 2 /* PW_RENDERFULLCONTENT */)) return holds && shot.Ok ? shot : null;   // (only if it still holds what's needed)
                 _scratchUsedAt = now;
 
                 int bl = Math.Max(0, nl - Margin), bt = Math.Max(0, nt - Margin);
@@ -544,7 +546,7 @@ namespace WinPlus
 
             private static void Clean(long now)
             {
-                var gone = new System.Collections.Generic.List<(IntPtr, int, int, int, int)>();
+                var gone = new System.Collections.Generic.List<(IntPtr, int, int)>();
                 foreach (var (key, shot) in Shots)
                     if (now - shot.SeenAt > 2000) { Free(shot); gone.Add(key); }
                 foreach (var key in gone) Shots.Remove(key);
@@ -1175,11 +1177,14 @@ namespace WinPlus
                     ReadBits();
                     FillPastEdges(x, y, null);
                     _videoShown = true;
+                    _videoAt = Environment.TickCount64;
                     return true;
                 }
                 // No frame for a moment (the video starting over, a hiccup): the last picture stays. Falling back to
-                // the still picture of the desktop for one round and back to the video made the glass blink.
-                if (_videoShown) return false;
+                // the still picture of the desktop for one round and back to the video made the glass blink. But only
+                // for a moment: no frame for longer (the glass moved off the video's screen) = the still picture.
+                if (_videoShown && Environment.TickCount64 - _videoAt < 1500) return false;
+                _videoShown = false;
             }
             else _videoShown = false;
 

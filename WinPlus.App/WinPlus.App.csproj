@@ -20,7 +20,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Release builds get the number from the git tag (v1.2.3 → 1.2.3). -->
-    <Version>2.7</Version>
+    <Version>2.8</Version>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -40,6 +40,8 @@
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
+    <!-- The download sign-in is kept encrypted with Windows' DPAPI (CookieVault). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 
   <!-- The logo: the exe's icon, the window/tray icon (app.ico) and the sidebar (logo.png). -->
@@ -60,10 +62,5 @@
        (package.ps1) works on its own. -->
   <ItemGroup Condition="Exists('..\TaskbarTap\build\Release\TaskbarTap.dll')">
     <EmbeddedResource Include="..\TaskbarTap\build\Release\TaskbarTap.dll" LogicalName="WinPlus.TaskbarTap.dll" />
-  </ItemGroup>
-
-  <!-- The suggestion box's Discord webhook: a local file (not in git), put inside the app when it's there. -->
-  <ItemGroup Condition="Exists('suggestions.webhook')">
-    <EmbeddedResource Include="suggestions.webhook" LogicalName="suggestions.webhook" />
   </ItemGroup>
 </Project>

@@ -77,27 +77,27 @@ namespace WinPlus
 
             var length = Minutes(ScreenCapture.RecordChoices, ScreenCapture.RecordMinutes);
             length.SelectionChanged += (_, _) => ScreenCapture.RecordMinutes = (int)((ComboBoxItem)length.SelectedItem).Tag;
-            grid.Children.Add(VideoPage.Row(length, "", Lang.T("مدة التسجيل"), Lang.T("يوقف ويحفظ لحاله لما يخلص الوقت"), 3));
+            grid.Children.Add(VideoPage.Row(length, "\uE916", Lang.T("مدة التسجيل"), Lang.T("يوقف ويحفظ لحاله لما يخلص الوقت"), 3));
 
             _replayBox = new CheckBox { Style = St("Switch"), IsChecked = ScreenCapture.ReplayOn };
             _replayBox.Click += (_, _) => OnReplaySwitch();
             _replayDesc = new TextBlock { Style = St("RowDesc"), TextWrapping = TextWrapping.Wrap };
-            grid.Children.Add(VideoPage.Row(_replayBox, "", Lang.T("التسجيل المستمر"), _replayDesc, 3));
+            grid.Children.Add(VideoPage.Row(_replayBox, "\uE81C", Lang.T("التسجيل المستمر"), _replayDesc, 3));
 
             var keep = Minutes(ScreenCapture.ReplayChoices, ScreenCapture.ReplayMinutes);
             keep.SelectionChanged += (_, _) => ScreenCapture.ReplayMinutes = (int)((ComboBoxItem)keep.SelectedItem).Tag;
-            grid.Children.Add(VideoPage.Row(keep, "", Lang.T("كم يحفظ من آخر"), Lang.T("الاختصار يحفظ هالمدة اللي قبله"), 3));
+            grid.Children.Add(VideoPage.Row(keep, "\uE823", Lang.T("كم يحفظ من آخر"), Lang.T("الاختصار يحفظ هالمدة اللي قبله"), 3));
 
             var sound = new CheckBox { Style = St("Switch"), IsChecked = ScreenCapture.RecordSound };
             sound.Click += (_, _) => ScreenCapture.RecordSound = sound.IsChecked == true;
-            grid.Children.Add(VideoPage.Row(sound, "", Lang.T("صوت الجهاز"), Lang.T("يسجّل الصوت اللي يطلع من السماعات"), 3));
+            grid.Children.Add(VideoPage.Row(sound, "\uE767", Lang.T("صوت الجهاز"), Lang.T("يسجّل الصوت اللي يطلع من السماعات"), 3));
 
             var fps = new ComboBox { Width = 120, VerticalAlignment = VerticalAlignment.Center, FlowDirection = FlowDirection.LeftToRight };
             fps.Items.Add("30 FPS");
             fps.Items.Add("60 FPS");
             fps.SelectedIndex = ScreenCapture.Fps == 60 ? 1 : 0;
             fps.SelectionChanged += (_, _) => ScreenCapture.Fps = fps.SelectedIndex == 1 ? 60 : 30;
-            grid.Children.Add(VideoPage.Row(fps, "", Lang.T("السلاسة"), Lang.T("60 أنعم للألعاب، بس الملف أكبر"), 3));
+            grid.Children.Add(VideoPage.Row(fps, "\uE7FC", Lang.T("السلاسة"), Lang.T("60 أنعم للألعاب، بس الملف أكبر"), 3));
 
             grid.Children.Add(VideoPage.ToolRow(
                 "FFmpeg", Lang.T("للفيديو (تقريبًا 140 ميقا). الصور ما تحتاجه"),
@@ -109,7 +109,7 @@ namespace WinPlus
             Children.Add(Section(Lang.T("الحفظ"), 24));
             var copy = new CheckBox { Style = St("Switch"), IsChecked = ScreenCapture.CopyPicture };
             copy.Click += (_, _) => ScreenCapture.CopyPicture = copy.IsChecked == true;
-            Children.Add(VideoPage.Row(copy, "", Lang.T("نسخ صورة الشاشة كاملة"), Lang.T("تنسخ بعد ما تنحفظ عشان تلصقها على طول (Ctrl+V). تحديد المكان تختار له من الأزرار"), 0));
+            Children.Add(VideoPage.Row(copy, "\uE8C8", Lang.T("نسخ صورة الشاشة كاملة"), Lang.T("تنسخ بعد ما تنحفظ عشان تلصقها على طول (Ctrl+V). تحديد المكان تختار له من الأزرار"), 0));
 
             _folderText = new TextBlock { Style = St("RowDesc"), TextWrapping = TextWrapping.Wrap };
             var change = new Button { Style = St("FlatButton"), Content = Lang.T("تغيير…"), Padding = new Thickness(14, 5, 14, 5) };
@@ -119,7 +119,7 @@ namespace WinPlus
             var buttons = new StackPanel { Orientation = Orientation.Horizontal };
             buttons.Children.Add(_folderReset);
             buttons.Children.Add(change);
-            Children.Add(VideoPage.Row(buttons, "", Lang.T("مكان الحفظ"), _folderText, 0));
+            Children.Add(VideoPage.Row(buttons, "\uE8B7", Lang.T("مكان الحفظ"), _folderText, 0));
 
             UpdateKeys();
             UpdateReplay();

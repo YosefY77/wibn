@@ -20,6 +20,7 @@ namespace WinPlus
             Help.AddButtons(this, AllPages);   // a "!" next to every page's title
 
             StartupBox.IsChecked = SettingsStore.StartWithWindows;
+            WindowPinBox.IsChecked = WindowPin.Enabled;
             LanguageBox.SelectedIndex = Lang.English ? 1 : 0;
             _languageReady = true;
             ColorBox.IsChecked = SettingsStore.ColorEnabled;
@@ -68,6 +69,14 @@ namespace WinPlus
 
         // ---- Features (Settings → المزايا) ----------------------------------------
 
+        /// <summary>A feature's icon: the one of its page in the side menu.</summary>
+        private string FeatureGlyph(Features.Feature f)
+        {
+            foreach (var r in System.Linq.Enumerable.OfType<System.Windows.Controls.RadioButton>(SideList.Children))
+                if (r.CommandParameter is string k && System.Array.IndexOf(f.NavKeys, k) >= 0 && r.Tag is string g) return g;
+            return "\uE713";
+        }
+
         private void BuildFeatureList()
         {
             FeatureGrid.Children.Clear();
@@ -89,6 +98,7 @@ namespace WinPlus
                 text.Children.Add(progress);
                 var dock = new DockPanel();
                 dock.Children.Add(box);
+                dock.Children.Add(new TextBlock { Text = FeatureGlyph(f), Style = (Style)FindResource("RowIcon") });
                 dock.Children.Add(text);
                 FeatureGrid.Children.Add(new Border { Style = (Style)FindResource("Row"), Margin = new Thickness(3, 0, 3, 6), Child = dock });
 
@@ -149,7 +159,7 @@ namespace WinPlus
                 }
                 else if (child is RadioButton { CommandParameter: null, DataContext: string rowId } fav)
                 {
-                    // A favorite option from inside a page: shown while its page and itself are.
+                    // A favorite's shortcut (a page, or an option inside one): shown while its page and itself are.
                     string page = RowPage(rowId);
                     bool on = Features.IsNavOn(page) && !SidePrefs.IsHidden(page) && !SidePrefs.IsHidden(rowId);
                     fav.Visibility = on && !folded ? Visibility.Visible : Visibility.Collapsed;
@@ -454,21 +464,13 @@ namespace WinPlus
             if (answer == MessageBoxResult.Yes) ((App)Application.Current).RestartApp();
         }
 
-        private async void OnSendSuggestion(object sender, RoutedEventArgs e)
+        /// <summary>The developer's support page (PayPal), in the browser.</summary>
+        internal const string SupportUrl = "https://paypal.me/YosefY7";
+
+        private void OnSupport(object sender, RoutedEventArgs e)
         {
-            SuggestionSend.IsEnabled = false;
-            SuggestionStatus.Text = Lang.T("يرسل…");
-            try
-            {
-                string? problem = await Suggestions.Send(SuggestionBox.Text);
-                if (problem == null)
-                {
-                    SuggestionBox.Clear();
-                    SuggestionStatus.Text = Lang.T("وصل اقتراحك، شكرًا!");
-                }
-                else SuggestionStatus.Text = problem;
-            }
-            finally { SuggestionSend.IsEnabled = true; }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(SupportUrl) { UseShellExecute = true }); }
+            catch (Exception ex) { CrashLog.Write("support link", ex); }
         }
 
         private void OnExportSettings(object sender, RoutedEventArgs e)
@@ -506,6 +508,12 @@ namespace WinPlus
                 return;
             }
             ((App)Application.Current).RestartApp();   // applied at the start, before anything reads a setting
+        }
+
+        private void OnWindowPinChanged(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            WindowPin.Enabled = WindowPinBox.IsChecked == true;
         }
 
         private void OnStartupChanged(object sender, RoutedEventArgs e)
